@@ -79,6 +79,7 @@
 	get_user(val, srcptr) || put_user(val, dstptr);	\
 })
 
+#ifdef CONFIG_BLOCK
 static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err;
@@ -90,7 +91,6 @@ static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return vfs_ioctl(file, cmd, arg);
 }
 
-#ifdef CONFIG_BLOCK
 typedef struct sg_io_hdr32 {
 	compat_int_t interface_id;	/* [i] 'S' for SCSI generic (required) */
 	compat_int_t dxfer_direction;	/* [i] data transfer direction  */
@@ -311,33 +311,6 @@ struct ppp_option_data32 {
 	compat_int_t		transmit;
 };
 #define PPPIOCSCOMPRESS32	_IOW('t', 77, struct ppp_option_data32)
-
-struct ppp_idle32 {
-	compat_time_t xmit_idle;
-	compat_time_t recv_idle;
-};
-#define PPPIOCGIDLE32		_IOR('t', 63, struct ppp_idle32)
-
-static int ppp_gidle(struct file *file, unsigned int cmd,
-		struct ppp_idle32 __user *idle32)
-{
-	struct ppp_idle __user *idle;
-	__kernel_time_t xmit, recv;
-	int err;
-
-	idle = compat_alloc_user_space(sizeof(*idle));
-
-	err = do_ioctl(file, PPPIOCGIDLE, (unsigned long) idle);
-
-	if (!err) {
-		if (get_user(xmit, &idle->xmit_idle) ||
-		    get_user(recv, &idle->recv_idle) ||
-		    put_user(xmit, &idle32->xmit_idle) ||
-		    put_user(recv, &idle32->recv_idle))
-			err = -EFAULT;
-	}
-	return err;
-}
 
 static int ppp_scompress(struct file *file, unsigned int cmd,
 	struct ppp_option_data32 __user *odata32)
@@ -628,7 +601,8 @@ COMPATIBLE_IOCTL(PPPIOCGDEBUG)
 COMPATIBLE_IOCTL(PPPIOCSDEBUG)
 /* PPPIOCSPASS is translated */
 /* PPPIOCSACTIVE is translated */
-/* PPPIOCGIDLE is translated */
+COMPATIBLE_IOCTL(PPPIOCGIDLE32)
+COMPATIBLE_IOCTL(PPPIOCGIDLE64)
 COMPATIBLE_IOCTL(PPPIOCNEWUNIT)
 COMPATIBLE_IOCTL(PPPIOCATTACH)
 COMPATIBLE_IOCTL(PPPIOCDETACH)
@@ -920,17 +894,15 @@ IGNORE_IOCTL(FBIOGCURSOR32)
 static long do_ioctl_trans(unsigned int cmd,
 		 unsigned long arg, struct file *file)
 {
+#ifdef CONFIG_BLOCK
 	void __user *argp = compat_ptr(arg);
 
 	switch (cmd) {
-	case PPPIOCGIDLE32:
-		return ppp_gidle(file, cmd, argp);
 	case PPPIOCSCOMPRESS32:
 		return ppp_scompress(file, cmd, argp);
 	case PPPIOCSPASS32:
 	case PPPIOCSACTIVE32:
 		return ppp_sock_fprog_ioctl_trans(file, cmd, argp);
-#ifdef CONFIG_BLOCK
 	case SG_IO:
 		return sg_ioctl_trans(file, cmd, argp);
 	case SG_GET_REQUEST_TABLE:
@@ -938,7 +910,6 @@ static long do_ioctl_trans(unsigned int cmd,
 	case MTIOCGET32:
 	case MTIOCPOS32:
 		return mt_ioctl_trans(file, cmd, argp);
-#endif
 	/* Not implemented in the native kernel */
 	case RTC_IRQP_READ32:
 	case RTC_IRQP_SET32:
@@ -958,7 +929,10 @@ static long do_ioctl_trans(unsigned int cmd,
 	case SET_DISK_FAULTY:
 	case SET_BITMAP_FILE:
 		return vfs_ioctl(file, cmd, arg);
+	case SG_GET_REQUEST_TABLE:
+		return sg_grt_trans(file, cmd, argp);
 	}
+#endif
 
 	return -ENOIOCTLCMD;
 }
