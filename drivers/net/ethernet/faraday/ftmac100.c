@@ -4,6 +4,19 @@
  *
  * (C) Copyright 2009-2011 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -38,12 +51,29 @@
 #error invalid RX_BUF_SIZE
 #endif
 
+#define xprintk(...)
+
+#define FTMAC100_RX_DESC(priv, index)     (&priv->descs->rxdes[index])
+#define FTMAC100_RX_DESC_EXT(priv, index) (&priv->descs->rxdes_ext[index])
+#define FTMAC100_TX_DESC(priv, index)     (&priv->descs->txdes[index])
+#define FTMAC100_TX_DESC_EXT(priv, index) (&priv->descs->txdes_ext[index])
+
+#define FTMAC100_CURRENT_RX_DESC_INDEX(priv) (priv->rx_pointer)
+#define FTMAC100_CURRENT_TX_DESC_INDEX(priv) (priv->tx_pointer);
+#define FTMAC100_CURRENT_CLEAN_TX_DESC_INDEX(priv) (priv->tx_clean_pointer);
+
+/* ftmac100_debug parameters */
+extern unsigned int FTMAC100_DEBUG;
+extern unsigned int FTMAC100_INCR;
+
 /******************************************************************************
  * private data
  *****************************************************************************/
 struct ftmac100_descs {
 	struct ftmac100_rxdes rxdes[RX_QUEUE_ENTRIES];
 	struct ftmac100_txdes txdes[TX_QUEUE_ENTRIES];
+	struct ftmac100_rxdes_ext rxdes_ext[RX_QUEUE_ENTRIES];
+	struct ftmac100_txdes_ext txdes_ext[TX_QUEUE_ENTRIES];
 };
 
 struct ftmac100 {
@@ -69,7 +99,7 @@ struct ftmac100 {
 };
 
 static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
-				  struct ftmac100_rxdes *rxdes, gfp_t gfp);
+				  int index, gfp_t gfp);
 
 /******************************************************************************
  * internal functions (hardware register access)
@@ -96,11 +126,13 @@ static void ftmac100_disable_all_int(struct ftmac100 *priv)
 
 static void ftmac100_set_rx_ring_base(struct ftmac100 *priv, dma_addr_t addr)
 {
+	xprintk("%s: addr %p\n", __func__, (void *)addr);
 	iowrite32(addr, priv->base + FTMAC100_OFFSET_RXR_BADR);
 }
 
 static void ftmac100_set_tx_ring_base(struct ftmac100 *priv, dma_addr_t addr)
 {
+	xprintk("%s: addr %p\n", __func__, (void *)addr);
 	iowrite32(addr, priv->base + FTMAC100_OFFSET_TXR_BADR);
 }
 
@@ -172,6 +204,19 @@ static int ftmac100_start_hw(struct ftmac100 *priv)
 				  offsetof(struct ftmac100_descs, txdes));
 
 	iowrite32(FTMAC100_APTC_RXPOLL_CNT(1), priv->base + FTMAC100_OFFSET_APTC);
+
+	// Enable DMA Burst & RXFIFO threshold
+	iowrite32(FTMAC100_DBLAC_RX_THR_EN	|  /* Enable fifo threshold arb */
+		  FTMAC100_DBLAC_INCR16_EN	|  /* Enable INCR[4/8/16] DMA Burst,
+						      this option solve RX RPKT_LOST issue */
+		  FTMAC100_DBLAC_RXFIFO_HTHR(6) |  /* 6/8 of FIFO high threshold */
+		  FTMAC100_DBLAC_RXFIFO_LTHR(2),   /* 2/8 of FIFO low threshold */
+		  priv->base + FTMAC100_OFFSET_DBLAC);
+
+	// Pending interrupt until receive packets reach threshold
+	iowrite32(FTMAC100_ITC_RXINT_THR(1) |
+		  FTMAC100_ITC_TXINT_THR(1),
+		  priv->base + FTMAC100_OFFSET_ITC);
 
 	ftmac100_set_mac(priv, netdev->dev_addr);
 
@@ -259,25 +304,22 @@ static void ftmac100_rxdes_set_dma_addr(struct ftmac100_rxdes *rxdes,
 					dma_addr_t addr)
 {
 	rxdes->rxdes2 = cpu_to_le32(addr);
+	rxdes->rxdes3 = cpu_to_le32(addr >> 32);
 }
 
 static dma_addr_t ftmac100_rxdes_get_dma_addr(struct ftmac100_rxdes *rxdes)
 {
-	return le32_to_cpu(rxdes->rxdes2);
+	return le32_to_cpu(rxdes->rxdes2) | (dma_addr_t)le32_to_cpu(rxdes->rxdes3) << 32;
 }
 
-/*
- * rxdes3 is not used by hardware. We use it to keep track of page.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
- */
-static void ftmac100_rxdes_set_page(struct ftmac100_rxdes *rxdes, struct page *page)
+static void ftmac100_rxdes_set_page(struct ftmac100 *priv, int index, struct page *page)
 {
-	rxdes->rxdes3 = (unsigned int)page;
+	FTMAC100_RX_DESC_EXT(priv, index)->page = page;
 }
 
-static struct page *ftmac100_rxdes_get_page(struct ftmac100_rxdes *rxdes)
+static struct page *ftmac100_rxdes_get_page(struct ftmac100 *priv, int index)
 {
-	return (struct page *)rxdes->rxdes3;
+	return (struct page *)FTMAC100_RX_DESC_EXT(priv, index)->page;
 }
 
 /******************************************************************************
@@ -293,26 +335,23 @@ static void ftmac100_rx_pointer_advance(struct ftmac100 *priv)
 	priv->rx_pointer = ftmac100_next_rx_pointer(priv->rx_pointer);
 }
 
-static struct ftmac100_rxdes *ftmac100_current_rxdes(struct ftmac100 *priv)
-{
-	return &priv->descs->rxdes[priv->rx_pointer];
-}
-
-static struct ftmac100_rxdes *
+static int
 ftmac100_rx_locate_first_segment(struct ftmac100 *priv)
 {
-	struct ftmac100_rxdes *rxdes = ftmac100_current_rxdes(priv);
+	int index = FTMAC100_CURRENT_RX_DESC_INDEX(priv);
+	struct ftmac100_rxdes *rxdes = FTMAC100_RX_DESC(priv, index);
 
 	while (!ftmac100_rxdes_owned_by_dma(rxdes)) {
 		if (ftmac100_rxdes_first_segment(rxdes))
-			return rxdes;
+			return index;
 
 		ftmac100_rxdes_set_dma_own(rxdes);
 		ftmac100_rx_pointer_advance(priv);
-		rxdes = ftmac100_current_rxdes(priv);
+		index = FTMAC100_CURRENT_RX_DESC_INDEX(priv);
+		rxdes = FTMAC100_RX_DESC(priv, index);
 	}
 
-	return NULL;
+	return -1;
 }
 
 static bool ftmac100_rx_packet_error(struct ftmac100 *priv,
@@ -363,8 +402,12 @@ static bool ftmac100_rx_packet_error(struct ftmac100 *priv,
 static void ftmac100_rx_drop_packet(struct ftmac100 *priv)
 {
 	struct net_device *netdev = priv->netdev;
-	struct ftmac100_rxdes *rxdes = ftmac100_current_rxdes(priv);
+	struct ftmac100_rxdes *rxdes;
+	int index;
 	bool done = false;
+
+	index = FTMAC100_CURRENT_RX_DESC_INDEX(priv);
+	rxdes = FTMAC100_RX_DESC(priv, index);
 
 	if (net_ratelimit())
 		netdev_dbg(netdev, "drop packet %p\n", rxdes);
@@ -375,7 +418,8 @@ static void ftmac100_rx_drop_packet(struct ftmac100 *priv)
 
 		ftmac100_rxdes_set_dma_own(rxdes);
 		ftmac100_rx_pointer_advance(priv);
-		rxdes = ftmac100_current_rxdes(priv);
+		index = FTMAC100_CURRENT_RX_DESC_INDEX(priv);
+		rxdes = FTMAC100_RX_DESC(priv, index);
 	} while (!done && !ftmac100_rxdes_owned_by_dma(rxdes));
 
 	netdev->stats.rx_dropped++;
@@ -389,11 +433,13 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 	struct page *page;
 	dma_addr_t map;
 	int length;
+	int index;
 	bool ret;
 
-	rxdes = ftmac100_rx_locate_first_segment(priv);
-	if (!rxdes)
+	index = ftmac100_rx_locate_first_segment(priv);
+	if (index < 0)
 		return false;
+	rxdes = FTMAC100_RX_DESC(priv, index);
 
 	if (unlikely(ftmac100_rx_packet_error(priv, rxdes))) {
 		ftmac100_rx_drop_packet(priv);
@@ -424,7 +470,7 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 	dma_unmap_page(priv->dev, map, RX_BUF_SIZE, DMA_FROM_DEVICE);
 
 	length = ftmac100_rxdes_frame_length(rxdes);
-	page = ftmac100_rxdes_get_page(rxdes);
+	page = ftmac100_rxdes_get_page(priv, index);
 	skb_fill_page_desc(skb, 0, page, 0, length);
 	skb->len += length;
 	skb->data_len += length;
@@ -437,7 +483,7 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 		/* Small frames are copied into linear part to free one page */
 		__pskb_pull_tail(skb, length);
 	}
-	ftmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
+	ftmac100_alloc_rx_page(priv, index, GFP_ATOMIC);
 
 	ftmac100_rx_pointer_advance(priv);
 
@@ -520,25 +566,27 @@ static void ftmac100_txdes_set_dma_addr(struct ftmac100_txdes *txdes,
 					dma_addr_t addr)
 {
 	txdes->txdes2 = cpu_to_le32(addr);
+	txdes->txdes3 = cpu_to_le32(addr >> 32);
 }
 
 static dma_addr_t ftmac100_txdes_get_dma_addr(struct ftmac100_txdes *txdes)
 {
-	return le32_to_cpu(txdes->txdes2);
+	return le32_to_cpu(txdes->txdes2) | (dma_addr_t)le32_to_cpu(txdes->txdes3) << 32;
 }
 
-/*
- * txdes3 is not used by hardware. We use it to keep track of socket buffer.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
- */
-static void ftmac100_txdes_set_skb(struct ftmac100_txdes *txdes, struct sk_buff *skb)
+static void ftmac100_txdes_skb_reset(struct ftmac100 *priv, int index)
 {
-	txdes->txdes3 = (unsigned int)skb;
+	FTMAC100_TX_DESC_EXT(priv, index)->skb = NULL;
 }
 
-static struct sk_buff *ftmac100_txdes_get_skb(struct ftmac100_txdes *txdes)
+static void ftmac100_txdes_set_skb(struct ftmac100 *priv, int index, struct sk_buff *skb)
 {
-	return (struct sk_buff *)txdes->txdes3;
+	FTMAC100_TX_DESC_EXT(priv, index)->skb = skb;
+}
+
+static struct sk_buff *ftmac100_txdes_get_skb(struct ftmac100 *priv, int index)
+{
+	return (struct sk_buff *)FTMAC100_TX_DESC_EXT(priv, index)->skb;
 }
 
 /******************************************************************************
@@ -559,32 +607,24 @@ static void ftmac100_tx_clean_pointer_advance(struct ftmac100 *priv)
 	priv->tx_clean_pointer = ftmac100_next_tx_pointer(priv->tx_clean_pointer);
 }
 
-static struct ftmac100_txdes *ftmac100_current_txdes(struct ftmac100 *priv)
-{
-	return &priv->descs->txdes[priv->tx_pointer];
-}
-
-static struct ftmac100_txdes *ftmac100_current_clean_txdes(struct ftmac100 *priv)
-{
-	return &priv->descs->txdes[priv->tx_clean_pointer];
-}
-
 static bool ftmac100_tx_complete_packet(struct ftmac100 *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct ftmac100_txdes *txdes;
 	struct sk_buff *skb;
 	dma_addr_t map;
+	int index;
 
 	if (priv->tx_pending == 0)
 		return false;
 
-	txdes = ftmac100_current_clean_txdes(priv);
+	index = FTMAC100_CURRENT_CLEAN_TX_DESC_INDEX(priv);
+	txdes = FTMAC100_TX_DESC(priv, index);
 
 	if (ftmac100_txdes_owned_by_dma(txdes))
 		return false;
 
-	skb = ftmac100_txdes_get_skb(txdes);
+	skb = ftmac100_txdes_get_skb(priv, index);
 	map = ftmac100_txdes_get_dma_addr(txdes);
 
 	if (unlikely(ftmac100_txdes_excessive_collision(txdes) ||
@@ -603,6 +643,7 @@ static bool ftmac100_tx_complete_packet(struct ftmac100 *priv)
 	dev_kfree_skb(skb);
 
 	ftmac100_txdes_reset(txdes);
+	ftmac100_txdes_skb_reset(priv, index);
 
 	ftmac100_tx_clean_pointer_advance(priv);
 
@@ -620,18 +661,20 @@ static void ftmac100_tx_complete(struct ftmac100 *priv)
 		;
 }
 
-static netdev_tx_t ftmac100_xmit(struct ftmac100 *priv, struct sk_buff *skb,
-				 dma_addr_t map)
+static int ftmac100_xmit(struct ftmac100 *priv, struct sk_buff *skb,
+			 dma_addr_t map)
 {
 	struct net_device *netdev = priv->netdev;
 	struct ftmac100_txdes *txdes;
 	unsigned int len = (skb->len < ETH_ZLEN) ? ETH_ZLEN : skb->len;
+	int index;
 
-	txdes = ftmac100_current_txdes(priv);
+	index = FTMAC100_CURRENT_TX_DESC_INDEX(priv);
+	txdes = FTMAC100_TX_DESC(priv, index);
 	ftmac100_tx_pointer_advance(priv);
 
 	/* setup TX descriptor */
-	ftmac100_txdes_set_skb(txdes, skb);
+	ftmac100_txdes_set_skb(priv, index, skb);
 	ftmac100_txdes_set_dma_addr(txdes, map);
 
 	ftmac100_txdes_set_first_segment(txdes);
@@ -656,9 +699,10 @@ static netdev_tx_t ftmac100_xmit(struct ftmac100 *priv, struct sk_buff *skb,
  * internal functions (buffer)
  *****************************************************************************/
 static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
-				  struct ftmac100_rxdes *rxdes, gfp_t gfp)
+				  int index, gfp_t gfp)
 {
 	struct net_device *netdev = priv->netdev;
+	struct ftmac100_rxdes *rxdes = FTMAC100_RX_DESC(priv, index);
 	struct page *page;
 	dma_addr_t map;
 
@@ -677,7 +721,7 @@ static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
 		return -ENOMEM;
 	}
 
-	ftmac100_rxdes_set_page(rxdes, page);
+	ftmac100_rxdes_set_page(priv, index, page);
 	ftmac100_rxdes_set_dma_addr(rxdes, map);
 	ftmac100_rxdes_set_buffer_size(rxdes, RX_BUF_SIZE);
 	ftmac100_rxdes_set_dma_own(rxdes);
@@ -689,8 +733,8 @@ static void ftmac100_free_buffers(struct ftmac100 *priv)
 	int i;
 
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
-		struct ftmac100_rxdes *rxdes = &priv->descs->rxdes[i];
-		struct page *page = ftmac100_rxdes_get_page(rxdes);
+		struct ftmac100_rxdes *rxdes = FTMAC100_RX_DESC(priv, i);
+		struct page *page = ftmac100_rxdes_get_page(priv, i);
 		dma_addr_t map = ftmac100_rxdes_get_dma_addr(rxdes);
 
 		if (!page)
@@ -701,8 +745,8 @@ static void ftmac100_free_buffers(struct ftmac100 *priv)
 	}
 
 	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
-		struct ftmac100_txdes *txdes = &priv->descs->txdes[i];
-		struct sk_buff *skb = ftmac100_txdes_get_skb(txdes);
+		struct ftmac100_txdes *txdes = FTMAC100_TX_DESC(priv, i);
+		struct sk_buff *skb = ftmac100_txdes_get_skb(priv, i);
 		dma_addr_t map = ftmac100_txdes_get_dma_addr(txdes);
 
 		if (!skb)
@@ -722,7 +766,8 @@ static int ftmac100_alloc_buffers(struct ftmac100 *priv)
 
 	priv->descs = dma_alloc_coherent(priv->dev,
 					 sizeof(struct ftmac100_descs),
-					 &priv->descs_dma_addr, GFP_KERNEL);
+					 &priv->descs_dma_addr,
+					 GFP_KERNEL);
 	if (!priv->descs)
 		return -ENOMEM;
 
@@ -730,9 +775,7 @@ static int ftmac100_alloc_buffers(struct ftmac100 *priv)
 	ftmac100_rxdes_set_end_of_ring(&priv->descs->rxdes[RX_QUEUE_ENTRIES - 1]);
 
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
-		struct ftmac100_rxdes *rxdes = &priv->descs->rxdes[i];
-
-		if (ftmac100_alloc_rx_page(priv, rxdes, GFP_KERNEL))
+		if (ftmac100_alloc_rx_page(priv, i, GFP_KERNEL))
 			goto err;
 	}
 
@@ -909,7 +952,7 @@ static int ftmac100_poll(struct napi_struct *napi, int budget)
 
 	if (status & (FTMAC100_INT_NORXBUF | FTMAC100_INT_RPKT_LOST |
 		      FTMAC100_INT_AHB_ERR | FTMAC100_INT_PHYSTS_CHG)) {
-		if (net_ratelimit())
+		if (net_ratelimit() && FTMAC100_DEBUG)
 			netdev_info(netdev, "[ISR] = 0x%x: %s%s%s%s\n", status,
 				    status & FTMAC100_INT_NORXBUF ? "NORXBUF " : "",
 				    status & FTMAC100_INT_RPKT_LOST ? "RPKT_LOST " : "",
@@ -961,6 +1004,15 @@ static int ftmac100_open(struct net_device *netdev)
 		goto err_irq;
 	}
 
+	// set sysctl ip fragmentation parameters.
+	// sysctl -w net.ipv4.ipfrag_time
+	// sysctl -w net.ipv4.ipfrag_high_thresh
+	struct net *net;
+
+	net = dev_net(netdev);
+	net->ipv4.fqdir->timeout = (5 * HZ);		/* Decrease fragment timeout, 30 -> 5 */
+	net->ipv4.fqdir->high_thresh = 8 * 1024 * 1024;  /* Increase fragment buffer size, 4M -> 8M */
+
 	priv->rx_pointer = 0;
 	priv->tx_clean_pointer = 0;
 	priv->tx_pointer = 0;
@@ -999,7 +1051,7 @@ static int ftmac100_stop(struct net_device *netdev)
 	return 0;
 }
 
-static netdev_tx_t
+static int
 ftmac100_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ftmac100 *priv = netdev_priv(netdev);
@@ -1166,6 +1218,58 @@ static int ftmac100_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ftmac100_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct ftmac100 *priv = netdev_priv(netdev);
+
+	if (!netif_running(netdev))
+		return 0;
+
+	pr_info("ftmac100_suspend() ...\n");
+
+	ftmac100_disable_all_int(priv);
+
+	netif_stop_queue(netdev);
+
+	napi_disable(&priv->napi);
+
+	netif_tx_lock(netdev);
+	netif_device_detach(netdev);
+	netif_tx_unlock(netdev);
+
+	ftmac100_stop_hw(priv);
+
+	return 0;
+}
+
+static int ftmac100_resume(struct platform_device *pdev)
+{
+	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct ftmac100 *priv = netdev_priv(netdev);
+
+	if (!netif_running(netdev))
+		return 0;
+
+	pr_info("ftmac100_resume() ...\n");
+
+	iowrite32(MACCR_ENABLE_ALL, priv->base + FTMAC100_OFFSET_MACCR);
+
+	napi_enable(&priv->napi);
+
+	netif_tx_lock(netdev);
+	netif_device_attach(netdev);
+	netif_tx_unlock(netdev);
+
+	netif_start_queue(netdev);
+
+	ftmac100_enable_all_int(priv);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 static const struct of_device_id ftmac100_of_ids[] = {
 	{ .compatible = "andestech,atmac100" },
 	{ }
@@ -1178,6 +1282,10 @@ static struct platform_driver ftmac100_driver = {
 		.name	= DRV_NAME,
 		.of_match_table = ftmac100_of_ids
 	},
+#ifdef CONFIG_PM
+	.suspend	= ftmac100_suspend,
+	.resume		= ftmac100_resume,
+#endif /* CONFIG_PM */
 };
 
 /******************************************************************************
