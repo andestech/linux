@@ -6,7 +6,7 @@
 config NET_VENDOR_FARADAY
 	bool "Faraday devices"
 	default y
-	depends on ARM || COMPILE_TEST
+	depends on ARM || RISCV || COMPILE_TEST
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -19,12 +19,12 @@ if NET_VENDOR_FARADAY
 
 config FTMAC100
 	tristate "Faraday FTMAC100 10/100 Ethernet support"
-	depends on ARM || COMPILE_TEST
-	depends on !64BIT || BROKEN
+	depends on ARM || RISCV || COMPILE_TEST
 	select MII
 	help
 	  This driver supports the FTMAC100 10/100 Ethernet controller
-	  from Faraday. It is used on Faraday A320 and some other ARM SoC's.
+	  from Faraday. It is used on Faraday A320, Andes AG101 and some
+	  other ARM/RISCV SoC's.
 
 config FTGMAC100
 	tristate "Faraday FTGMAC100 Gigabit Ethernet support"
