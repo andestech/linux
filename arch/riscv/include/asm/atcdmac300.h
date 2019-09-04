@@ -198,7 +198,7 @@ typedef struct channel_control
 #define DMAC_REQN_UART2RX		7
 #define DMAC_REQN_I2C			8
 #define DMAC_REQN_SDC			9
-#define DMAC_REQN_NONE			15
+#define DMAC_REQN_NONE			16
 
 
 enum DMAD_DMAC_CORE {

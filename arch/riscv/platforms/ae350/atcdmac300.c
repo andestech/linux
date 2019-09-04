@@ -647,15 +647,14 @@ static void dmad_ahb_config_dir(dmad_chreq * ch_req, unsigned long * channel_cmd
 
 	if (ahb_req->tx_dir == 0) {
 		dmad_dbg("%s() addr0 --> addr1\n", __func__);
-		memcpy((u8 *)&ch_ctl.sWidth,(u8 *)&ahb_req->addr0_width,12);
-		memcpy((u8 *)&ch_ctl.dWidth,(u8 *)&ahb_req->addr1_width,12);
 		drq->flags &= ~(addr_t) DMAD_DRQ_DIR_A1_TO_A0;
 	}else{
 		dmad_dbg("%s() addr0 <-- addr1\n", __func__);
-		memcpy((u8 *)&ch_ctl.sWidth,(u8 *)&ahb_req->addr1_width,12);
-		memcpy((u8 *)&ch_ctl.dWidth,(u8 *)&ahb_req->addr0_width,12);
 		drq->flags |= (addr_t) DMAD_DRQ_DIR_A1_TO_A0;
 	}
+		memcpy((u8 *)&ch_ctl.sWidth,(u8 *)&ahb_req->addr0_width,12);
+		memcpy((u8 *)&ch_ctl.dWidth,(u8 *)&ahb_req->addr1_width,12);
+
 	channel_cmds[0] |=(((ch_ctl.sWidth << SRCWIDTH) &SRCWIDTH_MASK) |
 		((ch_ctl.sCtrl << SRCADDRCTRL) &SRCADDRCTRL_MASK) |
 		((ch_ctl.dWidth << DSTWIDTH) &DSTWIDTH_MASK) |
