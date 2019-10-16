@@ -517,6 +517,25 @@ static int apply_uleb128_accumulation(struct module *me, void *location, long bu
 	return 0;
 }
 
+static int apply_r_riscv_10_pcrel_rela(struct module *me, void *location,
+				       Elf_Addr v)
+{
+	s64 offset = (void *)v - (void *)location;
+	u32 imm10 = (offset & 0x400) << (31 - 10);
+	u32 imm9_5 = (offset & 0x3e0) << (25 - 5);
+	u32 imm4_1 = (offset & 0x1e) << (8 - 1);
+
+	*(u32 *) location = (*(u32 *) location & 0x41fff0ff) |
+	    imm10 | imm9_5 | imm4_1;
+	return 0;
+}
+
+static int apply_r_riscv_ignore_rela(struct module *me, void *location,
+				     Elf_Addr v)
+{
+	return 0;
+}
+
 /*
  * Relocations defined in the riscv-elf-psabi-doc.
  * This handles static linking only.
@@ -593,6 +612,19 @@ static const struct relocation_handlers reloc_handlers[] = {
 	/* 62-191 reserved for future standard use */
 	/* 192-255 nonstandard ABI extensions  */
 };
+
+static int (*reloc_handlers_rela_nds(unsigned int type)) (struct module *me,
+							  void *location,
+							  Elf_Addr v)
+{
+	if (type == R_RISCV_10_PCREL)
+		return apply_r_riscv_10_pcrel_rela;
+	else if (type >= R_RISCV_NO_RVC_REGION_BEGIN &&
+		 type <= R_RISCV_RELAX_REGION_END)
+		return apply_r_riscv_ignore_rela;
+	else
+		return NULL;
+}
 
 static void
 process_accumulated_relocations(struct module *me,
@@ -811,7 +843,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		if (type < ARRAY_SIZE(reloc_handlers))
 			handler = reloc_handlers[type].reloc_handler;
 		else
-			handler = NULL;
+			handler = reloc_handlers_rela_nds(type);
 
 		if (!handler) {
 			pr_err("%s: Unknown relocation type %u\n",
