@@ -94,5 +94,22 @@ typedef union __riscv_fp_state elf_fpregset_t;
 #define R_RISCV_SET32		56
 #define R_RISCV_32_PCREL	57
 
+/* Andes V5 */
+#define R_RISCV_ALIGN_BTB	240
+#define R_RISCV_10_PCREL	241
+#define R_RISCV_DATA		242
+#define R_RISCV_LALO_HI20	243
+#define R_RISCV_LALO_LO12_I	244
+#define R_RISCV_RELAX_ENTRY	245
+#define R_RISCV_LGP18S0		246
+#define R_RISCV_LGP17S1		247
+#define R_RISCV_LGP17S2		248
+#define R_RISCV_LGP17S3		249
+#define R_RISCV_SGP18S0		250
+#define R_RISCV_SGP17S1		251
+#define R_RISCV_SGP17S2		252
+#define R_RISCV_SGP17S3		253
+#define R_RISCV_RELAX_REGION_BEGIN	254
+#define R_RISCV_RELAX_REGION_END	255
 
 #endif /* _UAPI_ASM_RISCV_ELF_H */
