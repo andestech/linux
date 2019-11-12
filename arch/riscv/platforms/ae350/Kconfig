@@ -1,0 +1,7 @@
+menu "AE3XX Platform Options"
+
+config ATCDMAC300
+	def_bool y
+	depends on PLATFORM_AHBDMA
+
+endmenu

@@ -1,0 +1,21 @@
+choice
+	prompt "platform type"
+	default PLAT_AE350
+
+config PLAT_AE350
+	bool "ae350 platform"
+
+endchoice
+
+if PLAT_AE350
+source "arch/riscv/platforms/ae350/Kconfig"
+endif
+
+menu "Common Platform Options"
+
+config PLATFORM_AHBDMA
+	prompt "platform AHB DMA support"
+	bool
+	default y
+
+endmenu
