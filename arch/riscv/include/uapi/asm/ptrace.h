@@ -51,6 +51,12 @@ struct user_regs_struct {
 	unsigned long t6;
 };
 
+#ifdef CONFIG_DSP
+struct __riscv_dsp_state {
+	unsigned long ucode;
+};
+#endif
+
 struct __riscv_f_ext_state {
 	__u32 f[32];
 	__u32 fcsr;

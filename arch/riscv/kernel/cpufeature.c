@@ -21,6 +21,10 @@ static DECLARE_BITMAP(riscv_isa, RISCV_ISA_EXT_MAX) __read_mostly;
 #ifdef CONFIG_FPU
 bool has_fpu __read_mostly;
 #endif
+#ifdef CONFIG_DSP
+bool has_dsp __read_mostly;
+#endif
+
 
 /**
  * riscv_isa_extension_base() - Get base extension word
@@ -147,5 +151,9 @@ void riscv_fill_hwcap(void)
 #ifdef CONFIG_FPU
 	if (elf_hwcap & (COMPAT_HWCAP_ISA_F | COMPAT_HWCAP_ISA_D))
 		has_fpu = true;
+#endif
+#ifdef CONFIG_DSP
+       if (strstr(isa, "xdsp"))
+               has_dsp = true;
 #endif
 }
