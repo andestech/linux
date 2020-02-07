@@ -526,8 +526,8 @@ static irqreturn_t dmad_ahb_isr(int irq, void *dev_id)
 
 		dmad_dbg("dma finish\n");
 
-		dmad_dbg("finish drb(%d 0x%08x) addr0(0x%08x) "
-			 "addr1(0x%08x) size(0x%08x)\n",
+		dmad_dbg("finish drb(%d 0x%08x) addr0(0x%08llx) "
+			 "addr1(0x%08llx) size(0x%08llx)\n",
 			 drb->node, (u32) drb, drb->src_addr,
 			 drb->dst_addr, drb->req_cycle);
 
@@ -548,8 +548,8 @@ static irqreturn_t dmad_ahb_isr(int irq, void *dev_id)
 			// Lookup next DRB (DMA Request Block)
 			drb_iter = &drq->drb_pool[drq->sbt_head];
 
-			dmad_dbg("exec drb(%d 0x%08x) addr0(0x%08x) "
-				 "addr1(0x%08x) size(0x%08x)\n",
+			dmad_dbg("exec drb(%d 0x%08x) addr0(0x%08llx) "
+				 "addr1(0x%08llx) size(0x%08llx)\n",
 				 drb_iter->node, (u32) drb_iter,
 				 drb_iter->src_addr, drb_iter->dst_addr,
 				 drb_iter->req_cycle);
@@ -640,20 +640,22 @@ static void dmad_ahb_config_dir(dmad_chreq * ch_req, unsigned long * channel_cmd
 	dmad_drq *drq = (dmad_drq *) ch_req->drq;
 	dmad_ahb_chreq *ahb_req = (dmad_ahb_chreq *) (&ch_req->ahb_req);
 	channel_control ch_ctl;
-	dmad_dbg("%s() channel_cmds(0x%08x)\n",__func__, channel_cmds[0]);
+	dmad_dbg("%s() channel_cmds(0x%08lx)\n",__func__, channel_cmds[0]);
 	channel_cmds[0] &= ~(u32)(SRCWIDTH_MASK|SRCADDRCTRL_MASK|
 		DSTWIDTH_MASK|DSTADDRCTRL_MASK|
 		SRC_HS|DST_HS|SRCREQSEL_MASK|DSTREQSEL_MASK);
 
 	if (ahb_req->tx_dir == 0) {
 		dmad_dbg("%s() addr0 --> addr1\n", __func__);
+		memcpy((u8 *)&ch_ctl.sWidth,(u8 *)&ahb_req->addr0_width,12);
+		memcpy((u8 *)&ch_ctl.dWidth,(u8 *)&ahb_req->addr1_width,12);
 		drq->flags &= ~(addr_t) DMAD_DRQ_DIR_A1_TO_A0;
 	}else{
 		dmad_dbg("%s() addr0 <-- addr1\n", __func__);
+		memcpy((u8 *)&ch_ctl.sWidth,(u8 *)&ahb_req->addr1_width,12);
+		memcpy((u8 *)&ch_ctl.dWidth,(u8 *)&ahb_req->addr0_width,12);
 		drq->flags |= (addr_t) DMAD_DRQ_DIR_A1_TO_A0;
 	}
-		memcpy((u8 *)&ch_ctl.sWidth,(u8 *)&ahb_req->addr0_width,12);
-		memcpy((u8 *)&ch_ctl.dWidth,(u8 *)&ahb_req->addr1_width,12);
 
 	channel_cmds[0] |=(((ch_ctl.sWidth << SRCWIDTH) &SRCWIDTH_MASK) |
 		((ch_ctl.sCtrl << SRCADDRCTRL) &SRCADDRCTRL_MASK) |
@@ -672,7 +674,7 @@ static void dmad_ahb_config_dir(dmad_chreq * ch_req, unsigned long * channel_cmd
 				((ch_ctl.dReqn <<DSTREQSEL)&DSTREQSEL_MASK));
 		}
 	}
-	dmad_dbg("%s() channel_cmds(0x%08x)\n",
+	dmad_dbg("%s() channel_cmds(0x%08lx)\n",
 		 __func__, channel_cmds[0]);
 }
 
@@ -994,9 +996,9 @@ int dmad_channel_alloc(dmad_chreq * ch_req)
 
 		}
 
-		dmad_dbg("%s() ring: base(0x%08x) port(0x%08x) periods(0x%08x)"
-			 " period_size(0x%08x) period_bytes(0x%08x)"
-			 " remnant_size(0x%08x)\n",
+		dmad_dbg("%s() ring: base(0x%08llx) port(0x%08lx) periods(0x%08x)"
+			 " period_size(0x%08x) period_bytes(0x%08llx)"
+			 " remnant_size(0x%08llx)\n",
 			 __func__, drq_iter->ring_base, drq_iter->ring_port,
 			 drq_iter->periods, drq_iter->period_size,
 			 drq_iter->period_bytes, drq_iter->remnant_size);
@@ -1483,13 +1485,13 @@ static inline int dmad_submit_request_internal(dmad_drq * drq, dmad_drb * drb)
 
 		drb->state = DMAD_DRB_STATE_SUBMITTED;
 
-		dmad_dbg("%s() submit drb(%d 0x%08x) addr0(0x%08x) "
-			 "addr1(0x%08x) size(0x%08x) state(%d)\n", __func__,
+		dmad_dbg("%s() submit drb(%d 0x%08x) addr0(0x%08llx) "
+			 "addr1(0x%08llx) size(0x%08llx) state(%d)\n", __func__,
 			 drb->node, (u32) drb, drb->src_addr, drb->dst_addr,
 			 drb->req_cycle, drb->state);
 	} else {
-		dmad_dbg("%s() skip drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x)"
-			 " size(0x%08x) state(%d)\n", __func__,
+		dmad_dbg("%s() skip drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx)"
+			 " size(0x%08llx) state(%d)\n", __func__,
 			 drb->node, (u32) drb, drb->src_addr, drb->dst_addr,
 			 drb->req_cycle, drb->state);
 	}
@@ -1544,8 +1546,8 @@ int dmad_submit_request(dmad_chreq * ch_req, dmad_drb * drb, u8 keep_fired)
 			 drb->node);
 
 	/* Queue DRB to the end of the submitted list */
-	dmad_dbg("submit drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x) "
-		 "size(0x%08x) sync(0x%08x) fire(%d)\n",
+	dmad_dbg("submit drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) "
+		 "size(0x%08llx) sync(0x%08x) fire(%d)\n",
 		 drb->node, (u32) drb, drb->src_addr, drb->dst_addr,
 		 drb->req_cycle, (u32) drb->sync, keep_fired);
 
@@ -1635,8 +1637,8 @@ int dmad_withdraw_request(dmad_chreq * ch_req, dmad_drb * drb)
 		return -EBADR;
 	}
 
-	dmad_dbg("cancel drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x) "
-		 "size(0x%08x) state(%d)\n",
+	dmad_dbg("cancel drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) "
+		 "size(0x%08llx) state(%d)\n",
 		 drb->node, (u32) drb, drb->src_addr, drb->dst_addr,
 		 drb->req_cycle, drb->state);
 
@@ -1686,8 +1688,8 @@ static inline int dmad_kickoff_requests_internal(dmad_drq * drq)
 		return -EBADR;
 	}
 
-	dmad_dbg("%s() drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x) "
-		 "size(0x%08x) state(%d)\n", __func__,
+	dmad_dbg("%s() drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) "
+		 "size(0x%08llx) state(%d)\n", __func__,
 		 drb->node, (u32) drb, drb->src_addr, drb->dst_addr,
 		 drb->req_cycle, drb->state);
 
@@ -1748,10 +1750,10 @@ int dmad_kickoff_requests(dmad_chreq * ch_req)
 
 	dmad_get_head(drq->drb_pool, &drq->sbt_head, &drq->sbt_tail, &drb);
 
-	dmad_dbg("drq(0x%08x) channel_base(0x%08x)\n",
+	dmad_dbg("drq(0x%08x) channel_base(0x%08lx)\n",
 		 (u32) drq, drq->channel_base);
-	dmad_dbg("kick off drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x) "
-		 "size(0x%08x) state(%d) a1_to_a0(%d)\n",
+	dmad_dbg("kick off drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) "
+		 "size(0x%08llx) state(%d) a1_to_a0(%d)\n",
 		 (u32) drb->node, (u32) drb, drb->addr0, drb->addr1,
 		 drb->req_cycle, drb->state,
 		 drq->flags & DMAD_DRQ_DIR_A1_TO_A0);
@@ -1875,9 +1877,9 @@ int dmad_update_ring(dmad_chreq * ch_req)
 
 	spin_unlock_irqrestore(&drq->drb_pool_lock, lock_flags);
 
-	dmad_dbg("%s() ring: base(0x%08x) port(0x%08x) periods(0x%08x) "
-		 "period_size(0x%08x) period_bytes(0x%08x) "
-		 "remnant_size(0x%08x)\n",
+	dmad_dbg("%s() ring: base(0x%08llx) port(0x%08lx) periods(0x%08x) "
+		 "period_size(0x%08x) period_bytes(0x%08llx) "
+		 "remnant_size(0x%08llx)\n",
 		 __func__, drq->ring_base, drq->ring_port,
 		 drq->periods, drq->period_size, drq->period_bytes,
 		 drq->remnant_size);
@@ -1947,10 +1949,10 @@ int dmad_update_ring_sw_ptr(dmad_chreq * ch_req,
 		sw_p_off += period_size;
 	}
 
-	dmad_dbg("%s() ring_ptr(0x%08x) ring_p_idx(0x%08x) "
-		 "ring_p_off(0x%08x)\n",
+	dmad_dbg("%s() ring_ptr(0x%08llx) ring_p_idx(0x%08x) "
+		 "ring_p_off(0x%08llx)\n",
 		 __func__, ring_ptr, ring_p_idx, ring_p_off);
-	dmad_dbg("%s() sw_ptr(0x%08x) sw_p_idx(0x%08x) sw_p_off(0x%08x)\n",
+	dmad_dbg("%s() sw_ptr(0x%08llx) sw_p_idx(0x%08x) sw_p_off(0x%08llx)\n",
 		 __func__, sw_ptr, sw_p_idx, sw_p_off);
 
 	if (drq->ring_drb &&
@@ -1970,8 +1972,8 @@ int dmad_update_ring_sw_ptr(dmad_chreq * ch_req,
 		drb->addr1 = drq->dev_addr;
 		drb->req_cycle = 0;	// redundent, though, no harm to performance
 
-		dmad_dbg("init_drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x) "
-			 "size(0x%08x) state(%d)\n",
+		dmad_dbg("init_drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) "
+			 "size(0x%08llx) state(%d)\n",
 			 (u32) drb->node, (u32) drb, drb->src_addr,
 			 drb->dst_addr, drb->req_cycle, drb->state);
 
@@ -2023,8 +2025,8 @@ int dmad_update_ring_sw_ptr(dmad_chreq * ch_req,
 		/* update drb size at ring_ptr */
 		drb->req_cycle = sw_p_off;
 
-		dmad_dbg("ring_drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x) "
-			 "size(0x%08x) state(%d)\n",
+		dmad_dbg("ring_drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) "
+			 "size(0x%08llx) state(%d)\n",
 			 (u32) drb->node, (u32) drb, drb->addr0, drb->addr1,
 			 drb->req_cycle, drb->state);
 
@@ -2068,8 +2070,8 @@ int dmad_update_ring_sw_ptr(dmad_chreq * ch_req,
 		else
 			drb->req_cycle = period_size;
 
-		dmad_dbg("ring_drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x) "
-			 "size(0x%08x) state(%d)\n",
+		dmad_dbg("ring_drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) "
+			 "size(0x%08llx) state(%d)\n",
 			 (u32) drb->node, (u32) drb, drb->addr0, drb->addr1,
 			 drb->req_cycle, drb->state);
 
@@ -2146,8 +2148,8 @@ int dmad_update_ring_sw_ptr(dmad_chreq * ch_req,
 				drb->req_cycle = period_size;
 			}
 
-			dmad_dbg("inbtw_drb(%d 0x%08x) addr0(0x%08x) "
-				 "addr1(0x%08x) size(0x%08x) state(%d)\n",
+			dmad_dbg("inbtw_drb(%d 0x%08x) addr0(0x%08llx) "
+				 "addr1(0x%08llx) size(0x%08llx) state(%d)\n",
 				 (u32) drb->node, (u32) drb, drb->addr0,
 				 drb->addr1, drb->req_cycle, drb->state);
 
@@ -2165,8 +2167,8 @@ int dmad_update_ring_sw_ptr(dmad_chreq * ch_req,
 		drb->addr1 = drq->dev_addr;
 		drb->req_cycle = sw_p_off;
 
-		dmad_dbg("swptr_drb(%d 0x%08x) addr0(0x%08x) addr1(0x%08x) "
-			 "size(0x%08x) state(%d)\n",
+		dmad_dbg("swptr_drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) "
+			 "size(0x%08llx) state(%d)\n",
 			 (u32) drb->node, (u32) drb, drb->addr0, drb->addr1,
 			 drb->req_cycle, drb->state);
 
@@ -2253,8 +2255,8 @@ static int dmad_channel_drain(u32 controller, dmad_drq * drq, u8 shutdown)
 	dmad_detach_head(drq->drb_pool, &drq->sbt_head, &drq->sbt_tail, &drb);
 
 	while (drb) {
-		dmad_dbg("cancel sbt drb(%d 0x%08x) addr0(0x%08x) "
-			 "addr1(0x%08x) size(0x%08x) state(%d)\n",
+		dmad_dbg("cancel sbt drb(%d 0x%08x) addr0(0x%08llx) "
+			 "addr1(0x%08llx) size(0x%08llx) state(%d)\n",
 			 drb->node, (u32) drb, drb->src_addr, drb->dst_addr,
 			 drb->req_cycle, (u32) drb->state);
 
@@ -2275,8 +2277,8 @@ static int dmad_channel_drain(u32 controller, dmad_drq * drq, u8 shutdown)
 	dmad_detach_head(drq->drb_pool, &drq->rdy_head, &drq->rdy_tail, &drb);
 
 	while (drb) {
-		dmad_dbg("cancel rdy drb(%d 0x%08x) addr0(0x%08x) "
-			 "addr1(0x%08x) size(0x%08x) state(%d)\n",
+		dmad_dbg("cancel rdy drb(%d 0x%08x) addr0(0x%08llx) "
+			 "addr1(0x%08llx) size(0x%08llx) state(%d)\n",
 			 drb->node, (u32) drb, drb->src_addr, drb->dst_addr,
 			 drb->req_cycle, (u32) drb->state);
 

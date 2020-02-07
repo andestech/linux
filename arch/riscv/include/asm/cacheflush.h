@@ -8,6 +8,22 @@
 
 #include <linux/mm.h>
 
+#ifndef flush_cache_vmap
+#define flush_cache_vmap __flush_cache_vmap
+static inline void __flush_cache_vmap(unsigned long start, unsigned long end)
+{
+	local_flush_tlb_all();
+}
+#endif
+
+#ifndef flush_cache_vunmap
+#define flush_cache_vunmap __flush_cache_vunmap
+static inline void __flush_cache_vunmap(unsigned long start, unsigned long end)
+{
+	local_flush_tlb_all();
+}
+#endif
+
 static inline void local_flush_icache_all(void)
 {
 	asm volatile ("fence.i" ::: "memory");

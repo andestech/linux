@@ -29,6 +29,7 @@ void AHBDMA_irq_rounter(struct irq_desc *desc)
 		raw_spin_lock(&desc->lock);
 	}
 	desc->irq_data.chip->irq_unmask(&desc->irq_data);
+	desc->irq_data.chip->irq_eoi(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 }
 

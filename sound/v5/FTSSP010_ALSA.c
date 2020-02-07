@@ -612,8 +612,9 @@ static inline int snd_ftssp_dma_ch_alloc(struct snd_pcm_substream *substream)
 		}
 		else
 #endif
-			ch_req->ahb_req.ring_reqn  = DMAC_REQN_NONE;
-			ch_req->ahb_req.dev_reqn   = DMAC_REQN_I2SAC97TX; /*DST HS*/
+			/*TX DST handshake mode addr0 --> addr1
+			 * tx_dir == 0, addr1 set handshake ID*/
+			ch_req->ahb_req.dev_reqn = DMAC_REQN_I2SAC97TX;
 	} else {
 		ch_req = &dma_chreq_rx;
 		ch_req->completion_cb    = ftssp_dma_callback_rx;
@@ -625,8 +626,9 @@ static inline int snd_ftssp_dma_ch_alloc(struct snd_pcm_substream *substream)
 		}
 		else
 #endif
-			ch_req->ahb_req.ring_reqn = DMAC_REQN_I2SAC97RX; /*SRC HS*/
-			ch_req->ahb_req.dev_reqn  = DMAC_REQN_NONE;
+			/*RX SRC handshake mode, addr1 --> addr0
+			 *tx_dir == 1, addr1 set handshake ID*/
+			ch_req->ahb_req.dev_reqn  = DMAC_REQN_I2SAC97RX;
 	}
 
 	ch_req->controller           = DMAD_DMAC_AHB_CORE;
@@ -644,11 +646,13 @@ static inline int snd_ftssp_dma_ch_alloc(struct snd_pcm_substream *substream)
 	if (ac97) {
 		ch_req->ahb_req.ring_width   = DMAC_CSR_WIDTH_32;
 		ch_req->ahb_req.ring_ctrl    = DMAC_CSR_AD_INC;
+		ch_req->ahb_req.ring_reqn    = DMAC_REQN_NONE;
 		ch_req->ahb_req.dev_width    = DMAC_CSR_WIDTH_32;
 		ch_req->ahb_req.dev_ctrl     = DMAC_CSR_AD_FIX;
 	} else {
 		ch_req->ahb_req.ring_width   = DMAC_CSR_WIDTH_16;
 		ch_req->ahb_req.ring_ctrl    = DMAC_CSR_AD_INC;
+		ch_req->ahb_req.ring_reqn    = DMAC_REQN_NONE;
 		ch_req->ahb_req.dev_width    = DMAC_CSR_WIDTH_16;
 		ch_req->ahb_req.dev_ctrl     = DMAC_CSR_AD_FIX;
 	}
