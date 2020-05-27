@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-direct.h>
+#include <linux/dma-noncoherent.h>
 #include <linux/scatterlist.h>
 #include <asm/andesv5/proc.h>
 
@@ -48,7 +49,7 @@ static inline void cache_op(phys_addr_t paddr, size_t size,
 	fn(start, start + size);
 }
 
-void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
+void arch_sync_dma_for_device(phys_addr_t paddr,
 		size_t size, enum dma_data_direction dir)
 {
 	switch (dir) {
@@ -64,7 +65,7 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 	}
 }
 
-void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
+void arch_sync_dma_for_cpu(phys_addr_t paddr,
 		size_t size, enum dma_data_direction dir)
 {
 	switch (dir) {
