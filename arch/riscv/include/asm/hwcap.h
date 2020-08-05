@@ -12,6 +12,7 @@
 #include <uapi/asm/hwcap.h>
 
 #ifndef __ASSEMBLY__
+#include <asm/elf.h>
 /*
  * This yields a mask that user programs can use to figure out what
  * instruction set this cpu supports.
