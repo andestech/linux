@@ -18,8 +18,13 @@
 /*
  * The RISCV_MAX_COUNTERS parameter should be specified.
  */
-
+#ifdef CONFIG_ANDES_PMU
+#define RISCV_MAX_COUNTERS	7
+#define L2C_MAX_COUNTERS	32
+#define BASE_COUNTERS		3
+#else
 #define RISCV_MAX_COUNTERS	2
+#endif	/* CONFIG_ANDES_PMU */
 
 /*
  * These are the indexes of bits in counteren register *minus* 1,

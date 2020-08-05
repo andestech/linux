@@ -66,11 +66,13 @@ void andes_suspend2ram(void);
 
 static inline void sbi_suspend_prepare(char main_core, char enable)
 {
-	SBI_CALL_2(SBI_SUSPEND_PREPARE, main_core, enable);
+	/* TODO */
+	// SBI_CALL_2(SBI_SUSPEND_PREPARE, main_core, enable);
 }
 
 static inline void sbi_suspend_mem(void)
 {
-	SBI_CALL_0(SBI_SUSPEND_MEM);
+	/* TODO */
+	// SBI_CALL_0(SBI_SUSPEND_MEM);
 }
 #endif

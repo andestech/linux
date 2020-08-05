@@ -7,7 +7,6 @@
 #define _ASM_RISCV_PGTABLE_H
 
 #include <linux/mmzone.h>
-#include <linux/sizes.h>
 
 #include <asm/pgtable-bits.h>
 
@@ -18,6 +17,7 @@
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 #include <linux/mm_types.h>
+#include <linux/sizes.h>
 
 #ifdef CONFIG_MMU
 
@@ -134,6 +134,12 @@ extern pgd_t swapper_pg_dir[];
 #define __S110	PAGE_SHARED_EXEC
 #define __S111	PAGE_SHARED_EXEC
 
+#define pgprot_noncached pgprot_noncached
+static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+{
+       return __pgprot(pgprot_val(_prot) | _PAGE_NONCACHEABLE);
+}
+
 static inline int pmd_present(pmd_t pmd)
 {
 	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
@@ -159,6 +165,7 @@ static inline int pmd_leaf(pmd_t pmd)
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 	*pmdp = pmd;
+	local_flush_tlb_all();
 }
 
 static inline void pmd_clear(pmd_t *pmdp)
@@ -195,9 +202,16 @@ static inline unsigned long pte_pfn(pte_t pte)
 #define pte_page(x)     pfn_to_page(pte_pfn(x))
 
 /* Constructs a page table entry */
+extern phys_addr_t pa_msb;
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 {
-	return __pte((pfn << _PAGE_PFN_SHIFT) | pgprot_val(prot));
+	pte_t ret;
+	if (pgprot_val(prot) & _PAGE_NONCACHEABLE) {
+		ret = __pte(((pfn|pa_msb) << _PAGE_PFN_SHIFT) | (pgprot_val(prot) & ~_PAGE_NONCACHEABLE));
+	} else {
+		ret = __pte((pfn << _PAGE_PFN_SHIFT) | pgprot_val(prot));
+	}
+	return ret;
 }
 
 #define mk_pte(page, prot)       pfn_pte(page_to_pfn(page), prot)
@@ -327,6 +341,7 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
+	local_flush_tlb_all();
 }
 
 void flush_icache_pte(pte_t pte);

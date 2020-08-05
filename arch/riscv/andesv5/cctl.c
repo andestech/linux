@@ -19,7 +19,7 @@ struct entry_struct{
 
 	char *name;
 	int perm;
-	struct file_operations *fops;
+	const struct proc_ops *fops;
 };
 
 static struct proc_dir_entry *proc_cctl;
@@ -190,10 +190,10 @@ static ssize_t proc_write_cache_en(struct file *file,
 	return count;
 }
 
-static struct file_operations en_fops = {
-	.open = simple_open,
-	.read = proc_read_cache_en,
-	.write = proc_write_cache_en,
+static const struct proc_ops en_fops = {
+	.proc_open = simple_open,
+	.proc_read = proc_read_cache_en,
+	.proc_write = proc_write_cache_en,
 };
 
 static void create_seq_entry(struct entry_struct *e, mode_t mode,
@@ -228,7 +228,8 @@ struct entry_struct proc_table_cache[] = {
 
 	{"ic_en", 0644, &en_fops},
 	{"dc_en", 0644, &en_fops},
-	{"l2c_en", 0644, &en_fops}
+	{"l2c_en", 0644, &en_fops},
+	{NULL, 0, 0}
 };
 static int __init init_cctl(void)
 {

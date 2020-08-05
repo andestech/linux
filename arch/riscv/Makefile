@@ -109,7 +109,7 @@ KBUILD_IMAGE	:= $(boot)/Image.gz
 
 head-y := arch/riscv/kernel/head.o
 
-core-y += arch/riscv/kernel/ arch/riscv/mm/ arch/riscv/net/ arch/riscv/platforms/
+core-y += arch/riscv/kernel/ arch/riscv/mm/ arch/riscv/net/ arch/riscv/platforms/ arch/riscv/andesv5/
 
 libs-y += arch/riscv/lib/
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a

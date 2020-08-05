@@ -48,6 +48,13 @@ struct screen_info screen_info __section(".data") = {
  * BSS.
  */
 atomic_t hart_lottery __section(".sdata");
+phys_addr_t pa_msb;
+asmlinkage void __init setup_maxpa(void)
+{
+    csr_write(satp, SATP_PPN);
+    pa_msb = (csr_read(satp) + 1) >>1;
+}
+
 unsigned long boot_cpu_hartid;
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 

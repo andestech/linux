@@ -17,6 +17,20 @@
 #include <asm/early_ioremap.h>
 
 /*
+ * The RISC-V ISA doesn't yet specify how to query or modify PMAs, so we can't
+ * change the properties of memory regions.  This should be fixed by the
+ * upcoming platform spec.
+ */
+/*
+ * That being said, before PMA is ready, Andes augmented PA with an MSB bit
+ * to indicate the non-cacheability.
+ */
+#define ioremap_nocache ioremap_nocache
+extern void __iomem *ioremap_nocache(phys_addr_t offset, size_t size);
+#define ioremap_wc(addr, size) ioremap_nocache((addr), (size))
+#define ioremap_wt(addr, size) ioremap_nocache((addr), (size))
+
+/*
  * MMIO access functions are separated out to break dependency cycles
  * when using {read,write}* fns in low-level headers
  */

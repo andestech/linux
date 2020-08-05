@@ -66,7 +66,7 @@ void cpu_dcache_wb_range(unsigned long start, unsigned long end, int line_size)
 		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_WB);
 
 		if (l2c_base) {
-			pa = virt_to_phys(start);
+			pa = virt_to_phys((void*)start);
 			writel(pa, (void*)(l2c_base + L2C_REG_CN_ACC_OFFSET(mhartid)));
 			writel(CCTL_L2_PA_WB, (void*)(l2c_base + L2C_REG_CN_CMD_OFFSET(mhartid)));
 			while ((cpu_l2c_get_cctl_status() & CCTL_L2_STATUS_CN_MASK(mhartid))
@@ -86,7 +86,7 @@ void cpu_dcache_inval_range(unsigned long start, unsigned long end, int line_siz
 		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_INVAL);
 
 		if (l2c_base) {
-			pa = virt_to_phys(start);
+			pa = virt_to_phys((void*)start);
 			writel(pa, (void*)(l2c_base + L2C_REG_CN_ACC_OFFSET(mhartid)));
 			writel(CCTL_L2_PA_INVAL, (void*)(l2c_base + L2C_REG_CN_CMD_OFFSET(mhartid)));
 			while ((cpu_l2c_get_cctl_status() & CCTL_L2_STATUS_CN_MASK(mhartid))
@@ -144,35 +144,40 @@ EXPORT_SYMBOL(cpu_dma_wb_range);
 /* L1 Cache */
 int cpu_l1c_status(void)
 {
-	return SBI_CALL_0(SBI_L1CACHE_STATUS);
+	/* TODO */
+	// return SBI_CALL_0(SBI_L1CACHE_STATUS);
 }
 
 void cpu_icache_enable(void *info)
 {
-	SBI_CALL_1(SBI_ICACHE_OP, 1);
+	/* TODO */
+	// SBI_CALL_1(SBI_ICACHE_OP, 1);
 }
 
 void cpu_icache_disable(void *info)
 {
-	unsigned long flags;
+	/* TODO */
+	// unsigned long flags;
 
-	local_irq_save(flags);
-	SBI_CALL_1(SBI_ICACHE_OP, 0);
-	local_irq_restore(flags);
+	// local_irq_save(flags);
+	// SBI_CALL_1(SBI_ICACHE_OP, 0);
+	// local_irq_restore(flags);
 }
 
 void cpu_dcache_enable(void *info)
 {
-	SBI_CALL_1(SBI_DCACHE_OP, 1);
+	/* TODO */
+	// SBI_CALL_1(SBI_DCACHE_OP, 1);
 }
 
 void cpu_dcache_disable(void *info)
 {
-	unsigned long flags;
+	/* TODO */
+	// unsigned long flags;
 
-	local_irq_save(flags);
-	SBI_CALL_1(SBI_DCACHE_OP, 0);
-	local_irq_restore(flags);
+	// local_irq_save(flags);
+	// SBI_CALL_1(SBI_DCACHE_OP, 0);
+	// local_irq_restore(flags);
 }
 
 /* L2 Cache */
