@@ -22,7 +22,6 @@
 
 #define INTERRUPT_CAUSE_PMU        274
 
-void riscv_timer_interrupt(void);
 void riscv_software_interrupt(void);
 
 #include <asm-generic/irq.h>
