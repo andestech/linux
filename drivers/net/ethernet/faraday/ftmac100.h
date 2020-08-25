@@ -4,6 +4,20 @@
  *
  * (C) Copyright 2009-2011 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __FTMAC100_H
@@ -22,6 +36,8 @@
 #define	FTMAC100_OFFSET_ITC		0x28
 #define	FTMAC100_OFFSET_APTC		0x2c
 #define	FTMAC100_OFFSET_DBLAC		0x30
+#define	FTMAC100_OFFSET_TXR_BADR_H	0x40
+#define	FTMAC100_OFFSET_RXR_BADR_H	0x44
 #define	FTMAC100_OFFSET_MACCR		0x88
 #define	FTMAC100_OFFSET_MACSR		0x8c
 #define	FTMAC100_OFFSET_PHYCR		0x90
@@ -125,7 +141,7 @@ struct ftmac100_txdes {
 	unsigned int	txdes0;
 	unsigned int	txdes1;
 	unsigned int	txdes2;	/* TXBUF_BADR */
-	unsigned int	txdes3;	/* not used by HW */
+	unsigned int	txdes3;	/* TXBUF_BADR_H */
 } __attribute__ ((aligned(16)));
 
 #define	FTMAC100_TXDES0_TXPKT_LATECOL	(1 << 0)
@@ -146,7 +162,7 @@ struct ftmac100_rxdes {
 	unsigned int	rxdes0;
 	unsigned int	rxdes1;
 	unsigned int	rxdes2;	/* RXBUF_BADR */
-	unsigned int	rxdes3;	/* not used by HW */
+	unsigned int	rxdes3;	/* RXBUF_BADR_H */
 } __attribute__ ((aligned(16)));
 
 #define	FTMAC100_RXDES0_RFL		0x7ff
@@ -163,5 +179,13 @@ struct ftmac100_rxdes {
 
 #define	FTMAC100_RXDES1_RXBUF_SIZE(x)	((x) & 0x7ff)
 #define	FTMAC100_RXDES1_EDORR		(1 << 31)
+
+struct ftmac100_txdes_ext {
+	void *skb;
+};
+
+struct ftmac100_rxdes_ext {
+	void *page;
+};
 
 #endif /* __FTMAC100_H */

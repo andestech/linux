@@ -20,7 +20,6 @@ if NET_VENDOR_FARADAY
 config FTMAC100
 	tristate "Faraday FTMAC100 10/100 Ethernet support"
 	depends on ARM || RISCV || COMPILE_TEST
-	depends on !64BIT || BROKEN
 	select MII
 	help
 	  This driver supports the FTMAC100 10/100 Ethernet controller
@@ -30,7 +29,6 @@ config FTMAC100
 config FTGMAC100
 	tristate "Faraday FTGMAC100 Gigabit Ethernet support"
 	depends on ARM || RISCV || COMPILE_TEST
-	depends on !64BIT || BROKEN
 	select PHYLIB
 	select MDIO_ASPEED if MACH_ASPEED_G6
 	select CRC32
