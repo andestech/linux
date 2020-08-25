@@ -693,16 +693,19 @@ static int dmad_ahb_init(dmad_chreq * ch_req)
 	dmad_ahb_chreq *ahb_req = (dmad_ahb_chreq *) (&ch_req->ahb_req);
 	u32 channel = (u32) ch_req->channel;
 
+	int virq=0;
+
 	unsigned long channel_base = drq->channel_base;
 	addr_t channel_cmds[1];
 	unsigned long lock_flags;
 	dmad_dbg("%s()\n", __func__);
 	/* register interrupt handler */
-	err = request_irq(ahb_irqs[channel], dmad_ahb_isr, 0,
+	virq = ftdmac020_find_irq(ahb_irqs[channel]);
+	err = request_irq(virq, dmad_ahb_isr, 0,
 			  "AHB_DMA", (void *)(unsigned long)(channel + 1));
 	if (unlikely(err != 0)) {
 		dmad_err("unable to request IRQ %d for AHB DMA "
-			 "(error %d)\n", ahb_irqs[channel], err);
+			 "(error %d)\n", virq, err);
 		free_irq(ahb_irqs[channel], (void *)(unsigned long)(channel + 1));
 		return err;
 	}
@@ -2475,6 +2478,7 @@ at_dma_parse_dt(struct platform_device *pdev)
 static int atcdma_probe(struct platform_device *pdev)
 {
 	struct at_dma_platform_data *pdata;
+	struct device_node *np = pdev->dev.of_node;
 	struct resource 	*io=0;
 	struct resource *mem = NULL;
 	int			irq;
@@ -2502,7 +2506,7 @@ static int atcdma_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	intc_ftdmac020_init_irq(irq);
+	ftdmac020_init(np, irq);
 
 	return dmad_module_init();
 

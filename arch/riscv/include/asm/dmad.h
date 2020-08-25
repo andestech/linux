@@ -68,4 +68,7 @@ struct at_dma_platform_data {
 	void __iomem	*apb_regs;
 };
 
+int ftdmac020_find_irq(int hwirq);
+int ftdmac020_init(struct device_node *node, int irq);
+
 #endif  /* __NDS_DMAD_INC__ */
