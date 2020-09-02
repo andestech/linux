@@ -606,7 +606,7 @@ static inline int snd_ftssp_dma_ch_alloc(struct snd_pcm_substream *substream)
 		ch_req->completion_cb    = ftssp_dma_callback_tx;
 		ch_req->ahb_req.tx_dir   = DMAD_DIR_A0_TO_A1;
 #if defined(CONFIG_PLAT_AG101P)
-		if((inl(PMU_BASE) & AMERALD_MASK) == AMERALD_PRODUCT_ID)
+		if((readl(PMU_BASE) & AMERALD_MASK) == AMERALD_PRODUCT_ID)
 		{
 			ch_req->ahb_req.dev_reqn = DMAC_REQN_I2SAC97TX_AMERALD;
 		}
@@ -620,7 +620,7 @@ static inline int snd_ftssp_dma_ch_alloc(struct snd_pcm_substream *substream)
 		ch_req->completion_cb    = ftssp_dma_callback_rx;
 		ch_req->ahb_req.tx_dir   = DMAD_DIR_A1_TO_A0;
 #if defined(CONFIG_PLAT_AG101P)
-		if((inl(PMU_BASE) & AMERALD_MASK) == AMERALD_PRODUCT_ID)
+		if((readl(PMU_BASE) & AMERALD_MASK) == AMERALD_PRODUCT_ID)
 		{
 			ch_req->ahb_req.dev_reqn = DMAC_REQN_I2SAC97RX_AMERALD;
 		}

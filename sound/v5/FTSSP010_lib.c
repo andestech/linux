@@ -122,7 +122,7 @@ void pmu_set_i2s_clocking(unsigned int speed)
 	unsigned int pmu_pdllcr1; /* PLL/DLL Control Register 1 */
 	/* Configure PMU to generate I2S main clock */
 	#ifdef CONFIG_PLAT_AG101
-	pmu_pdllcr1 = inl(PMU_PDLLCR1)&0xfff0ffff; /* Bit 19-16 are relevent */
+	pmu_pdllcr1 = readl(PMU_PDLLCR1)&0xfff0ffff; /* Bit 19-16 are relevent */
 	#endif
 
 	switch (speed) {
@@ -152,9 +152,9 @@ void pmu_set_i2s_clocking(unsigned int speed)
 	};
 
 	#ifdef CONFIG_PLAT_AG101
-	outl(pmu_pdllcr1, PMU_PDLLCR1);
+	writel(pmu_pdllcr1, PMU_PDLLCR1);
 	/* Configure PMU to select I2S output (instead of AC97) */
-	outl(inl(PMU_MFPSR)&(~(1<<3)), PMU_MFPSR); /* clear bit 3 of MFPSR*/
+	writel(readl(PMU_MFPSR)&(~(1<<3)), PMU_MFPSR); /* clear bit 3 of MFPSR*/
 	#endif
 }
 
@@ -169,36 +169,36 @@ void pmu_set_i2s_dma_channel(unsigned ch)
 {
 	#ifdef CONFIG_PLAT_AG101
 	ch&=0x7;
-	//outl((inl(PMU_I2SAC97_REQACKCFG)&(~0x7))|ch, PMU_I2SAC97_REQACKCFG);
-	outl(0xa, PMU_I2SAC97_REQACKCFG);
-	outl(0xb, PMU_C4);
+	//writel((readl(PMU_I2SAC97_REQACKCFG)&(~0x7))|ch, PMU_I2SAC97_REQACKCFG);
+	writel(0xa, PMU_I2SAC97_REQACKCFG);
+	writel(0xb, PMU_C4);
 	#endif
 }
 
 static struct i2c_client *g_i2c_client;
 void ftssp010_set_int_control(int cardno, unsigned val)
 {
-	outl(val, FTSSP010_INT_CONTROL(cardno));
+	writel(val, FTSSP010_INT_CONTROL(cardno));
 }
 
 unsigned ftssp010_get_int_status(int cardno)
 {
-	return (inl(FTSSP010_INT_STATUS(cardno)));
+	return (readl(FTSSP010_INT_STATUS(cardno)));
 }
 
 int ftssp010_get_status(int cardno)
 {
-	return (inl(FTSSP010_STATUS(cardno)));
+	return (readl(FTSSP010_STATUS(cardno)));
 }
 
 int  ftssp010_tx_fifo_not_full(int cardno)
 {
-	return (inl(FTSSP010_STATUS(cardno))&0x2)==0x2;
+	return (readl(FTSSP010_STATUS(cardno))&0x2)==0x2;
 }
 
 int ftssp010_tx_fifo_vaild_entries(int cardno)
 {
-	return (inl(FTSSP010_STATUS(cardno))>>12) & 0x1f;
+	return (readl(FTSSP010_STATUS(cardno))>>12) & 0x1f;
 }
 
 #include "FTSSP010_W83972D.h"
@@ -213,20 +213,20 @@ void ftssp010_ac97_write_codec(unsigned int reg,unsigned int data)
 {
 	int cnt = 0x1000000;
 
-	while((inl(FTSSP010_STATUS(0))&ACTXDATA) && cnt--);
+	while((readl(FTSSP010_STATUS(0))&ACTXDATA) && cnt--);
 	if(!cnt)
 		printk("wait transfer buffer timeout\n");
 
-	outl(0x0,  FTSSP010_INT_CONTROL(0));/*Disable interrupts & DMA req */
-	outl(inl(FTSSP010_CONTROL2(0)) | (SSP_TXFCLR|SSP_RXFCLR), FTSSP010_CONTROL2(0));
-	outl(TAG_COMMAND, FTSSP010_ACLINK_SLOT_VALID(0));
-	outl(((reg<<16)|data), FTSSP010_ACLINK_CMD(0));
-	outl(inl(FTSSP010_CONTROL2(0)) | (SSP_SSPEN|SSP_TXDOE), FTSSP010_CONTROL2(0));
+	writel(0x0,  FTSSP010_INT_CONTROL(0));/*Disable interrupts & DMA req */
+	writel(readl(FTSSP010_CONTROL2(0)) | (SSP_TXFCLR|SSP_RXFCLR), FTSSP010_CONTROL2(0));
+	writel(TAG_COMMAND, FTSSP010_ACLINK_SLOT_VALID(0));
+	writel(((reg<<16)|data), FTSSP010_ACLINK_CMD(0));
+	writel(readl(FTSSP010_CONTROL2(0)) | (SSP_SSPEN|SSP_TXDOE), FTSSP010_CONTROL2(0));
 	cnt = 0x1000000;
-	while((inl(FTSSP010_STATUS(0))&WBUSY) && cnt--);
+	while((readl(FTSSP010_STATUS(0))&WBUSY) && cnt--);
 	if(!cnt)
 		printk("write ac97 timeout\n");
-	outl(inl(FTSSP010_CONTROL2(0)) & (~(SSP_SSPEN|SSP_TXDOE)), FTSSP010_CONTROL2(0));
+	writel(readl(FTSSP010_CONTROL2(0)) & (~(SSP_SSPEN|SSP_TXDOE)), FTSSP010_CONTROL2(0));
 }
 
 /*	Configure FTSSP010 to a given sampling rate and channel number
@@ -240,16 +240,16 @@ int init_hw(unsigned int cardno,unsigned int ac97, struct i2c_client *client)
 	if(ac97)
 	{
 		// Clear FFMT
-		outl(inl(FTSSP010_CONTROL0(cardno))&0xfff, FTSSP010_CONTROL0(cardno));
+		writel(readl(FTSSP010_CONTROL0(cardno))&0xfff, FTSSP010_CONTROL0(cardno));
 		// AC_link
-		outl(inl(FTSSP010_CONTROL0(cardno))|0x4000, FTSSP010_CONTROL0(cardno));
+		writel(readl(FTSSP010_CONTROL0(cardno))|0x4000, FTSSP010_CONTROL0(cardno));
 
-		outl(0xc400,  FTSSP010_INT_CONTROL(cardno));
-		if((inl(FTSSP010_INT_CONTROL(cardno)))!=0xc400){
+		writel(0xc400,  FTSSP010_INT_CONTROL(cardno));
+		if((readl(FTSSP010_INT_CONTROL(cardno)))!=0xc400){
 			return -EIO;
 		}
-		outl(0x20, FTSSP010_CONTROL2(cardno));  /* Cold Reset AC-Link */
-		while(inl(FTSSP010_CONTROL2(cardno))&&cnt--);
+		writel(0x20, FTSSP010_CONTROL2(cardno));  /* Cold Reset AC-Link */
+		while(readl(FTSSP010_CONTROL2(cardno))&&cnt--);
 		if(!cnt){
 			return -EIO;
 		}
@@ -257,16 +257,16 @@ int init_hw(unsigned int cardno,unsigned int ac97, struct i2c_client *client)
 	else
 	{
 		#ifdef CONFIG_PLAT_AG101
-		outl(inl(PMU_MFPSR)&(~(1<<3)), PMU_MFPSR); /* clear bit 3 of MFPSR*/
-		outl(0xa, PMU_I2SAC97_REQACKCFG);
-		outl(0xb, PMU_C4);
+		writel(readl(PMU_MFPSR)&(~(1<<3)), PMU_MFPSR); /* clear bit 3 of MFPSR*/
+		writel(0xa, PMU_I2SAC97_REQACKCFG);
+		writel(0xb, PMU_C4);
 		#endif
 
 		i2s_al5630_slave_stereo_mode(client);
-		outl(0x311c, FTSSP010_CONTROL0(cardno));	/* I2S Master */
-		outl(0, FTSSP010_CONTROL1(cardno));	        /* I2S Master */
-		outl(0xc400, FTSSP010_INT_CONTROL(cardno));	/* I2S Master */
-		outl(0x40, FTSSP010_CONTROL2(cardno));  	/* Reset AC-Link */
+		writel(0x311c, FTSSP010_CONTROL0(cardno));	/* I2S Master */
+		writel(0, FTSSP010_CONTROL1(cardno));	        /* I2S Master */
+		writel(0xc400, FTSSP010_INT_CONTROL(cardno));	/* I2S Master */
+		writel(0x40, FTSSP010_CONTROL2(cardno));  	/* Reset AC-Link */
 	}
 	return 0;
 }
@@ -274,7 +274,7 @@ static void _ftssp010_config_ac97(int cardno, unsigned is_stereo, unsigned speed
 {
 	int cnt = 0x1000000;
 	/* Codec initialization */
-	outl(inl(FTSSP010_CONTROL0(cardno))|NACK, FTSSP010_CONTROL0(cardno));
+	writel(readl(FTSSP010_CONTROL0(cardno))|NACK, FTSSP010_CONTROL0(cardno));
 	ftssp010_ac97_write_codec(W83972D_RESET, 0);
 
 	if (is_rec) {	/* Recording */
@@ -313,18 +313,18 @@ static void _ftssp010_config_ac97(int cardno, unsigned is_stereo, unsigned speed
 	ftssp010_ac97_write_codec(W83972D_DAC_SAMPLE_RATE_CONTROL, speed);
 #endif
 
-	outl(inl(FTSSP010_CONTROL0(cardno))&~NACK, FTSSP010_CONTROL0(cardno));
+	writel(readl(FTSSP010_CONTROL0(cardno))&~NACK, FTSSP010_CONTROL0(cardno));
 
 	/* Start data transfer */
 //	if(is_rec) {
-//		outl(TAG_DATA_LINE_IN, FTSSP010_ACLINK_SLOT_VALID(cardno));
+//		writel(TAG_DATA_LINE_IN, FTSSP010_ACLINK_SLOT_VALID(cardno));
 //	} else {
 		if(is_stereo)
-			outl(TAG_DATA, FTSSP010_ACLINK_SLOT_VALID(cardno));
+			writel(TAG_DATA, FTSSP010_ACLINK_SLOT_VALID(cardno));
 		else
-			outl(TAG_DATA_MONO, FTSSP010_ACLINK_SLOT_VALID(cardno));
+			writel(TAG_DATA_MONO, FTSSP010_ACLINK_SLOT_VALID(cardno));
 //	}
-	while((inl(FTSSP010_INT_STATUS(cardno))&0x3)&&cnt--);
+	while((readl(FTSSP010_INT_STATUS(cardno))&0x3)&&cnt--);
 }
 
 void ftssp010_config_ac97_play(int cardno, unsigned is_stereo, unsigned speed, int use8bit)
@@ -350,7 +350,7 @@ void ftssp010_config(int cardno, unsigned is_stereo, unsigned speed, int width, 
 	struct alc5630_data *alc5630;
 	char data[3];
 	opm = is_stereo ? FTSSP010_CONTROL0_OPM_STEREO : FTSSP010_CONTROL0_OPM_MONO;
-	outl(0x3100 | opm, FTSSP010_CONTROL0(cardno));	/* I2S Master */
+	writel(0x3100 | opm, FTSSP010_CONTROL0(cardno));	/* I2S Master */
 
 	/* configures CONTROL1 to use suitable clock divider.
 	the I2S clock is generated from PMU. */
@@ -410,17 +410,17 @@ void ftssp010_config(int cardno, unsigned is_stereo, unsigned speed, int width, 
 	};
 
 	if(!use8bit) {
-		outl(0xf0000|fpclkdiv, FTSSP010_CONTROL1(cardno));	/*  16bits */
+		writel(0xf0000|fpclkdiv, FTSSP010_CONTROL1(cardno));	/*  16bits */
 	} else {
-		outl(0x70000|fpclkdiv, FTSSP010_CONTROL1(cardno));	/*  8bits */
+		writel(0x70000|fpclkdiv, FTSSP010_CONTROL1(cardno));	/*  8bits */
 	}
 
 	if(is_rec)
-		outl(inl(FTSSP010_INT_CONTROL(cardno))&(~0x0f15),  FTSSP010_INT_CONTROL(cardno));		/* Disable all interrupts */
+		writel(readl(FTSSP010_INT_CONTROL(cardno))&(~0x0f15),  FTSSP010_INT_CONTROL(cardno));		/* Disable all interrupts */
 	else
-		outl(inl(FTSSP010_INT_CONTROL(cardno))&(~0xf02a) ,  FTSSP010_INT_CONTROL(cardno));		/* Disable all interrupts */
+		writel(readl(FTSSP010_INT_CONTROL(cardno))&(~0xf02a) ,  FTSSP010_INT_CONTROL(cardno));		/* Disable all interrupts */
 
-	outl(0xc, FTSSP010_CONTROL2(cardno));	/* clear FIFOs */
+	writel(0xc, FTSSP010_CONTROL2(cardno));	/* clear FIFOs */
 	alc5630 = i2c_get_clientdata(g_i2c_client);
 
 	if(is_rec) {
@@ -500,14 +500,14 @@ void ftssp010_start_tx(int cardno, unsigned use_dma)
 	unsigned bogus=0x800*3;
 	if(use_dma) {
 		/* Enable H/W DMA Request and set TX DMA threshold to 12*/
-                outl(inl(FTSSP010_INT_CONTROL(cardno)) | 0xc422, FTSSP010_INT_CONTROL(cardno));
+                writel(readl(FTSSP010_INT_CONTROL(cardno)) | 0xc422, FTSSP010_INT_CONTROL(cardno));
 	}
-        outl(inl(FTSSP010_CONTROL2(cardno)) | (SSP_SSPEN|SSP_TXDOE), FTSSP010_CONTROL2(cardno));
+        writel(readl(FTSSP010_CONTROL2(cardno)) | (SSP_SSPEN|SSP_TXDOE), FTSSP010_CONTROL2(cardno));
 	if(!use_dma) {
 		while(bogus>0) {
 			while(!ftssp010_tx_fifo_not_full(cardno))
 				udelay(50);
-			outl(0, FTSSP010_DATA(cardno));
+			writel(0, FTSSP010_DATA(cardno));
 			bogus--;
 		}
 	}
@@ -519,19 +519,19 @@ void ftssp010_start_rx(int cardno, unsigned use_dma)
 {
         if(use_dma) {
                 /* Enable H/W DMA Request and set RX DMA threshold to 2*/
-                outl(inl(FTSSP010_INT_CONTROL(cardno)) | 0xc411, FTSSP010_INT_CONTROL(cardno));
+                writel(readl(FTSSP010_INT_CONTROL(cardno)) | 0xc411, FTSSP010_INT_CONTROL(cardno));
         }
-        outl(inl(FTSSP010_CONTROL2(cardno)) | 0x3, FTSSP010_CONTROL2(cardno));
+        writel(readl(FTSSP010_CONTROL2(cardno)) | 0x3, FTSSP010_CONTROL2(cardno));
 
 }
 
 void ftssp010_stop_tx(int cardno)
 {
-	outl(inl(FTSSP010_INT_CONTROL(cardno)) & (~0x22), FTSSP010_INT_CONTROL(cardno));
-	outl(inl(FTSSP010_CONTROL2(0)) & (~(SSP_SSPEN|SSP_TXDOE)), FTSSP010_CONTROL2(0));
+	writel(readl(FTSSP010_INT_CONTROL(cardno)) & (~0x22), FTSSP010_INT_CONTROL(cardno));
+	writel(readl(FTSSP010_CONTROL2(0)) & (~(SSP_SSPEN|SSP_TXDOE)), FTSSP010_CONTROL2(0));
 }
 
 void ftssp010_stop_rx(int cardno)
 {
-	outl(inl(FTSSP010_INT_CONTROL(cardno)) & (~0x11), FTSSP010_INT_CONTROL(cardno));
+	writel(readl(FTSSP010_INT_CONTROL(cardno)) & (~0x11), FTSSP010_INT_CONTROL(cardno));
 }
