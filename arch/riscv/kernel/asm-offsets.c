@@ -125,6 +125,9 @@ void asm_offsets(void)
 	OFFSET(PT_STATUS, pt_regs, status);
 	OFFSET(PT_BADADDR, pt_regs, badaddr);
 	OFFSET(PT_CAUSE, pt_regs, cause);
+#ifdef CONFIG_ARCH_ANDES
+	OFFSET(PT_SDCAUSE, pt_regs, sdcause);
+#endif
 
 	OFFSET(SUSPEND_CONTEXT_REGS, suspend_context, regs);
 
