@@ -15,6 +15,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/errata_list.h>
 #include <linux/sizes.h>
+#include <linux/soc/andes/csr.h>
 
 	.section .irqentry.text, "ax"
 
@@ -63,12 +64,14 @@ _save_context:
 	csrr s3, CSR_TVAL
 	csrr s4, CSR_CAUSE
 	csrr s5, CSR_SCRATCH
+	csrr s6, CSR_SDCAUSE
 	REG_S s0, PT_SP(sp)
 	REG_S s1, PT_STATUS(sp)
 	REG_S s2, PT_EPC(sp)
 	REG_S s3, PT_BADADDR(sp)
 	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
+	REG_S s6, PT_SDCAUSE(sp)
 
 	/*
 	 * Set the scratch register to 0, so that if a recursive exception
