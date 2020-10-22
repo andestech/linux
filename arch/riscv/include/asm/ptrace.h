@@ -49,6 +49,9 @@ struct pt_regs {
 	unsigned long status;
 	unsigned long badaddr;
 	unsigned long cause;
+
+	/* Andes supervisor detailed trap cause */
+	unsigned long sdcause;
 	/* a0 value before the syscall */
 	unsigned long orig_a0;
 };

@@ -71,8 +71,8 @@ void __show_regs(struct pt_regs *regs)
 	pr_cont(" t5 : " REG_FMT " t6 : " REG_FMT "\n",
 		regs->t5, regs->t6);
 
-	pr_cont("status: " REG_FMT " badaddr: " REG_FMT " cause: " REG_FMT "\n",
-		regs->status, regs->badaddr, regs->cause);
+	pr_cont("status: " REG_FMT " badaddr: " REG_FMT " cause: " REG_FMT " sdcause: " REG_FMT "\n",
+		regs->status, regs->badaddr, regs->cause, regs->sdcause);
 }
 void show_regs(struct pt_regs *regs)
 {
