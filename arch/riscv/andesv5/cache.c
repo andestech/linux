@@ -146,6 +146,7 @@ int cpu_l1c_status(void)
 {
 	/* TODO */
 	// return SBI_CALL_0(SBI_L1CACHE_STATUS);
+	return 0;
 }
 
 void cpu_icache_enable(void *info)
