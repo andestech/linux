@@ -21,8 +21,12 @@
 			mmu-type = "riscv,sv39";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
+			i-cache-sets = <512>;
+			i-cache-block-size = <0x20>;
 			i-cache-line-size = <0x20>;
 			d-cache-size = <0x8000>;
+			d-cache-sets = <256>;
+			d-cache-block-size = <0x20>;
 			d-cache-line-size = <0x20>;
 
 			interrupt-controller {
