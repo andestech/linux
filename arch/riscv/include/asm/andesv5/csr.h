@@ -1,5 +1,5 @@
 /* mdcm_cfg: Data Cache/Memory Configuration Register */
-#define MDCM_CFG_DEST_OFFSET		0
+#define MDCM_CFG_DSET_OFFSET		0
 #define MDCM_CFG_DWAY_OFFSET		3
 #define MDCM_CFG_DSZ_OFFSET		6
 #define MDCM_CFG_DLCK_OFFSET		9
@@ -10,7 +10,7 @@
 #define MDCM_CFG_DLM_ECC_OFFSET		21
 
 
-#define MDCM_CFG_DEST_MASK	(0x7  << MDCM_CFG_DEST_OFFSET)
+#define MDCM_CFG_DSET_MASK	(0x7  << MDCM_CFG_DSET_OFFSET)
 #define MDCM_CFG_DWAY_MASK	(0x7  << MDCM_CFG_DWAY_OFFSET)
 #define MDCM_CFG_DSZ_MASK	(0x7  << MDCM_CFG_DSZ_OFFSET)
 #define MDCM_CFG_DLCK_MASK	(0x1  << MDCM_CFG_DLCK_OFFSET)
