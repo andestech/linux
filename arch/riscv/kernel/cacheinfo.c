@@ -7,6 +7,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <asm/cacheinfo.h>
+#include <asm/andesv5/csr.h>
+#include <asm/sbi.h>
 
 static struct riscv_cacheinfo_ops *rv_cache_ops;
 
@@ -101,15 +103,21 @@ static void fill_cacheinfo(struct cacheinfo **this_leaf,
 	}
 
 	if (!of_property_read_u32(node, "i-cache-size", &size) &&
-	    !of_property_read_u32(node, "i-cache-sets", &sets) &&
-	    !of_property_read_u32(node, "i-cache-block-size", &line_size)) {
-		ci_leaf_init((*this_leaf)++, CACHE_TYPE_INST, level, size, sets, line_size);
+	    (!of_property_read_u32(node, "i-cache-sets", &sets) ||
+	    (sets = 64 * (u32)int_pow(2, (sbi_get_micm_cfg() & MICM_CFG_ISET_MASK) >> MICM_CFG_ISET_OFFSET))) &&
+	    (!of_property_read_u32(node, "i-cache-block-size", &line_size) ||
+	    (line_size = 4 * (u32)int_pow(2, (sbi_get_micm_cfg() & MICM_CFG_ISZ_MASK) >> MICM_CFG_ISZ_OFFSET)))
+	) {
+	    ci_leaf_init((*this_leaf)++, CACHE_TYPE_INST, level, size, sets, line_size);
 	}
 
 	if (!of_property_read_u32(node, "d-cache-size", &size) &&
-	    !of_property_read_u32(node, "d-cache-sets", &sets) &&
-	    !of_property_read_u32(node, "d-cache-block-size", &line_size)) {
-		ci_leaf_init((*this_leaf)++, CACHE_TYPE_DATA, level, size, sets, line_size);
+	    (!of_property_read_u32(node, "d-cache-sets", &sets) ||
+	    (sets = 64 * (u32)int_pow(2, (sbi_get_mdcm_cfg() & MDCM_CFG_DSET_MASK) >> MDCM_CFG_DSET_OFFSET))) &&
+	    (!of_property_read_u32(node, "d-cache-block-size", &line_size) ||
+	    (line_size = 4 * (u32)int_pow(2, (sbi_get_mdcm_cfg() & MDCM_CFG_DSZ_MASK) >> MDCM_CFG_DSZ_OFFSET)))
+	) {
+	    ci_leaf_init((*this_leaf)++, CACHE_TYPE_DATA, level, size, sets, line_size);
 	}
 }
 

@@ -10,6 +10,14 @@
 #include <linux/types.h>
 
 #ifdef CONFIG_RISCV_SBI
+
+struct pma_arg_t {
+	phys_addr_t offset;
+	unsigned long vaddr;
+	size_t size;
+	size_t entry_id;
+};
+
 enum sbi_ext_id {
 #ifdef CONFIG_RISCV_SBI_V01
 	SBI_EXT_0_1_SET_TIMER = 0x0,
@@ -65,17 +73,32 @@ enum sbi_ext_hsm_fid {
 };
 
 enum sbi_ext_andes_fid {
-	SBI_EXT_ANDES_TRIGGER = 0,
+	SBI_EXT_ANDES_GET_MCACHE_CTL_STATUS = 0,
+	SBI_EXT_ANDES_GET_MMISC_CTL_STATUS,
+	SBI_EXT_ANDES_SET_MCACHE_CTL,
+	SBI_EXT_ANDES_SET_MMISC_CTL,
+	SBI_EXT_ANDES_ICACHE_OP,
+	SBI_EXT_ANDES_DCACHE_OP,
+	SBI_EXT_ANDES_L1CACHE_I_PREFETCH,
+	SBI_EXT_ANDES_L1CACHE_D_PREFETCH,
+	SBI_EXT_ANDES_NON_BLOCKING_LOAD_STORE,
+	SBI_EXT_ANDES_WRITE_AROUND,
+	SBI_EXT_ANDES_TRIGGER,
 	SBI_EXT_ANDES_SET_PFM,
 	SBI_EXT_ANDES_READ_POWERBRAKE,
 	SBI_EXT_ANDES_WRITE_POWERBRAKE,
 	SBI_EXT_ANDES_SUSPEND_PREPARE,
 	SBI_EXT_ANDES_SUSPEND_MEM,
-	SBI_EXT_ANDES_DCACHE_OP,
-	SBI_EXT_ANDES_ICACHE_OP,
-	SBI_EXT_ANDES_L1CACHE_STATUS,
+	SBI_EXT_ANDES_SET_SUSPEND_MODE,
+	SBI_EXT_ANDES_ENTER_SUSPEND_MODE,
 	SBI_EXT_ANDES_RESTART,
 	SBI_EXT_ANDES_SET_RESET_VEC,
+	SBI_EXT_ANDES_SET_PMA,
+	SBI_EXT_ANDES_FREE_PMA,
+	SBI_EXT_ANDES_PROBE_PMA,
+	SBI_EXT_ANDES_DCACHE_WBINVAL_ALL,
+	SBI_EXT_ANDES_GET_MICM_CFG,
+	SBI_EXT_ANDES_GET_MDCM_CFG,
 };
 
 enum sbi_hsm_hart_status {
@@ -161,6 +184,23 @@ static inline unsigned long sbi_minor_version(void)
 }
 
 int sbi_err_map_linux_errno(int err);
+
+void sbi_suspend_prepare(char main_core, char enable);
+void sbi_suspend_mem(void);
+void sbi_restart(int cpu_num);
+void sbi_write_powerbrake(int val);
+int sbi_read_powerbrake(void);
+void sbi_set_suspend_mode(int suspend_mode);
+void sbi_set_reset_vec(int val);
+void sbi_set_pma(void *arg);
+void sbi_free_pma(unsigned long entry_id);
+long sbi_probe_pma(void);
+void sbi_set_trigger(unsigned int type, uintptr_t data, int enable);
+long sbi_get_marchid(void);
+int get_custom_csr_cacheinfo(const char *propname, u32 *out_value);
+long sbi_get_micm_cfg(void);
+long sbi_get_mdcm_cfg(void);
+
 #else /* CONFIG_RISCV_SBI */
 /* stubs for code that is only reachable under IS_ENABLED(CONFIG_RISCV_SBI): */
 void sbi_set_timer(uint64_t stime_value);
