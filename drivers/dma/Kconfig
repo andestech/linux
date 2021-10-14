@@ -93,6 +93,15 @@ config APPLE_ADMAC
 	help
 	  Enable support for Audio DMA Controller found on Apple Silicon SoCs.
 
+config ATCDMAC300G
+	tristate "Andes generic DMA support"
+	depends on PLAT_AE350
+	select DMA_ENGINE
+	select DMATEST
+	help
+	  Support the Andes ATCDMAC300 controller for dmaengine.
+	  It has the capability for DMA_SLAVE and DMA_MEMCPY.
+
 config AT_HDMAC
 	tristate "Atmel AHB DMA support"
 	depends on ARCH_AT91
@@ -798,6 +807,7 @@ config ASYNC_TX_DMA
 config DMATEST
 	tristate "DMA Test client"
 	depends on DMA_ENGINE
+	depends on ATCDMAC300G
 	select DMA_ENGINE_RAID
 	help
 	  Simple DMA test client. Say N unless you're debugging a
