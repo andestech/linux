@@ -1348,6 +1348,8 @@ nodata:
 
 static int __init ftsdc_probe(struct platform_device *pdev)
 {
+	int (*read_fixup)(void __iomem *addr, unsigned int val,
+		unsigned int shift_bits);
 	struct ftsdc_host *host;
 	struct mmc_host	*mmc;
 	struct ftsdc_mmc_config *pdata = NULL;
@@ -1405,6 +1407,17 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 	host->base = (void __iomem *) ioremap(mem->start, mem_size);
 	if (IS_ERR(host->base)) {
 		ret = PTR_ERR(host->base);
+		goto probe_free_mem_region;
+	}
+
+	/* Check revision register */
+	read_fixup = symbol_get(readl_fixup);
+	ret = read_fixup(host->base + SDC_REVISION_REG, 0x00030107, 0);
+	symbol_put(readl_fixup);
+	if (!ret) {
+		dev_err(&pdev->dev,
+			"bitmap revision mismatch(ftsdc)\n");
+		ret = -ENXIO;
 		goto probe_free_mem_region;
 	}
 
