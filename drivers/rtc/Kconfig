@@ -1429,6 +1429,16 @@ config RTC_DRV_OMAP
 	  This driver can also be built as a module, if so, module
 	  will be called rtc-omap.
 
+config RTC_DRV_ATCRTC100
+	tristate "AE350 Real Time Clock"
+	depends on RISCV
+	help
+	  If you say Y here you will get access to the real time clock
+	  built into your AE350.
+
+	  To compile this driver as a module, choose M here.
+	  The module will be called rtc-atcrtc100.
+
 config RTC_DRV_S3C
 	tristate "Samsung S3C series SoC RTC"
 	depends on ARCH_EXYNOS || ARCH_S3C64XX || ARCH_S3C24XX || ARCH_S5PV210 || \
