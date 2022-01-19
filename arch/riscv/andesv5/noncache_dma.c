@@ -82,21 +82,22 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr,
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
                gfp_t gfp, unsigned long attrs)
 {
+	struct page *page;
 	void* kvaddr, *coherent_kvaddr;
 	size = PAGE_ALIGN(size);
 
-	kvaddr = dma_direct_alloc_pages(dev, size, handle, gfp, attrs);
-	if (!kvaddr)
-		goto no_mem;
+	page = dma_direct_alloc_pages(dev, size, handle, DMA_BIDIRECTIONAL, gfp);
+	if (!page)
+		goto no_page;
 	coherent_kvaddr = ioremap_nocache(dma_to_phys(dev, *handle), size);
 	if (!coherent_kvaddr)
 		goto no_map;
 
-	dma_flush_page(virt_to_page(kvaddr),size);
+	dma_flush_page(page, size);
 	return coherent_kvaddr;
 no_map:
 	dma_direct_free_pages(dev, size, kvaddr, *handle, attrs);
-no_mem:
+no_page:
 	return NULL;
 }
 

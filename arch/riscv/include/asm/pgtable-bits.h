@@ -27,7 +27,8 @@
 #ifdef CONFIG_ANDES_QEMU_SUPPORT
 #define _PAGE_NONCACHEABLE      0
 #else
-#define _PAGE_NONCACHEABLE      (1 << 31)
+extern phys_addr_t pa_msb;
+#define _PAGE_NONCACHEABLE      ((!!pa_msb) << 31)
 #endif
 
 #define _PAGE_SPECIAL   _PAGE_SOFT

@@ -205,13 +205,13 @@ static inline unsigned long pte_pfn(pte_t pte)
 extern phys_addr_t pa_msb;
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 {
-	pte_t ret;
-	if (pgprot_val(prot) & _PAGE_NONCACHEABLE) {
-		ret = __pte(((pfn|pa_msb) << _PAGE_PFN_SHIFT) | (pgprot_val(prot) & ~_PAGE_NONCACHEABLE));
-	} else {
-		ret = __pte((pfn << _PAGE_PFN_SHIFT) | pgprot_val(prot));
-	}
-	return ret;
+	/*
+	 * When PMA is on and activated: pa_msb == 0;
+	 * 		      Otherwise: pa_msb != 0;
+	 */
+	return (pa_msb && (pgprot_val(prot) & _PAGE_NONCACHEABLE)) ? \
+		__pte(((pfn|pa_msb) << _PAGE_PFN_SHIFT) | (pgprot_val(prot) & ~_PAGE_NONCACHEABLE)) : \
+		__pte((pfn << _PAGE_PFN_SHIFT) | pgprot_val(prot));
 }
 
 #define mk_pte(page, prot)       pfn_pte(page_to_pfn(page), prot)

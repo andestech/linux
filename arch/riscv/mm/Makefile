@@ -14,7 +14,7 @@ obj-$(CONFIG_MMU) += fault.o pageattr.o
 obj-y += cacheflush.o
 obj-y += dma-mapping.o
 obj-y += context.o
-obj-y += ioremap_nocache.o
+obj-y += ioremap.o
 
 ifeq ($(CONFIG_MMU),y)
 obj-$(CONFIG_SMP) += tlbflush.o

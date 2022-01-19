@@ -118,6 +118,12 @@ void __init setup_arch(char **cmdline_p)
 	sbi_init();
 #endif
 
+#ifdef CONFIG_PMA
+	if (sbi_probe_pma()) {
+		pa_msb = 0;
+	}
+#endif
+
 #ifdef CONFIG_SMP
 	setup_smp();
 #endif

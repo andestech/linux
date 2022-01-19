@@ -42,7 +42,6 @@ config RISCV
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_GETTIMEOFDAY if HAVE_GENERIC_VDSO
-	select GENERIC_IOREMAP
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
@@ -380,6 +379,14 @@ config FPU
 	  in the kernel.
 
 	  If you don't know what to do here, say Y.
+
+config PMA
+	bool "PMA support"
+	default y
+	help
+	  Since 27 series we have PMA support to control non-cacheable
+	  region.  It is transparent to user.  If you want to reduce
+	  marginal code size, say N.
 
 endmenu
 

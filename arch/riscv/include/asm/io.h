@@ -160,6 +160,8 @@ __io_writes_outs(outs, u64, q, __io_pbr(), __io_paw())
 #define outsq(addr, buffer, count) __outsq(PCI_IOBASE + (addr), buffer, count)
 #endif
 
+void __iomem *ioremap(phys_addr_t offset, size_t size);
+void iounmap(volatile void __iomem *addr);
 #include <asm-generic/io.h>
 
 #endif /* _ASM_RISCV_IO_H */
