@@ -4,6 +4,7 @@ menu "ALSA RISCV devices"
 config SND_FTSSP010
 	tristate "Faraday FTSSP010 audio Driver"
 	depends on SND && RISCV
+	depends on PLATFORM_AHBDMA
 	select SND_PCM
 #	select SND_AC97_CODEC
 

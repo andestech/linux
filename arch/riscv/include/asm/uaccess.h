@@ -356,7 +356,9 @@ do {								\
 })
 
 
-unsigned long __must_check __asm_copy_to_user(void __user *to,
+extern asmlinkage int readl_fixup(void __iomem *addr, unsigned int val,
+	unsigned int shift_bits);
+extern unsigned long __must_check __asm_copy_to_user(void __user *to,
 	const void *from, unsigned long n);
 unsigned long __must_check __asm_copy_from_user(void *to,
 	const void __user *from, unsigned long n);

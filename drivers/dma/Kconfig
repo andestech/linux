@@ -85,6 +85,17 @@ config AMCC_PPC440SPE_ADMA
 	help
 	  Enable support for the AMCC PPC440SPe RAID engines.
 
+config ATCDMAC300G
+	tristate "Andestech GENERIC DMA support"
+	depends on PLAT_AE350
+	depends on !ATCDMAC300
+	select DMA_ENGINE
+	select DMATEST
+	select MMC_FTSDCG
+	help
+	  Support the Andestech ATCDMAC300 controller for dmaengine.
+	  It has the capability for DMA_SLAVE and DMA_MEMCPY.
+
 config AT_HDMAC
 	tristate "Atmel AHB DMA support"
 	depends on ARCH_AT91
@@ -752,6 +763,7 @@ config ASYNC_TX_DMA
 config DMATEST
 	tristate "DMA Test client"
 	depends on DMA_ENGINE
+	depends on ATCDMAC300G
 	select DMA_ENGINE_RAID
 	help
 	  Simple DMA test client. Say N unless you're debugging a

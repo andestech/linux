@@ -1333,6 +1333,8 @@ nodata:
 
 static int __init ftsdc_probe(struct platform_device *pdev)
 {
+	int (*read_fixup)(void __iomem *addr, unsigned int val,
+		unsigned int shift_bits);
 	struct ftsdc_host *host;
 	struct mmc_host	*mmc;
 	struct ftsdc_mmc_config *pdata = NULL;
@@ -1384,15 +1386,22 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 	host->complete_what 	= COMPLETION_NONE;
 	host->buf_active 	= XFER_NONE;
 
-#if (defined(CONFIG_PLATFORM_AHBDMA) || defined(CONFIG_PLATFORM_APBDMA))
-	ftsdc_alloc_dma(host);
-#endif
 	host->mem = mem;
 	host->base = (void __iomem *) ioremap(mem->start, mem_size);
 	if (IS_ERR(host->base)){
 		ret = PTR_ERR(host->base);
 		goto probe_free_mem_region;
 	}
+
+	/* Check revision register */
+	read_fixup = symbol_get(readl_fixup);
+	ret = read_fixup(host->base + SDC_REVISION_REG, 0x00030107, 0);
+	symbol_put(readl_fixup);
+	if (!ret){
+		dev_err(&pdev->dev, "failed to read interrupt reg, bitmap not support ftdsdc\n");
+		goto probe_free_mem_region;
+	}
+
 	host->irq = irq;
 
 	ret = request_irq(host->irq, ftsdc_irq, 0, DRIVER_NAME, host);
@@ -1415,6 +1424,10 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 	else if (con & SDC_WIDE_8_BUS_SUPPORT)
 		mmc->caps |= MMC_CAP_8_BIT_DATA;
+
+#if (defined(CONFIG_PLATFORM_AHBDMA) || defined(CONFIG_PLATFORM_APBDMA))
+	ftsdc_alloc_dma(host);
+#endif
 
 #ifndef A320D_BUILDIN_SDC
 	mmc->caps |= MMC_CAP_SDIO_IRQ;

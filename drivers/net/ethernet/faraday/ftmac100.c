@@ -35,6 +35,7 @@
 #include <linux/platform_device.h>
 
 #include "ftmac100.h"
+#include <linux/uaccess.h>
 
 #define DRV_NAME	"ftmac100"
 
@@ -1077,11 +1078,13 @@ static const struct net_device_ops ftmac100_netdev_ops = {
  *****************************************************************************/
 static int ftmac100_probe(struct platform_device *pdev)
 {
+	int (*read_fixup)(void __iomem *addr, unsigned int val,
+		unsigned int shift_bits);
 	struct resource *res;
 	int irq;
 	struct net_device *netdev;
 	struct ftmac100 *priv;
-	int err;
+	int err, ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -1126,6 +1129,16 @@ static int ftmac100_probe(struct platform_device *pdev)
 	priv->base = ioremap(res->start, resource_size(res));
 	if (!priv->base) {
 		dev_err(&pdev->dev, "Failed to ioremap ethernet registers\n");
+		err = -EIO;
+		goto err_ioremap;
+	}
+
+	/*Check revision register*/
+	read_fixup = symbol_get(readl_fixup);
+	ret = read_fixup(priv->base + FTMAC100_OFFSET_REVISION, 0x00010407, 0);
+	symbol_put(readl_fixup);
+	if (!ret){
+		dev_err(&pdev->dev, "feature registers not detect, bitmap not support ftmac100\n");
 		err = -EIO;
 		goto err_ioremap;
 	}

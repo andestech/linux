@@ -21,6 +21,7 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include "FTSSP010_UDA1345TS.h"
+#include <linux/uaccess.h>
 
 struct alc5630_data;
 int init_hw(unsigned int cardno,unsigned int ac97, struct i2c_client *client);
@@ -1423,8 +1424,11 @@ static int ftssp_alsa_i2c_i2s_exit(void)
 
 static int atf_ac97_probe(struct platform_device *pdev)
 {
+	int (*read_fixup)(void __iomem *addr, unsigned int val,
+		unsigned int shift_bits);
 	struct resource *r, *mem = NULL;
 	size_t mem_size;
+	int ret;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ssp2_pbase = r->start;
@@ -1432,6 +1436,14 @@ static int atf_ac97_probe(struct platform_device *pdev)
 	mem = request_mem_region(r->start, mem_size, pdev->name);
 	ssp2_vbase = (resource_size_t) ioremap(mem->start, mem_size);
 
+	/* Check SSP revision register */
+	read_fixup = symbol_get(readl_fixup);
+	ret = read_fixup((void __iomem *)(unsigned long)ssp2_vbase + 0x40,  0x00011506, 0);
+	symbol_put(readl_fixup);
+	if (!ret){
+		ERR("%s: ftssp feature register not detect, bitmap no support ftssp \n", __func__);
+		return -ENXIO;
+	}
 	return ftssp_alsa_init(pdev);
 }
 
