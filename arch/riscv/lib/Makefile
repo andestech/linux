@@ -9,6 +9,7 @@ lib-y			+= strlen.o
 lib-y			+= strncmp.o
 endif
 lib-y			+= csum.o
+lib-y			+= driver_access.o
 ifeq ($(CONFIG_MMU), y)
 lib-$(CONFIG_RISCV_ISA_V)	+= uaccess_vector.o
 endif
