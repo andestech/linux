@@ -18,3 +18,4 @@ EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(__memset);
 EXPORT_SYMBOL(__memcpy);
 EXPORT_SYMBOL(__memmove);
+EXPORT_SYMBOL_GPL(readl_fixup);
