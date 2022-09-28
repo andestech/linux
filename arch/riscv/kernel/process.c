@@ -153,7 +153,8 @@ void flush_thread(void)
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	fstate_save(src, task_pt_regs(src));
+	if (has_fpu())
+		fstate_save(src, task_pt_regs(src));
 	*dst = *src;
 	return 0;
 }
