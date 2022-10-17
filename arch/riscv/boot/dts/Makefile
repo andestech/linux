@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+subdir-y += andes
 subdir-y += allwinner
 subdir-y += canaan
 subdir-y += microchip
