@@ -3,6 +3,7 @@ menu "SoC selection"
 config PLAT_AE350
 	bool "Andes AE350 Platform"
 	select SIFIVE_PLIC
+	select ERRATA_ANDES if !XIP_KERNEL
 	help
 	  This enables support for Andes AE350 platform hardware.
 
