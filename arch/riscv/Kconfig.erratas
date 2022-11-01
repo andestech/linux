@@ -11,6 +11,18 @@ config ERRATA_ANDES
 
 	  Otherwise, please say "N" here to avoid unnecessary overhead.
 
+config ERRATA_ANDES_LEGACY_MMU
+	bool "Apply Andes errata legacy MMU"
+	depends on ERRATA_ANDES
+	default y
+	help
+	  This will apply the Andes legacy MMU errata. We need to
+	  flush TLB immediately after a new PTE is allocated because
+	  the legacy MMU could retrieve stale data even if the PTE is
+	  updated. Note that legacy MMU only exists in Andes 2X-series CPU.
+
+	  If you don't know what to do here, say "Y".
+
 config ERRATA_SIFIVE
 	bool "SiFive errata"
 	depends on !XIP_KERNEL
