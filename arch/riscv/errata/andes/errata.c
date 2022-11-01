@@ -17,9 +17,20 @@
 #include <asm/processor.h>
 #include <asm/vendorid_list.h>
 #include <linux/soc/andes/sbi.h>
+#include <linux/soc/andes/andes.h>
 
 #define ANDES_AX45MP_MARCHID		0x8000000000008a45UL
 #define ANDES_AX45MP_MIMPID		0x500UL
+
+bool andes_legacy_mmu;
+EXPORT_SYMBOL(andes_legacy_mmu);
+
+struct errata_info_t {
+	char name[32];
+	bool (*check_func)(unsigned int stage,
+			   unsigned long arch_id,
+			   unsigned long impid);
+};
 
 static long ax45mp_iocp_sw_workaround(void)
 {
@@ -35,35 +46,93 @@ static long ax45mp_iocp_sw_workaround(void)
 	return ret.error ? 0 : ret.value;
 }
 
-static void errata_probe_iocp(unsigned int stage, unsigned long arch_id, unsigned long impid)
+static bool errata_probe_iocp(unsigned int stage,
+			      unsigned long arch_id,
+			      unsigned long impid)
 {
 	static bool done;
 
 	if (!IS_ENABLED(CONFIG_ERRATA_ANDES_CMO))
-		return;
+		return 0;
 
 	if (done)
-		return;
+		return done;
 
 	done = true;
 
 	if (arch_id != ANDES_AX45MP_MARCHID || impid != ANDES_AX45MP_MIMPID)
-		return;
+		return 0;
 
 	if (!ax45mp_iocp_sw_workaround())
-		return;
+		return 0;
 
 	/* Set this just to make core cbo code happy */
 	riscv_cbom_block_size = 1;
 	riscv_noncoherent_supported();
+	return done;
+}
+
+static bool errata_legacy_mmu_check_func(unsigned int stage,
+					 unsigned long arch_id,
+					 unsigned long impid)
+{
+	/* legacy MMU only exists in 2X-series CPU.*/
+	andes_legacy_mmu = (((arch_id & 0xF0) >> 4) == 0x2) ? true : false;
+	return andes_legacy_mmu;
+}
+
+static struct errata_info_t errata_list[ERRATA_ANDES_NUMBER] = {
+	{	.name = "probe_iocp",
+		.check_func = errata_probe_iocp
+	},
+	{
+		.name = "legacy_mmu",
+		.check_func = errata_legacy_mmu_check_func
+	},
+};
+
+static u32 __init_or_module andes_errata_probe(unsigned int stage,
+					       unsigned long archid,
+					       unsigned long impid)
+{
+	u32 cpu_req_errata = 0;
+	int idx;
+
+	for (idx = 1; idx < ERRATA_ANDES_NUMBER; idx++)
+		if (errata_list[idx].check_func(stage, archid, impid))
+			cpu_req_errata |= (1U << idx);
+
+	return cpu_req_errata;
 }
 
 void __init_or_module andes_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 					      unsigned long archid, unsigned long impid,
 					      unsigned int stage)
 {
-	if (stage == RISCV_ALTERNATIVES_BOOT)
-		errata_probe_iocp(stage, archid, impid);
+	struct alt_entry *alt;
+	u32 cpu_req_errata;
+	u32 tmp = 0;
 
-	/* we have nothing to patch here ATM so just return back */
+	if (stage == RISCV_ALTERNATIVES_BOOT &&
+	    IS_ENABLED(CONFIG_ARCH_R9A07G043)) {
+		errata_probe_iocp(stage, archid, impid);
+		return;
+	}
+
+	cpu_req_errata = andes_errata_probe(stage, archid, impid);
+
+	for (alt = begin; alt < end; alt++) {
+		if (alt->vendor_id != ANDES_VENDOR_ID)
+			continue;
+		if (alt->patch_id >= ERRATA_ANDES_NUMBER)
+			continue;
+
+		tmp = (1U << alt->patch_id);
+		if (cpu_req_errata & tmp) {
+			mutex_lock(&text_mutex);
+			patch_text_nosync(ALT_OLD_PTR(alt), ALT_ALT_PTR(alt),
+					  alt->alt_len);
+			mutex_unlock(&text_mutex);
+		}
+	}
 }

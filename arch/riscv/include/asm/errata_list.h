@@ -13,7 +13,8 @@
 
 #ifdef CONFIG_ERRATA_ANDES
 #define ERRATA_ANDES_NO_IOCP 0
-#define ERRATA_ANDES_NUMBER 1
+#define ERRATA_ANDES_LEGACY_MMU 1
+#define ERRATA_ANDES_NUMBER 2
 #endif
 
 #ifdef CONFIG_ERRATA_SIFIVE
@@ -58,6 +59,12 @@ asm(ALTERNATIVE("sfence.vma %0", "sfence.vma", SIFIVE_VENDOR_ID,	\
 asm(ALTERNATIVE("sfence.vma %0, %1", "sfence.vma", SIFIVE_VENDOR_ID,	\
 		ERRATA_SIFIVE_CIP_1200, CONFIG_ERRATA_SIFIVE_CIP_1200)	\
 		: : "r" (addr), "r" (asid) : "memory")
+
+#define ALT_LEGACY_MMU_FLUSH_TLB()				\
+asm volatile(ALTERNATIVE("nop", "sfence.vma", ANDES_VENDOR_ID,	\
+		ERRATA_ANDES_LEGACY_MMU,			\
+		CONFIG_ERRATA_ANDES_LEGACY_MMU)			\
+		: : : "memory")
 
 /*
  * _val is marked as "will be overwritten", so need to set it to 0
