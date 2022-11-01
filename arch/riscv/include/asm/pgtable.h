@@ -226,6 +226,7 @@ static inline int pmd_leaf(pmd_t pmd)
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 	*pmdp = pmd;
+	ALT_LEGACY_MMU_FLUSH_TLB();
 }
 
 static inline void pmd_clear(pmd_t *pmdp)
@@ -443,6 +444,7 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
+	ALT_LEGACY_MMU_FLUSH_TLB();
 }
 
 void flush_icache_pte(pte_t pte);

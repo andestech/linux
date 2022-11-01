@@ -9,7 +9,8 @@
 #include <asm/vendorid_list.h>
 
 #ifdef CONFIG_ERRATA_ANDES
-#define ERRATA_ANDES_NUMBER 0
+#define ERRATA_ANDES_LEGACY_MMU 0
+#define ERRATA_ANDES_NUMBER 1
 #endif
 
 #ifdef CONFIG_ERRATA_SIFIVE
@@ -47,6 +48,11 @@ ALTERNATIVE(__stringify(RISCV_PTR do_page_fault),			\
 asm(ALTERNATIVE("sfence.vma %0", "sfence.vma", SIFIVE_VENDOR_ID,	\
 		ERRATA_SIFIVE_CIP_1200, CONFIG_ERRATA_SIFIVE_CIP_1200)	\
 		: : "r" (addr) : "memory")
+
+#define ALT_LEGACY_MMU_FLUSH_TLB()						\
+asm volatile (ALTERNATIVE("nop", "sfence.vma", ANDES_VENDOR_ID,			\
+		ERRATA_ANDES_LEGACY_MMU, CONFIG_ERRATA_ANDES_LEGACY_MMU)	\
+		: : : "memory")
 
 /*
  * _val is marked as "will be overwritten", so need to set it to 0
