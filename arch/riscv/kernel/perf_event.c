@@ -1014,6 +1014,7 @@ int __init init_hw_perf_events(void)
 	const struct of_device_id *of_id;
 	int cpu;
 
+	pr_info("Perf: Legacy Andes perf implementation is available\n");
 	raw_spin_lock_init(&l2c_hw_events.pmu_lock);
 	l2c_hw_events.n_events = 0;
 	riscv_pmu = &riscv_base_pmu;
