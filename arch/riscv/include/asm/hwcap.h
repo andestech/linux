@@ -55,7 +55,9 @@ extern unsigned long elf_hwcap;
 #define RISCV_ISA_EXT_ZBB		30
 #define RISCV_ISA_EXT_ZICBOM		31
 #define RISCV_ISA_EXT_ZIHINTPAUSE	32
+#define RISCV_ISA_EXT_SVNAPOT		33
 #define ANDES_ISA_EXT_DSP		63
+
 #define RISCV_ISA_EXT_MAX		64
 #define RISCV_ISA_EXT_NAME_LEN_MAX	32
 
@@ -63,11 +65,13 @@ extern unsigned long elf_hwcap;
  * This enum represents the logical ID for each RISC-V ISA extension static
  * keys. We can use static key to optimize code path if some ISA extensions
  * are available.
+ * Entries are sorted alphabetically.
  */
 enum riscv_isa_ext_key {
 	RISCV_ISA_EXT_KEY_FPU,		/* For 'F' and 'D' */
 	RISCV_ISA_EXT_KEY_ZIHINTPAUSE,
 	RISCV_ISA_EXT_KEY_SVINVAL,
+	RISCV_ISA_EXT_KEY_SVNAPOT,
 	ANDES_ISA_EXT_KEY_DSP,
 	RISCV_ISA_EXT_KEY_MAX,
 };
@@ -92,6 +96,8 @@ static __always_inline int riscv_isa_ext2key(int num)
 		return RISCV_ISA_EXT_KEY_ZIHINTPAUSE;
 	case RISCV_ISA_EXT_SVINVAL:
 		return RISCV_ISA_EXT_KEY_SVINVAL;
+	case RISCV_ISA_EXT_SVNAPOT:
+		return RISCV_ISA_EXT_KEY_SVNAPOT;
 	case ANDES_ISA_EXT_DSP:
 		return ANDES_ISA_EXT_KEY_DSP;
 	default:
