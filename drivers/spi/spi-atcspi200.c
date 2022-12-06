@@ -330,7 +330,7 @@ static int atcspi200_spi_transfer_one_message(struct spi_master *master,struct s
 	spi_flags = SPI_XFER_BEGIN;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (list_is_first(&t->transfer_list, &m->transfers) && !(t->tx_buf)) {
-			dev_dbg(&spi->dev, "missing tx buf\n");
+			dev_dbg(&master->dev, "missing tx buf\n");
 			return -EINVAL;
 		}
 		if (!t->tx_buf && !t->rx_buf)
