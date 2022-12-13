@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "Andes AE350 platform drivers"
+
+config ANDES_CACHE
+	bool "Andes L1 & L2 cache controller"
+	depends on RISCV && PLAT_AE350
+	help
+	  Support for the Andes L1 & L2 cache controller on AE350 platforms.
+endmenu
