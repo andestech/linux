@@ -32,6 +32,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
+#include <linux/of_net.h>
 
 #include "ftmac100.h"
 #include <linux/uaccess.h>
@@ -1109,8 +1110,14 @@ static int ftmac100_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	struct net_device *netdev;
+	struct device *dev;
+	struct device_node *mac_node;
+	u8 mac_addr[ETH_ALEN];
 	struct ftmac100 *priv;
 	int err, ret;
+
+	dev = &pdev->dev;
+	mac_node = dev->of_node;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -1194,9 +1201,19 @@ static int ftmac100_probe(struct platform_device *pdev)
 	netdev_info(netdev, "irq %d, mapped at %p\n", priv->irq, priv->base);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		eth_hw_addr_random(netdev);
-		netdev_info(netdev, "generated random MAC address %pM\n",
-			    netdev->dev_addr);
+		ret = of_get_mac_address(mac_node, mac_addr);
+		if (ret) {
+			/* generate random MAC address if it is not provided by
+			 * device tree
+			 */
+			eth_hw_addr_random(netdev);
+			netdev_info(netdev, "generated random MAC address %pM\n",
+				    netdev->dev_addr);
+		} else {
+			netdev_info(netdev, "using MAC address given by device tree %pM\n",
+			    mac_addr);
+			dev_addr_set(netdev, mac_addr);
+		}
 	}
 
 	return 0;
