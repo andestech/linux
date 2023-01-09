@@ -12,8 +12,13 @@
 #ifdef CONFIG_ERRATA_ANDES
 #define ERRATA_ANDES_LEGACY_MMU 0
 #define ERRATA_ANDES_PA_MSB 1
-#define ERRATA_ANDES_NUMBER 2
+#define ERRATA_ANDES_HPM 2
+#define ERRATA_ANDES_NUMBER 3
 #endif
+
+/* Andes HPM */
+#define ANDES_RV_IRQ_HPM	18
+#define ANDES_CSR_SCOUNTEROVF	0x9d4
 
 #ifdef CONFIG_ERRATA_SIFIVE
 #define	ERRATA_SIFIVE_CIP_453 0
@@ -159,11 +164,14 @@ asm volatile(ALTERNATIVE_2(						\
 #define THEAD_C9XX_CSR_SCOUNTEROF		0x5c5
 
 #define ALT_SBI_PMU_OVERFLOW(__ovl)					\
-asm volatile(ALTERNATIVE(						\
+asm volatile(ALTERNATIVE_2(						\
 	"csrr %0, " __stringify(CSR_SSCOUNTOVF),			\
 	"csrr %0, " __stringify(THEAD_C9XX_CSR_SCOUNTEROF),		\
 		THEAD_VENDOR_ID, ERRATA_THEAD_PMU,			\
-		CONFIG_ERRATA_THEAD_PMU)				\
+		CONFIG_ERRATA_THEAD_PMU,				\
+	"csrr %0, " __stringify(ANDES_CSR_SCOUNTEROVF),			\
+		ANDES_VENDOR_ID, ERRATA_ANDES_HPM,			\
+		CONFIG_ERRATA_ANDES_HPM)				\
 	: "=r" (__ovl) :						\
 	: "memory")
 

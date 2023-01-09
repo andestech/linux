@@ -16,6 +16,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/smp.h>
+#include <soc/andes/sbi.h>
+#include <soc/andes/csr.h>
 
 static struct irq_domain *intc_domain;
 
@@ -23,6 +25,8 @@ static asmlinkage void riscv_intc_irq(struct pt_regs *regs)
 {
 	unsigned long cause = regs->cause & ~CAUSE_IRQ_FLAG;
 
+	if (cause == IRQ_S_HPM)
+		cause = cause & ~(1 << 8);
 	if (unlikely(cause >= BITS_PER_LONG))
 		panic("unexpected interrupt cause");
 

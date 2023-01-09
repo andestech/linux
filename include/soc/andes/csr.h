@@ -146,5 +146,6 @@ extern u32 CCTL_L2_STATUS_PER_CORE_OFFSET;
 
 #define IRQ_HPM_OVF		18
 #define SLIP_PMOVI		(_AC(0x1, UL) << IRQ_HPM_OVF)
+#define IRQ_S_HPM		274
 
 #endif /* !__SOC_ANDES_CSR_H */
