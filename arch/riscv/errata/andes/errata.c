@@ -11,6 +11,7 @@
 #include <asm/alternative.h>
 #include <asm/vendorid_list.h>
 #include <asm/errata_list.h>
+#include <soc/andes/sbi.h>
 #include <soc/andes/andes.h>
 #include <soc/andes/ppma.h>
 
@@ -56,6 +57,19 @@ static bool errata_legacy_mmu_check_func(unsigned long arch_id,
 	return andes_legacy_mmu;
 }
 
+static bool errata_probe_hpm(unsigned long arch_id,
+			     unsigned long impid,
+			     unsigned int stage)
+{
+	struct sbiret result;
+
+	result = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_HPM, 0,0,0,0,0,0);
+	if (result.value)
+		return true;
+	else
+		return false;
+}
+
 static struct errata_info_t errata_list[ERRATA_ANDES_NUMBER] = {
 	{
 		.name = "legacy_mmu",
@@ -64,6 +78,10 @@ static struct errata_info_t errata_list[ERRATA_ANDES_NUMBER] = {
 	{
 		.name = "pa_msb",
 		.check_func = errata_msb_check_func
+	},
+	{
+		.name = "andes_hpm",
+		.check_func = errata_probe_hpm
 	},
 };
 

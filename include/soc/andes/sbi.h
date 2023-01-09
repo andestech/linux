@@ -49,6 +49,9 @@ enum sbi_ext_andes_fid {
 	SBI_EXT_ANDES_PROBE_PPMA,
 
 	SBI_EXT_ANDES_DCACHE_WBINVAL_ALL,
+
+	/* HPM */
+	SBI_EXT_ANDES_HPM,
 };
 
 /* Programmable physical memory attributes (PPMA) */
