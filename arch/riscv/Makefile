@@ -188,3 +188,31 @@ rv32_defconfig:
 PHONY += rv32_nommu_virt_defconfig
 rv32_nommu_virt_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile nommu_virt_defconfig 32-bit.config
+
+PHONY += ae350_rv32_up_defconfig
+ae350_rv32_up_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 32-bit.config
+
+PHONY += ae350_rv32_smp_defconfig
+ae350_rv32_smp_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 32-bit.config smp.config
+
+PHONY += ae350_rv64_up_defconfig
+ae350_rv64_up_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config sv39.config
+
+PHONY += ae350_rv64_smp_defconfig
+ae350_rv64_smp_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config smp.config sv39.config
+
+PHONY += ae350_rv64_up_sv48_defconfig
+ae350_rv64_up_sv48_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config sv48.config
+
+PHONY += ae350_rv64_smp_sv48_defconfig
+ae350_rv64_smp_sv48_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config smp.config sv48.config
+
+PHONY += ae350_rv64_ax25_amp_defconfig
+ae350_rv64_ax25_amp_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config amp.config sv39.config
