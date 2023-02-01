@@ -186,3 +186,23 @@ rv64_randconfig:
 PHONY += rv32_defconfig
 rv32_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile defconfig 32-bit.config
+
+PHONY += ae350_rv32_up_defconfig
+ae350_rv32_up_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 32-bit.config
+
+PHONY += ae350_rv32_smp_defconfig
+ae350_rv32_smp_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 32-bit.config smp.config
+
+PHONY += ae350_rv64_up_defconfig
+ae350_rv64_up_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config
+
+PHONY += ae350_rv64_smp_defconfig
+ae350_rv64_smp_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config smp.config
+
+PHONY += ae350_rv64_ax25_amp_defconfig
+ae350_rv64_ax25_amp_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config amp.config
