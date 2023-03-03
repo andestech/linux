@@ -7,6 +7,13 @@ config PLAT_AE350
 	help
 	  This enables support for Andes AE350 platform hardware.
 
+config ANDES_QEMU_SUPPORT
+	bool "Andes QEMU SUPPORT"
+	depends on SOC_SIFIVE
+	default n
+	help
+	  Andes QEMU Support.
+
 config SOC_MICROCHIP_POLARFIRE
 	bool "Microchip PolarFire SoCs"
 	select MCHP_CLK_MPFS

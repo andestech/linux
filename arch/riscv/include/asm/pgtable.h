@@ -150,6 +150,14 @@ struct pt_alloc_ops {
 extern struct pt_alloc_ops pt_ops __initdata;
 
 #ifdef CONFIG_MMU
+/* Noncacheable page prot for Andes MSB */
+extern phys_addr_t andes_pa_msb;
+#ifdef CONFIG_ANDES_QEMU_SUPPORT
+#define _PAGE_NONCACHEABLE      0
+#else
+#define _PAGE_NONCACHEABLE      ((!!andes_pa_msb) << 31)
+#endif
+
 /* Number of PGD entries that a user-mode program can use */
 #define USER_PTRS_PER_PGD   (TASK_SIZE / PGDIR_SIZE)
 
@@ -283,7 +291,15 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 
 	ALT_THEAD_PMA(prot_val);
 
-	return __pte((pfn << _PAGE_PFN_SHIFT) | prot_val);
+	/*
+	 * When PPMA is on and activated: pa_msb == 0;
+	 *                     Otherwise: pa_msb != 0;
+	 */
+	if (andes_pa_msb && (prot_val & _PAGE_NONCACHEABLE))
+		return __pte(((pfn | andes_pa_msb) << _PAGE_PFN_SHIFT)
+				| (prot_val  & ~_PAGE_NONCACHEABLE));
+	else
+		return __pte((pfn << _PAGE_PFN_SHIFT) | prot_val);
 }
 
 #define mk_pte(page, prot)       pfn_pte(page_to_pfn(page), prot)
@@ -542,6 +558,7 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 
 	prot &= ~_PAGE_MTMASK;
 	prot |= _PAGE_IO;
+	prot |= _PAGE_NONCACHEABLE;
 
 	return __pgprot(prot);
 }
@@ -553,6 +570,7 @@ static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 
 	prot &= ~_PAGE_MTMASK;
 	prot |= _PAGE_NOCACHE;
+	prot |= _PAGE_NONCACHEABLE;
 
 	return __pgprot(prot);
 }

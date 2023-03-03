@@ -16,6 +16,9 @@
 bool andes_legacy_mmu;
 EXPORT_SYMBOL(andes_legacy_mmu);
 
+phys_addr_t andes_pa_msb;
+EXPORT_SYMBOL(andes_pa_msb);
+
 struct errata_info_t {
 	char name[ERRATA_STRING_LENGTH_MAX];
 	bool (*check_func)(unsigned long arch_id,
@@ -23,11 +26,28 @@ struct errata_info_t {
 			   unsigned int stage);
 };
 
+static bool errata_msb_check_func(unsigned long arch_id,
+				  unsigned long impid,
+				  unsigned int stage)
+{
+	if (stage != RISCV_ALTERNATIVES_EARLY_BOOT)
+		return false;
+
+	andes_pa_msb = 0;
+
+	if (riscv_isa_extension_available(NULL, SVPBMT))
+		return false;
+
+	csr_write(satp, SATP_PPN);
+	andes_pa_msb = (csr_read(satp) + 1) >> 1;
+	return true;
+}
+
 static bool errata_legacy_mmu_check_func(unsigned long arch_id,
 					 unsigned long impid,
 					 unsigned int stage)
 {
-	/* legacy MMU only exists in 2X-series CPU.*/
+	/* legacy MMU only exists in 2x-series CPU. */
 	andes_legacy_mmu = (((arch_id & 0xF0) >> 4) == 0x2) ? true : false;
 	return andes_legacy_mmu;
 }
@@ -36,6 +56,10 @@ static struct errata_info_t errata_list[ERRATA_ANDES_NUMBER] = {
 	{
 		.name = "legacy_mmu",
 		.check_func = errata_legacy_mmu_check_func
+	},
+	{
+		.name = "pa_msb",
+		.check_func = errata_msb_check_func
 	},
 };
 
@@ -63,8 +87,10 @@ void __init_or_module andes_errata_patch_func(struct alt_entry *begin,
 	u32 cpu_req_errata;
 	u32 tmp = 0;
 
-	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
+	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
+		cpu_req_errata = errata_msb_check_func(archid, impid, stage);
 		return;
+	}
 
 	cpu_req_errata = andes_errata_probe(archid, impid, stage);
 
