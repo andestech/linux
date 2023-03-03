@@ -13,6 +13,7 @@ config ERRATA_ANDES
 config ERRATA_ANDES_CMO
 	bool "Apply Andes cache management errata"
 	depends on ERRATA_ANDES
+	select RISCV_ALTERNATIVE_EARLY
 	select RISCV_DMA_NONCOHERENT
 	select DMA_GLOBAL_POOL
 	default y
