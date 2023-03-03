@@ -22,6 +22,9 @@
 #define ANDES_AX45MP_MARCHID		0x8000000000008a45UL
 #define ANDES_AX45MP_MIMPID		0x500UL
 
+phys_addr_t andes_pfn_msb;
+EXPORT_SYMBOL(andes_pfn_msb);
+
 bool andes_legacy_mmu;
 EXPORT_SYMBOL(andes_legacy_mmu);
 
@@ -81,6 +84,35 @@ static bool errata_legacy_mmu_check_func(unsigned int stage,
 	return andes_legacy_mmu;
 }
 
+static bool errata_support_uncache(unsigned int stage,
+				   unsigned long arch_id,
+				   unsigned long impid)
+{
+	/*
+	 * Check RISCV_ALTERNATIVES_EARLY_BOOT stage ensures
+	 * andes_pfn_msb is modified only once during kernel bootup.
+	 */
+	if (stage != RISCV_ALTERNATIVES_EARLY_BOOT)
+		return false;
+
+	andes_pfn_msb = 0;
+
+	if (!IS_ENABLED(CONFIG_ERRATA_ANDES_CMO))
+		return 0;
+
+	if (riscv_isa_extension_available(NULL, SVPBMT))
+		return true;
+
+	/* Set this just to make core cbo code happy */
+	riscv_cbom_block_size = 1;
+	riscv_noncoherent_supported();
+
+	csr_write(satp, SATP_PPN);
+	andes_pfn_msb = (csr_read(satp) + 1) >> 1;
+
+	return true;
+}
+
 static struct errata_info_t errata_list[ERRATA_ANDES_NUMBER] = {
 	{	.name = "probe_iocp",
 		.check_func = errata_probe_iocp
@@ -88,6 +120,10 @@ static struct errata_info_t errata_list[ERRATA_ANDES_NUMBER] = {
 	{
 		.name = "legacy_mmu",
 		.check_func = errata_legacy_mmu_check_func
+	},
+	{
+		.name = "support_uncache",
+		.check_func = errata_support_uncache
 	},
 };
 
@@ -113,9 +149,11 @@ void __init_or_module andes_errata_patch_func(struct alt_entry *begin, struct al
 	u32 cpu_req_errata;
 	u32 tmp = 0;
 
-	if (stage == RISCV_ALTERNATIVES_BOOT &&
-	    IS_ENABLED(CONFIG_ARCH_R9A07G043)) {
-		errata_probe_iocp(stage, archid, impid);
+	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
+		if (IS_ENABLED(CONFIG_ARCH_R9A07G043))
+			errata_probe_iocp(stage, archid, impid);
+		else
+			errata_support_uncache(stage, archid, impid);
 		return;
 	}
 
