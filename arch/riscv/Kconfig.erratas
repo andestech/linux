@@ -23,6 +23,18 @@ config ERRATA_ANDES_LEGACY_MMU
 
 	  If you don't know what to do here, say "Y".
 
+config ERRATA_ANDES_PA_MSB
+	bool "Apply Andes errata physical address MSB"
+	depends on ERRATA_ANDES
+	select RISCV_ALTERNATIVE_EARLY
+	default y
+	help
+	  This will apply the Andes physical address MSB errata.
+	  Use the MSB of physical address to distinguish cacheable
+	  memory for Andes 25 series CPUs.
+
+	  If you don't know what to do here, say "Y".
+
 config ERRATA_SIFIVE
 	bool "SiFive errata"
 	depends on !XIP_KERNEL
