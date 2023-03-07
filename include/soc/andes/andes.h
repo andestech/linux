@@ -6,6 +6,8 @@
 #ifndef __SOC_ANDES_ANDES_H
 #define __SOC_ANDES_ANDES_H
 
+#include <linux/types.h>
+
 extern bool andes_legacy_mmu;
 extern phys_addr_t andes_pa_msb;
 
