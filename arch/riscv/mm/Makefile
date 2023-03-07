@@ -13,6 +13,9 @@ obj-y += extable.o
 obj-$(CONFIG_MMU) += fault.o pageattr.o
 obj-y += cacheflush.o
 obj-y += context.o
+ifeq ($(CONFIG_ERRATA_ANDES),y)
+obj-y += ioremap.o
+endif
 
 ifeq ($(CONFIG_MMU),y)
 obj-$(CONFIG_SMP) += tlbflush.o

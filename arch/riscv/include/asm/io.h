@@ -133,6 +133,12 @@ __io_writes_outs(outs, u64, q, __io_pbr(), __io_paw())
 #define outsq(addr, buffer, count) __outsq(PCI_IOBASE + (addr), buffer, count)
 #endif
 
+#ifdef CONFIG_MMU
+extern void __iomem *ioremap_wc(phys_addr_t phys_addr, size_t size);
+#define ioremap_wc ioremap_wc
+#define ioremap_wt ioremap_wc
+#endif /* CONFIG_MMU */
+
 #include <asm-generic/io.h>
 
 #ifdef CONFIG_MMU
