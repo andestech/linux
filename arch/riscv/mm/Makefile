@@ -18,6 +18,9 @@ obj-y += cacheflush.o
 obj-y += context.o
 obj-y += pgtable.o
 obj-y += pmem.o
+ifeq ($(CONFIG_ERRATA_ANDES),y)
+obj-y += ioremap.o
+endif
 
 ifeq ($(CONFIG_MMU),y)
 obj-$(CONFIG_SMP) += tlbflush.o
