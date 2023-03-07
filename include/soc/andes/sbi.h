@@ -7,6 +7,7 @@
 
 #include <asm/sbi.h>
 #include <asm/vendorid_list.h>
+#include <soc/andes/ppma.h>
 
 #define SBI_EXT_ANDES (SBI_EXT_VENDOR_START | ANDES_VENDOR_ID)
 
@@ -42,6 +43,17 @@ enum sbi_ext_andes_fid {
 	SBI_EXT_ANDES_RESTART,
 	SBI_EXT_ANDES_SET_RESET_VEC,
 
+	/* Programmable physical memory attributes (PPMA) */
+	SBI_EXT_ANDES_SET_PPMA,
+	SBI_EXT_ANDES_FREE_PPMA,
+	SBI_EXT_ANDES_PROBE_PPMA,
+
 	SBI_EXT_ANDES_DCACHE_WBINVAL_ALL,
 };
+
+/* Programmable physical memory attributes (PPMA) */
+void sbi_andes_set_ppma(void *arg);
+void sbi_andes_free_ppma(unsigned long addr);
+long sbi_andes_probe_ppma(void);
+
 #endif /* !__SOC_ANDES_SBI_H */

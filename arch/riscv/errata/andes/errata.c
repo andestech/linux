@@ -12,6 +12,7 @@
 #include <asm/vendorid_list.h>
 #include <asm/errata_list.h>
 #include <soc/andes/andes.h>
+#include <soc/andes/ppma.h>
 
 bool andes_legacy_mmu;
 EXPORT_SYMBOL(andes_legacy_mmu);
@@ -36,6 +37,9 @@ static bool errata_msb_check_func(unsigned long arch_id,
 	andes_pa_msb = 0;
 
 	if (riscv_isa_extension_available(NULL, SVPBMT))
+		return false;
+
+	if (andes_probe_ppma())
 		return false;
 
 	csr_write(satp, SATP_PPN);

@@ -137,6 +137,9 @@ __io_writes_outs(outs, u64, q, __io_pbr(), __io_paw())
 extern void __iomem *ioremap_wc(phys_addr_t phys_addr, size_t size);
 #define ioremap_wc ioremap_wc
 #define ioremap_wt ioremap_wc
+
+extern bool iounmap_allowed(void *addr);
+#define iounmap_allowed iounmap_allowed
 #endif /* CONFIG_MMU */
 
 #include <asm-generic/io.h>
