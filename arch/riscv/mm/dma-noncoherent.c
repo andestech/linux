@@ -9,6 +9,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/mm.h>
 #include <asm/cacheflush.h>
+#include <soc/andes/dma.h>
 
 static bool noncoherent_supported;
 
@@ -19,12 +20,18 @@ void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
 
 	switch (dir) {
 	case DMA_TO_DEVICE:
+		if (!noncoherent_supported)
+			andes_cache_op(paddr, size, cpu_dma_wb_range);
 		ALT_CMO_OP(clean, vaddr, size, riscv_cbom_block_size);
 		break;
 	case DMA_FROM_DEVICE:
+		if (!noncoherent_supported)
+			andes_cache_op(paddr, size, cpu_dma_inval_range);
 		ALT_CMO_OP(clean, vaddr, size, riscv_cbom_block_size);
 		break;
 	case DMA_BIDIRECTIONAL:
+		if (!noncoherent_supported)
+			andes_cache_op(paddr, size, cpu_dma_wb_range);
 		ALT_CMO_OP(flush, vaddr, size, riscv_cbom_block_size);
 		break;
 	default:
@@ -42,6 +49,8 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 		break;
 	case DMA_FROM_DEVICE:
 	case DMA_BIDIRECTIONAL:
+		if (!noncoherent_supported)
+			andes_cache_op(paddr, size, cpu_dma_inval_range);
 		ALT_CMO_OP(flush, vaddr, size, riscv_cbom_block_size);
 		break;
 	default:
@@ -53,12 +62,19 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 {
 	void *flush_addr = page_address(page);
 
+	if (!noncoherent_supported)
+		dma_flush_page(page, size);
 	ALT_CMO_OP(flush, flush_addr, size, riscv_cbom_block_size);
 }
 
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		const struct iommu_ops *iommu, bool coherent)
 {
+	if (!noncoherent_supported) {
+		dev->dma_coherent = coherent;
+		return;
+	}
+
 	WARN_TAINT(!coherent && riscv_cbom_block_size > ARCH_DMA_MINALIGN,
 		   TAINT_CPU_OUT_OF_SPEC,
 		   "%s %s: ARCH_DMA_MINALIGN smaller than riscv,cbom-block-size (%d < %d)",

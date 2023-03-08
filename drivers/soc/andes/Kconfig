@@ -9,6 +9,17 @@ config ANDES_CACHE
 	help
 	  Support for the Andes L1 & L2 cache controller on AE350 platforms.
 
+config ANDES_DMA_NONCOHERENT
+	bool "Andes DMA noncoherent support"
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SETUP_DMA_OPS
+	select ARCH_HAS_DMA_PREP_COHERENT
+	select ARCH_HAS_DMA_SET_UNCACHED
+	depends on RISCV && PLAT_AE350
+	help
+	  Andes DMA noncoherent support
+
 config ANDES_PPMA
 	bool "Andes PPMA Support"
 	depends on RISCV && PLAT_AE350
