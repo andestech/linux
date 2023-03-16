@@ -99,6 +99,7 @@ enum sbi_ext_andes_fid {
 	SBI_EXT_ANDES_DCACHE_WBINVAL_ALL,
 	SBI_EXT_ANDES_GET_MICM_CFG,
 	SBI_EXT_ANDES_GET_MDCM_CFG,
+	SBI_EXT_ANDES_HPM,
 };
 
 enum sbi_hsm_hart_status {

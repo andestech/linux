@@ -95,8 +95,8 @@ EXPORT_SYMBOL(sbi_get_marchid);
 long sbi_get_micm_cfg(void)
 {
 	struct sbiret ret;
-	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MICM_CFG,
-			0, 0, 0, 0, 0, 0);
+	//ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MICM_CFG,
+	//		0, 0, 0, 0, 0, 0);
 	return ret.value;
 }
 EXPORT_SYMBOL(sbi_get_micm_cfg);
@@ -104,8 +104,8 @@ EXPORT_SYMBOL(sbi_get_micm_cfg);
 long sbi_get_mdcm_cfg(void)
 {
 	struct sbiret ret;
-	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MDCM_CFG,
-			0, 0, 0, 0, 0, 0);
+	//ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MDCM_CFG,
+	//		0, 0, 0, 0, 0, 0);
 	return ret.value;
 }
 EXPORT_SYMBOL(sbi_get_mdcm_cfg);

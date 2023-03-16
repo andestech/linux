@@ -212,8 +212,13 @@ static bool riscv_extension_compatible(const char** elf_isa,
 
 		curr_pos = strcasechr(riscv_extensions, **elf_isa);
 		if (prev_pos && prev_pos > curr_pos) {
-			pr_warn("Wrong extension order `%c' after `%c'",
+			if ((prev_pos) && (curr_pos)) {
+				pr_warn("Wrong extension order `%c' after `%c'",
 			        *curr_pos, *prev_pos);
+			}
+			else {
+				pr_warn("Wrong extension order\n");
+			}
 			return false;
 		}
 		prev_pos = curr_pos;
@@ -327,23 +332,6 @@ out_invalid_base:
 
 static bool riscv_isa_compatible(const char* elf_isa)
 {
-	const char *host_isa = elf_platform;
-
-	if (!strcmp(elf_isa, host_isa))
-		return true;
-
-	/* The ISA string starts with the base ISA */
-	if (!riscv_base_isa_compatible(&elf_isa, &host_isa))
-		return false;
-
-	/* Followed by multiple extensions */
-	if (!riscv_extension_compatible(&elf_isa, &host_isa))
-		return false;
-
-	/* Optionally followed by non-standard extensions */
-	if (!riscv_non_standard_compatible(&elf_isa, &host_isa))
-		return false;
-
 	return true;
 }
 

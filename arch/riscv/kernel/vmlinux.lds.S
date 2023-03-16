@@ -84,8 +84,6 @@ SECTIONS
 		*(.srodata*)
 	}
 
-	EXCEPTION_TABLE(0x10)
-
 	. = ALIGN(SECTION_ALIGN);
 	_data = .;
 
@@ -104,6 +102,7 @@ SECTIONS
 	_edata = .;
 
 	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, 0)
+	EXCEPTION_TABLE(0x10)
 
 	.rel.dyn : {
 		*(.rel.dyn*)

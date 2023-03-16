@@ -128,7 +128,7 @@
 	soc {
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
-		compatible = "andestech,riscv-ae350-soc";
+		compatible = "andestech,riscv-ae350-soc", "simple-bus";
 		ranges;
 
 		interrupt-controller@e4000000 {
@@ -337,7 +337,7 @@
 		interrupt-parent = <0x6>;
 
 		flash@0 {
-			compatible = "spi-flash";
+			compatible = "mx25u1635e", "jedec,spi-nor";
 			spi-max-frequency = <0x2faf080>;
 			reg = <0x0>;
 			spi-cpol;
