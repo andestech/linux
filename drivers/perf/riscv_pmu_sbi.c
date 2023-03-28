@@ -248,12 +248,9 @@ static const struct sbi_pmu_event_data pmu_cache_event_map[PERF_COUNT_HW_CACHE_M
 typedef void (*perf_irq_t)(struct pt_regs *);
 perf_irq_t perf_irq = NULL;
 
-void riscv_reset_overflow(unsigned long status)
+static void riscv_reset_overflow(unsigned long status)
 {
-	if (is_andes_hpm)
-		csr_write(CSR_SCOUNTEROVF, status);
-	else
-		csr_write(CSR_SSCOUNTOVF, status);
+	csr_write(CSR_SCOUNTEROVF, status);
 }
 
 static int pmu_sbi_ctr_get_width(int idx)
@@ -593,12 +590,13 @@ static irqreturn_t pmu_sbi_ovf_handler(struct pt_regs *regs)
 	pmu_sbi_stop_hw_ctrs(pmu);
 
 	/* Overflow status register should only be read after counter are stopped */
-	if (is_andes_hpm)
+	if (is_andes_hpm) {
 		overflow = csr_read(CSR_SCOUNTEROVF);
-	else
+		riscv_reset_overflow(overflow);
+	} else {
 		overflow = csr_read(CSR_SSCOUNTOVF);
+	}
 
-	riscv_reset_overflow(overflow);
 	/**
 	 * Overflow interrupt pending bit should only be cleared after stopping
 	 * all the counters to avoid any race condition.
