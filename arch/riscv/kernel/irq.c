@@ -25,7 +25,6 @@
 #define INTERRUPT_CAUSE_SOFTWARE	IRQ_S_SOFT
 #define INTERRUPT_CAUSE_TIMER		IRQ_S_TIMER
 #define INTERRUPT_CAUSE_EXTERNAL	IRQ_S_EXT
-#define INTERRUPT_CAUSE_HPM			IRQ_S_HPM
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
@@ -55,9 +54,10 @@ asmlinkage __visible void __irq_entry do_IRQ(struct pt_regs *regs)
 		handle_arch_irq(regs);
 		break;
 #ifdef CONFIG_PERF_EVENTS
-    case INTERRUPT_CAUSE_HPM:
-        riscv_perf_interrupt(regs);
-        break;
+	case IRQ_S_HPM:
+	case IRQ_PMU_OVF:
+		riscv_perf_interrupt(regs);
+		break;
 #endif
 	default:
 		pr_alert("unexpected interrupt cause 0x%lx", regs->scause);
