@@ -37,7 +37,7 @@ config ERRATA_ANDES_PA_MSB
 
 config ERRATA_ANDES_HPM
 	bool "Apply Andes HPM errata"
-	depends on ERRATA_ANDES && RISCV_PMU_SBI
+	depends on ERRATA_ANDES
 	default y
 	help
 	  The Andes cores implement a HPM overflow extension very

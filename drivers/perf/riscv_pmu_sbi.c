@@ -19,7 +19,7 @@
 #include <linux/of.h>
 #include <linux/cpu_pm.h>
 #include <linux/sched/clock.h>
-#include <soc/andes/andes.h>
+#include <soc/andes/sbi.h>
 #include <soc/andes/csr.h>
 
 #include <asm/errata_list.h>
