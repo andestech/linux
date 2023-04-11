@@ -13,8 +13,6 @@ void sbi_andes_cpu_icache_enable(void *info);
 void sbi_andes_cpu_icache_disable(void *info);
 void sbi_andes_cpu_dcache_enable(void *info);
 void sbi_andes_cpu_dcache_disable(void *info);
-uint32_t cpu_l2c_ctl_status(void);
-void cpu_l2c_disable(void);
 
 long sbi_andes_get_non_blocking_status(void);
 long sbi_andes_get_write_around_status(void);
@@ -33,8 +31,6 @@ void sbi_andes_set_mmisc_ctl(unsigned long input);
 
 void cpu_dma_inval_range(void *info);
 void cpu_dma_wb_range(void *info);
-void cpu_l2c_inval_range(unsigned long pa, unsigned long size);
-void cpu_l2c_wb_range(unsigned long pa, unsigned long size);
 
 /*
  * struct andesv5_cache_info
