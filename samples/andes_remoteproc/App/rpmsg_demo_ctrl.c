@@ -60,7 +60,7 @@ char *get_rpmsg_ept_dev_name(const char *rpmsg_char_name,
 int get_rpmsg_chrdev_fd(const char *rpmsg_dev_name,
 			       char *rpmsg_ctrl_name)
 {
-	char dpath[256], fpath[256];
+	char dpath[512], fpath[512];
 	char *rpmsg_ctrl_prefix = "rpmsg_ctrl";
 	DIR *dir;
 	struct dirent *ent;

@@ -9,16 +9,18 @@ MAT_MUL_OBJS = mat_mul_demo.o rpmsg_demo_ctrl.o
 PROXY = proxy_app
 PROXY_OBJS = proxy_app.o rpmsg_demo_ctrl.o
 
+CCFLAGS = -Wall -Werror
+
 all: $(ECHO) $(MAT_MUL) $(PROXY)
 
 $(ECHO): $(ECHO_OBJS)
-	$(CC) $(LDFLAGS) -static -o $@ $(ECHO_OBJS) $(LDLIBS)
+	$(CC) $(CCFLAGS) $(LDFLAGS) -static -o $@ $(ECHO_OBJS) $(LDLIBS)
 
 $(MAT_MUL): $(MAT_MUL_OBJS)
-	$(CC) $(LDFLAGS) -static -o $@ $(MAT_MUL_OBJS) $(LDLIBS) -lpthread
+	$(CC) $(CCFLAGS) $(LDFLAGS) -static -o $@ $(MAT_MUL_OBJS) $(LDLIBS) -lpthread
 
 $(PROXY): $(PROXY_OBJS)
-	$(CC) $(LDFLAGS) -static -o $@ $(PROXY_OBJS) $(LDLIBS)
+	$(CC) $(CCFLAGS) $(LDFLAGS) -static -o $@ $(PROXY_OBJS) $(LDLIBS)
 
 clean:
 	rm -rf $(ECHO) $(MAT_MUL) $(PROXY) *.o

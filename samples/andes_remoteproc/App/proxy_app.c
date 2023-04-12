@@ -119,7 +119,6 @@ int handle_write(struct _sys_rpc *rpc)
 int handle_rpc(struct _sys_rpc *rpc)
 {
 	int retval;
-	char *data = (char *)rpc;
 
 	/* Handle RPC */
 	switch ((int)(rpc->id)) {
@@ -235,7 +234,7 @@ int main(int argc, char *argv[])
 	struct sigaction exit_action;
 	struct sigaction kill_action;
 	int bytes_rcvd;
-	int i = 0, opt = 0, ret = 0;
+	int opt = 0, ret = 0;
 	char *rpmsg_dev = RPMSG_DEV;
 	char rpmsg_char_name[16];
 	int rpmsg_char_fd = -1, ept_fd = -1;

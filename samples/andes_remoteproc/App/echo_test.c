@@ -48,7 +48,7 @@ void send_shutdown(int fd)
 
 int main(int argc, char *argv[])
 {
-	int ret, i, j, count = 0;
+	int ret, i, j;
 	int size, bytes_rcvd, bytes_sent;
 	int opt;
 	char *rpmsg_dev = RPMSG_DEV;
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 			memset(&(i_payload->data[0]), 0xA5, size);
 
 			printf("\r\n sending payload number");
-			printf(" %ld of size %d\r\n", i_payload->num,
+			printf(" %ld of size %ld\r\n", i_payload->num,
 			(2 * sizeof(unsigned long)) + size);
 
 			bytes_sent = write(fd, i_payload,
@@ -146,7 +146,6 @@ int main(int argc, char *argv[])
 			r_payload->num = 0;
 			bytes_rcvd = read(fd, r_payload,
 					(2 * sizeof(unsigned long)) + PAYLOAD_MAX_SIZE);
-			count = 0;
 			while (bytes_rcvd <= 0) {
 				usleep(10000);
 				bytes_rcvd = read(fd, r_payload,
