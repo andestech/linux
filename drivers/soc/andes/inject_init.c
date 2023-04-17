@@ -38,11 +38,11 @@ static int inject_open(struct inode *inode, struct file *file)
 	return single_open(file, inject_show, NULL);
 }
 
-static const struct file_operations inject_fops = {
-	.open		= inject_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+static const struct proc_ops inject_fops = {
+	.proc_open	= inject_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 static int __init inject_init(void)
