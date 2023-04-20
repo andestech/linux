@@ -38,6 +38,9 @@ struct thread_struct {
 	unsigned long sp;	/* Kernel mode stack */
 	unsigned long s[12];	/* s[0]: frame pointer */
 	struct __riscv_d_ext_state fstate;
+#ifdef CONFIG_DSP
+	struct __riscv_dsp_state dspstate;
+#endif
 	unsigned long bad_cause;
 };
 

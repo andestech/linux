@@ -17,6 +17,9 @@
 struct sigcontext {
 	struct user_regs_struct sc_regs;
 	union __riscv_fp_state sc_fpregs;
+#ifdef CONFIG_DSP
+	struct __riscv_dsp_state sc_dspregs;
+#endif /* CONFIG_DSP */
 };
 
 #endif /* _UAPI_ASM_RISCV_SIGCONTEXT_H */
