@@ -206,6 +206,9 @@ void __init riscv_fill_hwcap(void)
 				SET_ISA_EXT_MAP("zihintpause", RISCV_ISA_EXT_ZIHINTPAUSE);
 				SET_ISA_EXT_MAP("sstc", RISCV_ISA_EXT_SSTC);
 				SET_ISA_EXT_MAP("svinval", RISCV_ISA_EXT_SVINVAL);
+
+				/* Andes vendor extensions: DSP */
+				SET_ISA_EXT_MAP("xdsp", ANDES_ISA_EXT_DSP);
 			}
 #undef SET_ISA_EXT_MAP
 		}
