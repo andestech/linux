@@ -9,7 +9,7 @@ MAT_MUL_OBJS = mat_mul_demo.o rpmsg_demo_ctrl.o
 PROXY = proxy_app
 PROXY_OBJS = proxy_app.o rpmsg_demo_ctrl.o
 
-CFLAGS = -Wall -Werror
+CFLAGS += -Wall -Werror
 
 all: $(ECHO) $(MAT_MUL) $(PROXY)
 
