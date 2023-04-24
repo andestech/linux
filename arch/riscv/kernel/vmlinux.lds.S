@@ -88,6 +88,17 @@ SECTIONS
 	/* Start of init data section */
 	__init_data_begin = .;
 	INIT_DATA_SECTION(16)
+
+	/* Those sections result from the compilation of kernel/pi/string.c */
+	.init.pidata : {
+		*(.init.srodata.cst8*)
+		*(.init__bug_table*)
+		*(.init.sdata*)
+	}
+
+	.init.bss : {
+		*(.init.bss)	/* from the EFI stub */
+	}
 	.exit.data :
 	{
 		EXIT_DATA
@@ -123,6 +134,24 @@ SECTIONS
 		__global_pointer$ = . + 0x800;
 		*(.sdata*)
 	}
+
+	.rela.dyn : ALIGN(8) {
+		__rela_dyn_start = .;
+		*(.rela .rela*)
+		__rela_dyn_end = .;
+	}
+
+	.got : { *(.got*) }
+
+#ifdef CONFIG_RELOCATABLE
+	.data.rel : { *(.data.rel*) }
+	.plt : { *(.plt) }
+	.dynamic : { *(.dynamic) }
+	.dynsym : { *(.dynsym) }
+	.dynstr : { *(.dynstr) }
+	.hash : { *(.hash) }
+	.gnu.hash : { *(.gnu.hash) }
+#endif
 
 #ifdef CONFIG_EFI
 	.pecoff_edata_padding : { BYTE(0); . = ALIGN(PECOFF_FILE_ALIGNMENT); }
