@@ -148,6 +148,13 @@ static inline void clrbl(addr_t bit, void __iomem *reg)
 /* Channel Enable */
 #define CHEN				BIT(0)
 
+#define CACHE_CTRL			0x184
+#define IOCP_MASK			0x4000000000
+#define IOCP_CACHE_DMAC0_AW 0xF
+#define IOCP_CACHE_DMAC0_AR 0xF0
+#define IOCP_CACHE_DMAC1_AW 0xF00
+#define IOCP_CACHE_DMAC1_AR 0xF000
+
 /* Channel n Transfer Size Register */
 /* total transfer size from source */
 #define DMAC_TOT_SIZE_MASK          0xffffffff
@@ -162,7 +169,7 @@ struct v5_lli {
 	u32	llPointerh;
 };
 
-/**
+/*
  * struct v5_desc - software descriptor
  * @v5_lli: hardware lli structure
  * @txd: support for the async_tx api
@@ -172,17 +179,26 @@ struct v5_lli {
  */
 struct v5_desc {
 	/* FIRST values the hardware uses */
-	struct v5_lli			lli;
+	struct v5_lli lli;
+
 	/* THEN values for driver housekeeping */
-	struct list_head		tx_list;
-	struct dma_async_tx_descriptor	txd;
-	struct list_head		desc_node;
-	size_t				len;
-	size_t				total_len;
+	struct list_head tx_list;
+	struct dma_async_tx_descriptor txd;
+	struct list_head desc_node;
+	struct list_head *at;
+	size_t len;
+
+	/* Total_len indicates that the remaining data in the descriptor
+	 * has not been transferred in cyclic mode.
+	 */
+	size_t total_len;
+
 	/* Interleaved data */
-	size_t				boundary;
-	size_t				dst_hole;
-	size_t				src_hole;
+	size_t boundary;
+	size_t dst_hole;
+	size_t src_hole;
+	bool cyclic;
+	int num_sg;
 };
 
 static inline struct v5_desc *
@@ -203,7 +219,7 @@ enum v5_status {
 	V5_IS_CYCLIC	= 24,
 };
 
-/**
+/*
  * struct v5_dma_chan - internal representation of an channel
  * @chan_common: common dmaengine channel object members
  * @device: parent device
@@ -232,11 +248,13 @@ struct v5_dma_chan {
 	struct tasklet_struct	tasklet;
 	struct dma_slave_config dma_sconfig;
 	spinlock_t		lock;
+
 	/* these other elements are all protected by lock */
-	struct list_head	active_list;
-	struct list_head	queue;
-	struct list_head	free_list;
-	unsigned int		descs_allocated;
+	struct list_head active_list;
+	struct list_head queue;
+	struct list_head free_list;
+	unsigned int descs_allocated;
+	int chan_id;
 };
 
 #define	v5_channel_readl(v5chan, name) \
@@ -250,14 +268,11 @@ static inline struct v5_dma_chan *to_v5_dma_chan(struct dma_chan *dchan)
 	return container_of(dchan, struct v5_dma_chan, chan_common);
 }
 
-/*
- * Note fls(0) = 0, fls(1) = 1, fls(0x8) = 4.
- */
+/* Note fls(0) = 0, fls(1) = 1, fls(0x8) = 4. */
 static inline void convert_burst(u32 *maxburst)
 {
 	*maxburst = fls(*maxburst) - 1;
 }
-
 
 /*
  * Fix sconfig's bus width
@@ -287,6 +302,7 @@ static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
 struct v5_dma {
 	struct dma_device	dma_common;
 	void __iomem		*regs;
+	void __iomem		*io_regs;
 	u32			ctl;
 	u8			data_width;
 	u8			ch;
@@ -299,6 +315,10 @@ struct v5_dma {
 	__raw_readl((v5_dma)->regs + name)
 #define	v5_dma_writel(v5_dma, name, val) \
 	__raw_writel((val), (v5_dma)->regs + name)
+#define	v5_dma_soc_readl(v5_dma, name) \
+	__raw_readl((v5_dma)->io_regs + name)
+#define	v5_dma_soc_writel(v5_dma, name, val) \
+	__raw_writel((val), (v5_dma)->io_regs + name)
 
 static inline struct v5_dma *to_v5_dma(struct dma_device *ddev)
 {
