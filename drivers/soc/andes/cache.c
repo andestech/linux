@@ -8,12 +8,12 @@
 #include <linux/sizes.h>
 #include <linux/smp.h>
 #include <linux/irqflags.h>
+#include <linux/io.h>
 #include <asm/csr.h>
 #include <asm/sbi.h>
-#include <asm/io.h>
-#include <soc/andes/proc.h>
 #include <soc/andes/csr.h>
 #include <soc/andes/sbi.h>
+#include <soc/andes/dma.h>
 
 #define MAX_CACHE_LINE_SIZE 256
 #define EVSEL_MASK	0xff
@@ -21,10 +21,10 @@
 #define SEL_OFF(id)	(8 * (id % 8))
 
 void __iomem *l2c_base;
-/* default to offset of V0 memory map */
-u32 L2C_REG_PER_CORE_OFFSET = 0x10;
-u32 CCTL_L2_STATUS_PER_CORE_OFFSET = 0x4;
-u32 L2C_REG_STATUS_OFFSET = 0;
+
+u32 L2C_REG_PER_CORE_OFFSET;
+u32 CCTL_L2_STATUS_PER_CORE_OFFSET;
+u32 L2C_REG_STATUS_OFFSET;
 
 DEFINE_PER_CPU(struct andesv5_cache_info, cpu_cache_info) = {
 	.init_done = 0,
@@ -189,169 +189,6 @@ void cpu_dma_wb_range(void *info)
 }
 EXPORT_SYMBOL(cpu_dma_wb_range);
 
-/* non-blocking load store */
-long sbi_andes_get_non_blocking_status(void)
-{
-	struct sbiret ret;
-
-	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MMISC_CTL_STATUS, 0, 0,
-			0, 0, 0, 0);
-	return ret.value;
-}
-void sbi_andes_set_mcache_ctl(unsigned long input)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_SET_MCACHE_CTL, input, 0, 0, 0,
-		  0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_set_mmisc_ctl(unsigned long input)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_NON_BLOCKING_LOAD_STORE, input,
-		  0, 0, 0, 0, 0);
-	local_irq_restore(flags);
-}
-
-/* write around */
-long sbi_andes_get_write_around_status(void)
-{
-	struct sbiret ret;
-
-	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MCACHE_CTL_STATUS, 0,
-			0, 0, 0, 0, 0);
-	return ret.value;
-}
-
-void sbi_andes_enable_non_blocking_load_store(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_WRITE_AROUND, 1, 0, 0, 0, 0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_disable_non_blocking_load_store(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_WRITE_AROUND, 0, 0, 0, 0, 0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_enable_write_around(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_SET_MCACHE_CTL, 1, 0, 0,
-		  0, 0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_disable_write_around(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_SET_MMISC_CTL, 0, 0, 0, 0, 0, 0);
-	local_irq_restore(flags);
-}
-
-/* L1 Cache Prefetch */
-void sbi_andes_enable_l1i_cache(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_L1CACHE_I_PREFETCH, 1, 0, 0, 0,
-		  0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_disable_l1i_cache(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_L1CACHE_I_PREFETCH, 0, 0, 0, 0,
-		  0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_enable_l1d_cache(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_L1CACHE_D_PREFETCH, 1, 0, 0, 0,
-		  0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_disable_l1d_cache(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_L1CACHE_D_PREFETCH, 0, 0, 0, 0,
-		  0, 0);
-	local_irq_restore(flags);
-}
-
-/* L1 Cache */
-long sbi_andes_cpu_l1c_status(void)
-{
-	struct sbiret ret;
-
-	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_GET_MCACHE_CTL_STATUS, 0,
-			0, 0, 0, 0, 0);
-	return ret.value;
-}
-
-void sbi_andes_cpu_icache_enable(void *info)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_ICACHE_OP, 1, 0, 0, 0, 0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_cpu_icache_disable(void *info)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_ICACHE_OP, 0, 0, 0, 0, 0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_cpu_dcache_enable(void *info)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_DCACHE_OP, 1, 0, 0, 0, 0, 0);
-	local_irq_restore(flags);
-}
-
-void sbi_andes_cpu_dcache_disable(void *info)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_DCACHE_OP, 0, 0, 0, 0, 0, 0);
-	local_irq_restore(flags);
-}
-
 int __init l2c_init(void)
 {
 	struct device_node *node;
@@ -362,6 +199,11 @@ int __init l2c_init(void)
 	l2c_base = of_iomap(node, 0);
 	if (l2c_base)
 		l2c_cfg = *(u32 *)l2c_base;
+
+	/* default to offset of V0 memory map */
+	L2C_REG_PER_CORE_OFFSET = 0x10;
+	CCTL_L2_STATUS_PER_CORE_OFFSET = 0x4;
+	L2C_REG_STATUS_OFFSET = 0;
 
 	if (l2c_cfg & V5_L2C_CFG_MAP_MASK) {
 		L2C_REG_PER_CORE_OFFSET = 0x1000;
