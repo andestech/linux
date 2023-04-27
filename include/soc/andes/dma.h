@@ -14,7 +14,28 @@
 #include <linux/highmem.h>
 #include <linux/cacheflush.h>
 #include <asm/sbi.h>
-#include <soc/andes/proc.h>
+
+/*
+ * struct andesv5_cache_info
+ * The member of this struct is dupilcated to some content of struct cacheinfo
+ * to reduce the latence of searching dcache inforamtion in andesv5/cache.c.
+ * At current only dcache-line-size is needed. when the content of
+ * andesv5_cache_info has been initilized by function fill_cpu_cache_info(),
+ * member init_done is set as true
+ */
+struct andesv5_cache_info {
+	bool init_done;
+	int dcache_line_size;
+};
+
+struct range_info {
+	unsigned long start;
+	unsigned long end;
+	struct page *page;
+};
+
+void cpu_dma_inval_range(void *info);
+void cpu_dma_wb_range(void *info);
 
 static inline void dma_flush_page(struct page *page, size_t size)
 {
