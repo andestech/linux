@@ -53,7 +53,7 @@ enum sbi_ext_andes_fid {
 
 /* Programmable physical memory attributes (PPMA) */
 void sbi_andes_set_ppma(void *arg);
-void sbi_andes_free_ppma(unsigned long addr);
+void sbi_andes_free_ppma(void *addr);
 long sbi_andes_probe_ppma(void);
 
 #endif /* !__SOC_ANDES_SBI_H */

@@ -69,6 +69,27 @@ EXPORT_SYMBOL(andes_set_ppma);
 
 void andes_free_ppma(void *addr)
 {
-	sbi_andes_free_ppma((unsigned long)addr);
+	int cpu_num = num_online_cpus();
+	int id = smp_processor_id();
+	int i, err;
+
+	/*
+	 * Send IPI
+	 * FIXME: we need online CPU mask, not the number
+	 */
+	for (i = 0; i < cpu_num; i++) {
+		if (i == id)
+			continue;
+
+		err = smp_call_function_single(i, sbi_andes_free_ppma,
+						(void *)addr, true);
+		if (err) {
+			pr_err("Core %d fails to free ppma\n"
+				"Error Code: %d\n", i, err);
+		}
+	}
+
+	sbi_andes_free_ppma(addr);
+
 }
 EXPORT_SYMBOL(andes_free_ppma);

@@ -15,10 +15,10 @@ void sbi_andes_set_ppma(void *arg)
 			phys_addr, va_addr, size, 0, 0, 0);
 }
 
-void sbi_andes_free_ppma(unsigned long addr)
+void sbi_andes_free_ppma(void *addr)
 {
 	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_FREE_PPMA,
-				addr, 0, 0, 0, 0, 0);
+				(unsigned long)addr, 0, 0, 0, 0, 0);
 }
 
 long sbi_andes_probe_ppma(void)
