@@ -27,4 +27,13 @@ config ANDES_PPMA
 	  When calling memremap with MEMREMAP_WC flag,
 	  Andes programmable physical memory attributes (PPMA)
 	  can map memory as non-cacheable bufferable PMA region.
+
+config ATCDMAC300
+	tristate "Andes legacy DMA support"
+	select PLATFORM_AHBDMA
+
+config PLATFORM_AHBDMA
+	bool "Platform AHB DMA support"
+	depends on ATCDMAC300
+
 endmenu
