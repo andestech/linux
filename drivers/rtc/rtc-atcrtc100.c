@@ -217,6 +217,8 @@ const static struct rtc_class_ops rtc_ops = {
 
 static int atc_rtc_probe(struct platform_device *pdev)
 {
+	int (*read_fixup)(void __iomem *addr, unsigned int val,
+		unsigned int shift_bits);
 	struct atc_rtc *rtc = &rtc_platform_data;
 	int ret = -ENOENT;
 
@@ -248,6 +250,16 @@ static int atc_rtc_probe(struct platform_device *pdev)
 					       rtc->res->end - rtc->res->start + 1);
 	if (!rtc->regbase)
 		goto err_ioremap1;
+
+	read_fixup = symbol_get(readl_fixup);
+	/* Check ID and Revision register 0x030110 */
+	ret = read_fixup(rtc->regbase, 0x030110, 8);
+	symbol_put(readl_fixup);
+	if (!ret) {
+		dev_err(&pdev->dev,
+			"Failed to read the ID register, ATCRTC100 is not supported.\n");
+		return -ENOENT;
+	}
 
 	if ((RTC_ID & ID_MSK) != ATCRTC100ID)
 		return -ENOENT;
