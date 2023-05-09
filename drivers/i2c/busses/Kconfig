@@ -430,6 +430,46 @@ config I2C_AT91_SLAVE_EXPERIMENTAL
 	    - There are some mismtaches with a SAMA5D4 as slave and a SAMA5D2 as
 	    master.
 
+config I2C_ATCIIC100
+	tristate "Andes AE350 I2C interface"
+	depends on PLAT_AE350
+	depends on I2C=y
+	help
+	  This supports the use of the I2C interface on Andes AE350 platform.
+
+	  The default is using ATCIIC_PIO mode.
+
+choice
+	depends on I2C_ATCIIC100
+	prompt "Transfer mode selection"
+	default ATCIIC_PIO
+	help
+	  This supports the use of the I2C interface with PIO/IRO mode on Andes AE350
+	  processors.
+
+	  If unsure, select ATCIIC_PIO as default
+
+config ATCIIC_PIO
+	bool "Pio mode"
+	help
+	  This supports the use of the I2C interface with PIO mode on Andes AE350
+	  processors.
+
+config ATCIIC_IRQ
+	bool "Irq mode"
+	help
+	  This supports the use of the I2C interface with interrupt mode on Andes AE350
+	  processors.
+endchoice
+
+config ATCIIC100_DEBUG
+	bool "atciic100 debugging"
+	default n
+	depends on I2C_ATCIIC100 != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables atciic100 driver debugging.
+
 config I2C_AU1550
 	tristate "Au1550/Au1200/Au1300 SMBus interface"
 	depends on MIPS_ALCHEMY
