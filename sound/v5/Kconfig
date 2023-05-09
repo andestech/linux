@@ -1,0 +1,23 @@
+menu "ALSA RISCV devices"
+	depends on SND!=n && RISCV
+
+config SND_FTSSP010
+	tristate "Faraday FTSSP010 audio Driver"
+	depends on SND && RISCV
+	depends on ATCDMAC300
+	select SND_PCM
+#	select SND_AC97_CODEC
+
+choice
+	prompt "AC97/I2S/HDA selection"
+	depends on SND_FTSSP010
+	default SND_FTSSP010_AC97
+config SND_FTSSP010_AC97
+	bool "AC97"
+config SND_FTSSP010_I2S
+	bool "I2S"
+config SND_FTSSP010_HDA
+	bool "HDA"
+endchoice
+endmenu
+
