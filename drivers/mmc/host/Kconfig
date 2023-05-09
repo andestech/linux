@@ -618,21 +618,30 @@ config MMC_DAVINCI
 	  If you have an DAVINCI board with a Multimedia Card slot,
 	  say Y or M here.  If unsure, say N.
 
+config MMC_FTSDC
+	tristate "Andes SDC Multimedia Card Interface support"
+	depends on RISCV
+	depends on ATCDMAC300
+	help
+	  This selects the Andes SDC multimedia card interface.
+	  If you have an Andes platform with a multimedia card slot,
+	  say Y or M here. If unsure, say N.
+
 config MMC_FTSDCG
-	tristate "Andestech SDC Multimedia Card Interface support dmeengine"
+	tristate "Andestech SDC Multimedia Card Interface use dmaengine"
 	depends on RISCV
 	depends on ATCDMAC300G
 	help
-	  This selects the TI DAVINCI Multimedia card Interface.
-	  If you have an DAVINCI board with a Multimedia Card slot,
-	  say Y or M here.  If unsure, say N.
+	  This selects the Andes SDC multimedia card interface use dmaengine.
+	  If you have an Andes platform with a multimedia card slot,
+	  say Y or M here. If unsure, say N.
 
 config MMC_FTSDC_DMA
 	bool "DMA mode"
-	depends on MMC_FTSDCG
+	depends on MMC_FTSDC || MMC_FTSDCG
 	default y
 	help
-	  This selects the Andestech SDC work in DMA mode.
+	  This selects the Andes SDC work in DMA mode.
 
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
