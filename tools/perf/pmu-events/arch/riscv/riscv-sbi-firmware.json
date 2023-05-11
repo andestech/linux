@@ -130,5 +130,17 @@
     "ConfigCode": "0x8000000000000015",
     "EventName": "FW_HFENCE_VVMA_ASID_RECEIVED",
     "BriefDescription": "Received HFENCE.VVMA with ASID request from other HART event"
+  },
+  {
+    "PublicDescription": "L2-Cache accesses",
+    "ConfigCode": "0x8000000000000016",
+    "EventName": "ANDES_L2C_ACCESSES",
+    "BriefDescription": "L2-Cache accesses"
+  },
+  {
+    "PublicDescription": "L2-Cache access misses",
+    "ConfigCode": "0x8000000000000017",
+    "EventName": "ANDES_L2C_ACCESS_MISSES",
+    "BriefDescription": "L2-Cache access misses"
   }
 ]
