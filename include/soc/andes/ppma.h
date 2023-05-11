@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#ifdef CONFIG_ANDES_PPMA
-
 struct ppma_arg_t {
 	phys_addr_t phys_addr;
 	unsigned long va_addr;
@@ -18,11 +16,21 @@ struct ppma_arg_t {
 
 extern struct ppma_arg_t ppma_arg;
 
-extern void andes_set_ppma(phys_addr_t phys_addr,
-				void *va_addr,
-				size_t size);
-extern void andes_free_ppma(void *addr);
-extern long andes_probe_ppma(void);
-
+#ifdef CONFIG_ANDES_PPMA
+void andes_set_ppma(phys_addr_t phys_addr,
+		    void *va_addr,
+		    size_t size);
+void andes_free_ppma(void *addr);
+long andes_probe_ppma(void);
+#else
+static inline void andes_set_ppma(phys_addr_t phys_addr,
+				  void *va_addr,
+				  size_t size) {}
+static inline void andes_free_ppma(void *addr) {}
+static inline long andes_probe_ppma(void)
+{
+	return 0;
+}
 #endif /* CONFIG_ANDES_PPMA */
+
 #endif /* !__SOC_ANDES_PPMA_H */
