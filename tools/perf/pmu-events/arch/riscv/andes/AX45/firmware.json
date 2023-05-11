@@ -64,5 +64,11 @@
   },
   {
     "ArchStdEvent": "FW_HFENCE_VVMA_ASID_RECEIVED"
+  },
+  {
+    "ArchStdEvent": "ANDES_L2C_ACCESSES"
+  },
+  {
+    "ArchStdEvent": "ANDES_L2C_ACCESS_MISSES"
   }
 ]
