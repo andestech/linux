@@ -48,4 +48,15 @@ void atcsmu_set_suspend_mode(void);
 #define DEEP_SLEEP_MODE             2
 #define CPUHOTPLUG_DEEP_SLEEP_MODE  3
 
+/* for watchdog */
+#define FLASH_BASE                  0x80000000
+#define SMUCR_OFF                   0x14
+#define SMUCR_RESET                 0x3c
+#define SMU_RESET_VEC_LO_OFF        0x50
+#define SMU_RESET_VEC_HI_OFF        0x60
+#define SMU_HART_RESET_VEC_LO(n)    (SMU_RESET_VEC_LO_OFF + (n * 0x4))
+#define SMU_HART_RESET_VEC_HI(n)    (SMU_RESET_VEC_HI_OFF + (n * 0x4))
+#define PCS_RESET                   0x1
+#define RESET_CMD                   0x1
+
 #endif
