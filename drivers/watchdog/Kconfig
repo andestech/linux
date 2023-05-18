@@ -47,6 +47,12 @@ config WATCHDOG_NOWAYOUT
 	  get killed. If you say Y here, the watchdog cannot be stopped once
 	  it has been started.
 
+config WATCHDOG_DEBUG
+	bool "Hang in watch dog interrupt handler"
+	help
+	  When system failed, it will hang in watch dog interrupt handler for
+	  debugging.
+
 config WATCHDOG_HANDLE_BOOT_ENABLED
 	bool "Update boot-enabled watchdog until userspace takes over"
 	default y
@@ -472,6 +478,13 @@ config FTWDT010_WATCHDOG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ftwdt010_wdt.
+
+config ATCWDT200_WATCHDOG
+	tristate "ATCWDT200_WATCHDOG"
+	depends on RISCV && PLAT_AE350 && ANDES_ATCSMU
+	help
+	  Support for Andes atcwdt200 watchdog. The driver needs SMU to
+	  program reset vector before triggering software reset.
 
 config IXP4XX_WATCHDOG
 	tristate "IXP4xx Watchdog"
