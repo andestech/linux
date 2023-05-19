@@ -305,12 +305,12 @@ static void ftmac100_rxdes_set_dma_addr(struct ftmac100_rxdes *rxdes,
 					dma_addr_t addr)
 {
 	rxdes->rxdes2 = cpu_to_le32(addr);
-	rxdes->rxdes3 = cpu_to_le32(addr >> 32);
+	rxdes->rxdes3 = cpu_to_le32((u64)addr >> 32);
 }
 
 static dma_addr_t ftmac100_rxdes_get_dma_addr(struct ftmac100_rxdes *rxdes)
 {
-	return le32_to_cpu(rxdes->rxdes2) | (dma_addr_t)le32_to_cpu(rxdes->rxdes3) << 32;
+	return le32_to_cpu(rxdes->rxdes2) | (u64)le32_to_cpu(rxdes->rxdes3) << 32;
 }
 
 static void ftmac100_rxdes_set_page(struct ftmac100 *priv, int index, struct page *page)
@@ -567,12 +567,12 @@ static void ftmac100_txdes_set_dma_addr(struct ftmac100_txdes *txdes,
 					dma_addr_t addr)
 {
 	txdes->txdes2 = cpu_to_le32(addr);
-	txdes->txdes3 = cpu_to_le32(addr >> 32);
+	txdes->txdes3 = cpu_to_le32((u64)addr >> 32);
 }
 
 static dma_addr_t ftmac100_txdes_get_dma_addr(struct ftmac100_txdes *txdes)
 {
-	return le32_to_cpu(txdes->txdes2) | (dma_addr_t)le32_to_cpu(txdes->txdes3) << 32;
+	return le32_to_cpu(txdes->txdes2) | (u64)le32_to_cpu(txdes->txdes3) << 32;
 }
 
 static void ftmac100_txdes_skb_reset(struct ftmac100 *priv, int index)
