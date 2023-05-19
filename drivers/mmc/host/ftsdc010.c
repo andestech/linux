@@ -401,12 +401,13 @@ err:
 	host->complete_what = COMPLETION_FINALIZE;
 }
 
-static void do_dma_access(struct ftsdc_host *host)
+static void do_dma_access(struct ftsdc_host *host, struct mmc_data *data)
 {
 	int res;
 	unsigned long timeout;
 	dmad_chreq *req = host->dma_req;
 	dmad_drb *drb = 0;
+	int rw = (data->flags & MMC_DATA_WRITE) ? 1 : 0;
 
 	while (host->buf_sgptr < host->mrq->data->sg_len) {
 
@@ -431,6 +432,15 @@ static void do_dma_access(struct ftsdc_host *host)
 		drb->addr1 = (dma_addr_t) (unsigned long)host->buf_ptr;
 		drb->req_cycle = dmad_bytes_to_cycles(req, host->buf_bytes);
 		drb->sync = &host->dma_complete;
+
+		res = dmad_config_channel_dir(host->dma_req,
+					      rw ? DMAD_DIR_A1_TO_A0 : DMAD_DIR_A0_TO_A1,
+					      drb);
+		if (res != 0) {
+			host->mrq->data->error = -ENODEV;
+			goto err;
+		}
+
 		timeout = SDC_TIMEOUT_BASE * ((host->buf_bytes + 511) >> 9);
 		res = dmad_submit_request(req, drb, 1);
 		if (res != 0) {
@@ -464,7 +474,7 @@ static void ftsdc_work(struct work_struct *work)
 
 	ftsdc_enable_irq(host, false);
 	if (host->dodma) {
-		do_dma_access(host);
+		do_dma_access(host, data);
 		dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 			     rw ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	} else {
@@ -722,19 +732,11 @@ static int ftsdc_prepare_buffer(struct ftsdc_host *host, struct mmc_data *data)
 	host->buf_active = rw ? XFER_WRITE : XFER_READ;
 	if (host->dodma) {
 		u32 dma_len;
-		u32 drb_size;
 
 		dma_len = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 				     rw ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		if (dma_len == 0)
 			return -ENOMEM;
-
-		dmad_config_channel_dir(host->dma_req,
-					rw ? DMAD_DIR_A1_TO_A0 :
-					DMAD_DIR_A0_TO_A1);
-		drb_size = dmad_max_size_per_drb(host->dma_req);
-		if (drb_size < (data->blksz & data->blocks))
-			return -ENODEV;
 
 		host->dma_finish = false;
 	}

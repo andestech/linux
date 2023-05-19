@@ -423,6 +423,7 @@ typedef struct dmad_drb {
 	 */
 	dma_addr_t req_cycle;
 
+	u32 ch_control;
 	/* (in)  if non-null, this sync object will be signaled upon dma
 	 * completion (for blocked-waiting dma completion)
 	 */
@@ -476,7 +477,7 @@ extern dma_addr_t dmad_probe_hw_ptr_dst(dmad_chreq *ch_req);
 /*****************************************************************************
  * routines only valid in discrete (non-ring) mode
  */
-extern int dmad_config_channel_dir(dmad_chreq *ch_req, u8 dir);
+extern int dmad_config_channel_dir(dmad_chreq *ch_req, u8 dir, dmad_drb *drb);
 extern int dmad_alloc_drb(dmad_chreq *ch_req, dmad_drb **drb);
 extern int dmad_free_drb(dmad_chreq *ch_req, dmad_drb *drb);
 extern int dmad_submit_request(dmad_chreq *ch_req,
@@ -514,7 +515,7 @@ static inline dma_addr_t dmad_probe_hw_ptr_src(dmad_chreq *ch_req)
 	{ return (dma_addr_t)NULL; }
 static inline dma_addr_t dmad_probe_hw_ptr_dst(dmad_chreq *ch_req)
 	{ return (dma_addr_t)NULL; }
-static inline int dmad_config_channel_dir(dmad_chreq *ch_req, u8 dir)
+static inline int dmad_config_channel_dir(dmad_chreq *ch_req, u8 dir, dmad_drb *drb)
 	{ return -EFAULT; }
 static inline int dmad_alloc_drb(dmad_chreq *ch_req, dmad_drb **drb)
 	{ return -EFAULT; }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2018 Andes Technology Corporation
- *
  */
 
 #include <linux/module.h>
@@ -41,12 +40,12 @@ static inline void REG_WRITE(addr_t d, unsigned long r)
 
 #define DMAD_DRB_POOL_SIZE 32	/* 128 */
 
-static inline addr_t din(unsigned long r)
+static inline u32 din(unsigned long r)
 {
 	return REG_READ(r);
 }
 
-static inline void dout(addr_t d, unsigned long r)
+static inline void dout(u32 d, unsigned long r)
 {
 	REG_WRITE(d, r);
 }
@@ -86,6 +85,8 @@ typedef struct dmad_drq {
 	unsigned long enable_port;	/* enable register */
 	unsigned long src_port;	/* source address register */
 	unsigned long dst_port;	/* dest address register */
+	unsigned long src_port_h;	/* source address register (high part) */
+	unsigned long dst_port_h;	/* dest address register (high part) */
 	unsigned long cyc_port;	/* size(cycle) register */
 
 	u32 flags;		/* enum DMAD_CHREQ_FLAGS */
@@ -127,10 +128,10 @@ typedef struct dmad_drq {
 	/* ring_size - period_size * periods */
 	dma_addr_t remnant_size;
 
-	dma_addr_t sw_ptr;	/* sw pointer */
+	u64 sw_ptr;		/* sw pointer */
 	int sw_p_idx;		/* current ring_ptr */
 	dma_addr_t sw_p_off;	/* offset to period base */
-
+	int channel;
 } dmad_drq;
 
 static inline void dmad_enable_channel(dmad_drq *drq)
@@ -147,12 +148,6 @@ static inline addr_t dmad_is_channel_enabled(dmad_drq *drq)
 {
 	return (addr_t) getbl(CHEN, drq->enable_port);
 }
-
-/* system irq number (per channel, ahb) */
-static const unsigned int ahb_irqs[DMAD_AHB_MAX_CHANNELS] = {
-	DMA_IRQ0, DMA_IRQ1, DMA_IRQ2, DMA_IRQ3,
-	DMA_IRQ4, DMA_IRQ5, DMA_IRQ6, DMA_IRQ7,
-};
 
 /* Driver data structure, one instance per system */
 typedef struct DMAD_DATA_STRUCT {
@@ -514,7 +509,7 @@ static irqreturn_t dmad_ahb_isr(int irq, void *dev_id)
 	}
 
 	/* Process DRBs according to interrupt reason */
-	if (tc_int) {
+	if (tc_int || ((drq->flags & DMAD_FLAGS_RING_MODE) && err_int)) {
 		dmad_dbg("dma finish\n");
 		dmad_dbg("finish drb(%d 0x%08x) addr0(0x%08llx) addr1 (0x%08llx) size(0x%08llx)\n",
 			drb->node, (u32) drb, drb->src_addr, drb->dst_addr,
@@ -544,20 +539,33 @@ static irqreturn_t dmad_ahb_isr(int irq, void *dev_id)
 			// Kick-off DMA for next DRB
 			// - Source and destination address
 			if (drq->flags & DMAD_DRQ_DIR_A1_TO_A0) {
-				dout(drb_iter->addr1,
-				     (unsigned long)drq->src_port);
-				dout(drb_iter->addr0,
-				     (unsigned long)drq->dst_port);
+				dout(drb_iter->addr1, (unsigned long)drq->src_port);
+				dout(drb_iter->addr0, (unsigned long)drq->dst_port);
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+				dout((drb_iter->addr1 >> 32), (unsigned long)drq->src_port_h);
+				dout((drb_iter->addr0 >> 32), (unsigned long)drq->dst_port_h);
+#else
+				dout(0, (unsigned long)drq->src_port_h);
+				dout(0, (unsigned long)drq->dst_port_h);
+#endif
 			} else {
-				dout(drb_iter->addr0,
-				     (unsigned long)drq->src_port);
-				dout(drb_iter->addr1,
-				     (unsigned long)drq->dst_port);
+				dout(drb_iter->addr0, (unsigned long)drq->src_port);
+				dout(drb_iter->addr1, (unsigned long)drq->dst_port);
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+				dout((drb_iter->addr0 >> 32), (unsigned long)drq->src_port_h);
+				dout((drb_iter->addr1 >> 32), (unsigned long)drq->dst_port_h);
+#else
+				dout(0, (unsigned long)drq->src_port_h);
+				dout(0, (unsigned long)drq->dst_port_h);
+#endif
 			}
 
 			/* - Transfer size (in units of source width) */
 			dout(drb_iter->req_cycle, (unsigned long)drq->cyc_port);
 
+			dout(drb->ch_control, (unsigned long)drq->enable_port);
 			/* Kick off next request */
 			dmad_enable_channel(drq);
 
@@ -633,7 +641,7 @@ static void dmad_ahb_config_dir(dmad_chreq *ch_req,
 	dmad_dbg("%s() channel_cmds(0x%08lx)\n", __func__, channel_cmds[0]);
 	channel_cmds[0] &= ~(u32) (SRCWIDTH_MASK | SRCADDRCTRL_MASK |
 				   DSTWIDTH_MASK | DSTADDRCTRL_MASK | SRC_HS |
-				   DST_HS | SRCREQSEL_MASK | DSTREQSEL_MASK);
+				   DST_HS | SRCREQSEL_MASK | DSTREQSEL_MASK | (1 << CHEN));
 
 	if (ahb_req->tx_dir == 0) {
 		dmad_dbg("%s() addr0 --> addr1\n", __func__);
@@ -693,8 +701,7 @@ static int dmad_ahb_init(dmad_chreq *ch_req)
 	err = request_irq(pdata->irqs[channel + 1], dmad_ahb_isr, 0, "AHB_DMA",
 			(void *)(unsigned long)(channel + 1));
 	if (unlikely(err != 0)) {
-		dmad_err("unable to request IRQ %d for AHB DMA (error %d)\n",
-			 ahb_irqs[channel], err);
+		dmad_err("unable to request IRQ for channel:%d err:%d\n", channel, err);
 		return err;
 	}
 	spin_lock_irqsave(&dmad.drq_pool_lock, lock_flags);
@@ -725,11 +732,15 @@ static int dmad_ahb_init(dmad_chreq *ch_req)
 
 	/* SRCADR and DESADR */
 	dout(0, (unsigned long)drq->src_port);
+	dout(0, (unsigned long)drq->src_port_h);
+
 	dout(0, (unsigned long)drq->dst_port);
+	dout(0, (unsigned long)drq->dst_port_h);
 	/* CYC (transfer size) */
 	dout(0, (unsigned long)drq->cyc_port);
 	/* LLP */
 	dout(0, (unsigned long)channel_base + CH_LLP_LOW_OFF);
+	dout(0, (unsigned long)channel_base + CH_LLP_HIGH_OFF);
 
 	/* TOT_SIZE - not now */
 	spin_unlock_irqrestore(&dmad.drq_pool_lock, lock_flags);
@@ -900,12 +911,15 @@ int dmad_channel_alloc(dmad_chreq *ch_req)
 	/* Record the channel's queue handle in client's struct */
 	ch_req->drq = drq_iter;
 
+	drq_iter->channel = i;
 	if (ch_req->controller == DMAD_DMAC_AHB_CORE) {
 		drq_iter->channel_base = (unsigned long)DMAC_BASE_CH(i);
 		drq_iter->enable_port = (unsigned long)CH_CTL(i);
 		drq_iter->src_port = (unsigned long)CH_SRC_L(i);
 		drq_iter->dst_port = (unsigned long)CH_DST_L(i);
 		drq_iter->cyc_port = (unsigned long)CH_SIZE(i);
+		drq_iter->src_port_h = (unsigned long)CH_SRC_H(i);
+		drq_iter->dst_port_h = (unsigned long)CH_DST_H(i);
 	}
 	/* drb-0 is an invalid node - for node validation */
 	drb_iter = &drq_iter->drb_pool[0];
@@ -941,6 +955,13 @@ int dmad_channel_alloc(dmad_chreq *ch_req)
 				__func__);
 			err = -EFAULT;
 			goto _err_exit;
+		}
+
+		drb_iter = &drq_iter->drb_pool[0];
+		for (i = 0; i < DMAD_DRB_POOL_SIZE; ++i, ++drb_iter) {
+			err = dmad_config_channel_dir(ch_req, ch_req->ahb_req.tx_dir, drb_iter);
+			if (err != 0)
+				goto _err_exit;
 		}
 
 		drq_iter->ring_size = ch_req->ring_size;
@@ -1110,51 +1131,24 @@ EXPORT_SYMBOL_GPL(dmad_channel_enable);
  * that bi-direction mode and ring mode are mutual-exclusive from user's
  * perspective.
  */
-int dmad_config_channel_dir(dmad_chreq *ch_req, u8 dir)
+int dmad_config_channel_dir(dmad_chreq *ch_req, u8 dir, dmad_drb *drb)
 {
 	dmad_drq *drq;
 	addr_t channel_cmds[1];
-	unsigned long lock_flags;
-	u8 cur_dir;
 
 	if (unlikely(ch_req == NULL))
 		return -EFAULT;
 
 	drq = (dmad_drq *) ch_req->drq;
-
 	if (unlikely(drq == NULL))
 		return -EBADR;
-
-	if (unlikely(!(ch_req->flags & DMAD_FLAGS_BIDIRECTION))) {
-		dmad_err("%s() Channel is not configured as	bidirectional!\n",
-			__func__);
-		return -EFAULT;
-	}
-
-	cur_dir = drq->flags & DMAD_DRQ_DIR_MASK;
-	if (dir == cur_dir) {
-		dmad_dbg("%s() cur_dir(%d) == dir(%d) skip reprogramming hw.\n",
-			__func__, cur_dir, dir);
-		return 0;
-	}
-
-	spin_lock_irqsave(&drq->drb_pool_lock, lock_flags);
-
-	if (unlikely((drq->sbt_head != 0) /*||dmad_is_channel_enabled(drq) */)) {
-		spin_unlock_irqrestore(&drq->drb_pool_lock, lock_flags);
-		dmad_err("%s() Cannot change direction while the channel has pending requests!\n",
-			__func__);
-		return -EFAULT;
-	}
 
 	if (ch_req->controller == DMAD_DMAC_AHB_CORE) {
 		channel_cmds[0] = din((unsigned long)drq->enable_port);
 		ch_req->ahb_req.tx_dir = dir;
 		dmad_ahb_config_dir(ch_req, (unsigned long *)channel_cmds);
-		dout(channel_cmds[0], (unsigned long)drq->enable_port);
+		drb->ch_control = channel_cmds[0];
 	}
-
-	spin_unlock_irqrestore(&drq->drb_pool_lock, lock_flags);
 
 	return 0;
 }
@@ -1520,13 +1514,30 @@ int dmad_submit_request(dmad_chreq *ch_req, dmad_drb *drb, u8 keep_fired)
 		if (drq->flags & DMAD_DRQ_DIR_A1_TO_A0) {
 			dout(drb->addr1, (unsigned long)drq->src_port);
 			dout(drb->addr0, (unsigned long)drq->dst_port);
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+			dout((drb->addr1 >> 32), (unsigned long)drq->src_port_h);
+			dout((drb->addr0 >> 32), (unsigned long)drq->dst_port_h);
+#else
+			dout(0, (unsigned long)drq->src_port_h);
+			dout(0, (unsigned long)drq->dst_port_h);
+#endif
 		} else {
 			dout(drb->addr0, (unsigned long)drq->src_port);
 			dout(drb->addr1, (unsigned long)drq->dst_port);
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+			dout((drb->addr0 >> 32), (unsigned long)drq->src_port_h);
+			dout((drb->addr1 >> 32), (unsigned long)drq->dst_port_h);
+#else
+			dout(0, (unsigned long)drq->src_port_h);
+			dout(0, (unsigned long)drq->dst_port_h);
+#endif
 		}
 
 		/* Transfer size (in units of source width) */
 		dout(drb->req_cycle, (unsigned long)drq->cyc_port);
+		dout(drb->ch_control, (unsigned long)drq->enable_port);
 
 		/* Enable DMA channel (Kick off transmission when client
 		 * enable it's transfer state)
@@ -1648,17 +1659,32 @@ static inline int dmad_kickoff_requests_internal(dmad_drq *drq)
 		drb->req_cycle, drb->state);
 
 	if (drb->state == DMAD_DRB_STATE_SUBMITTED) {
-		/* Transfer size (in units of source width) */
-		dout(drb->req_cycle, (unsigned long)drq->cyc_port);
 
 		/* Source and destination address */
 		if (drq->flags & DMAD_DRQ_DIR_A1_TO_A0) {
 			dout(drb->addr1, (unsigned long)drq->src_port);
 			dout(drb->addr0, (unsigned long)drq->dst_port);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+			dout((drb->addr1 >> 32), (unsigned long)drq->src_port_h);
+			dout((drb->addr0 >> 32), (unsigned long)drq->dst_port_h);
+#else
+			dout(0, (unsigned long)drq->src_port_h);
+			dout(0, (unsigned long)drq->dst_port_h);
+#endif
 		} else {
 			dout(drb->addr0, (unsigned long)drq->src_port);
 			dout(drb->addr1, (unsigned long)drq->dst_port);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+			dout((drb->addr0 >> 32), (unsigned long)drq->src_port_h);
+			dout((drb->addr1 >> 32), (unsigned long)drq->dst_port_h);
+#else
+			dout(0, (unsigned long)drq->src_port_h);
+			dout(0, (unsigned long)drq->dst_port_h);
+#endif
 		}
+		/* Transfer size (in units of source width) */
+		dout(drb->req_cycle, (unsigned long)drq->cyc_port);
+		dout(drb->ch_control, (unsigned long)drq->enable_port);
 
 		drb->state = DMAD_DRB_STATE_EXECUTED;
 	}
@@ -1724,18 +1750,35 @@ int dmad_kickoff_requests(dmad_chreq *ch_req)
 		goto _safe_exit;
 	}
 
-	/* Transfer size (in units of source width) */
-	dout(req_cycle, (unsigned long)drq->cyc_port);
-
 	/* Source and destination address */
 	if (drq->flags & DMAD_DRQ_DIR_A1_TO_A0) {
 		dout(drb->addr1, (unsigned long)drq->src_port);
 		dout(drb->addr0, (unsigned long)drq->dst_port);
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		dout((drb->addr1 >> 32), (unsigned long)drq->src_port_h);
+		dout((drb->addr0 >> 32), (unsigned long)drq->dst_port_h);
+#else
+		dout(0, (unsigned long)drq->src_port_h);
+		dout(0, (unsigned long)drq->dst_port_h);
+#endif
+
 	} else {
 		dout(drb->addr0, (unsigned long)drq->src_port);
 		dout(drb->addr1, (unsigned long)drq->dst_port);
-	}
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		dout((drb->addr0 >> 32), (unsigned long)drq->src_port_h);
+		dout((drb->addr1 >> 32), (unsigned long)drq->dst_port_h);
+#else
+		dout(0, (unsigned long)drq->src_port_h);
+		dout(0, (unsigned long)drq->dst_port_h);
+#endif
+	}
+	/* Transfer size (in units of source width) */
+	dout(req_cycle, (unsigned long)drq->cyc_port);
+
+	dout(drb->ch_control, (unsigned long)drq->enable_port);
 	drb->state = DMAD_DRB_STATE_EXECUTED;
 
 	/* Enable DMA channel */
@@ -1850,7 +1893,8 @@ int dmad_update_ring_sw_ptr(dmad_chreq *ch_req, dma_addr_t sw_ptr,
 	dmad_drq *drq;
 	unsigned long lock_flags;
 	dma_addr_t hw_off = 0, ring_ptr;
-	dma_addr_t sw_p_off, ring_p_off, period_bytes;
+	u64 sw_p_off;
+	dma_addr_t ring_p_off, period_bytes;
 	dma_addr_t remnant_size;
 	int period_size;
 	int sw_p_idx, ring_p_idx, period, periods;
@@ -1912,6 +1956,11 @@ int dmad_update_ring_sw_ptr(dmad_chreq *ch_req, dma_addr_t sw_ptr,
 		    drq->ring_base;
 		drb->addr1 = drq->dev_addr;
 		drb->req_cycle = 0;	// redundent, though, no harm to performance
+		if (dmad_config_channel_dir(ch_req, ch_req->ahb_req.tx_dir, drb) != 0) {
+			dmad_err("%s() dmad_config_channel_dir failed!\n", __func__);
+			spin_unlock_irqrestore(&drq->drb_pool_lock, lock_flags);
+			return -ENOSPC;
+		}
 
 		dmad_dbg("init_drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) size(0x%08llx) state(%d)\n",
 			(u32) drb->node, (u32) drb, drb->src_addr,
@@ -2077,6 +2126,12 @@ int dmad_update_ring_sw_ptr(dmad_chreq *ch_req, dma_addr_t sw_ptr,
 			else
 				drb->req_cycle = period_size;
 
+			if (dmad_config_channel_dir(ch_req, ch_req->ahb_req.tx_dir, drb) != 0) {
+				dmad_err("%s() dmad_config_channel_dir failed!\n", __func__);
+				spin_unlock_irqrestore(&drq->drb_pool_lock, lock_flags);
+				return -ENOSPC;
+			}
+
 			dmad_dbg("inbtw_drb(%d 0x%08x) addr0(0x%08llx)addr1 (0x%08llx) size(0x%08llx) state(%d)\n",
 				 (u32) drb->node, (u32) drb, drb->addr0,
 				 drb->addr1, drb->req_cycle, drb->state);
@@ -2094,6 +2149,11 @@ int dmad_update_ring_sw_ptr(dmad_chreq *ch_req, dma_addr_t sw_ptr,
 		    drq->ring_base;
 		drb->addr1 = drq->dev_addr;
 		drb->req_cycle = sw_p_off;
+		if (dmad_config_channel_dir(ch_req, ch_req->ahb_req.tx_dir, drb) != 0) {
+			dmad_err("%s() dmad_config_channel_dir failed!\n", __func__);
+			spin_unlock_irqrestore(&drq->drb_pool_lock, lock_flags);
+			return -ENOSPC;
+		}
 
 		dmad_dbg("swptr_drb(%d 0x%08x) addr0(0x%08llx) addr1(0x%08llx) size(0x%08llx) state(%d)\n",
 			 (u32) drb->node, (u32) drb, drb->addr0, drb->addr1,
