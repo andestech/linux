@@ -52,10 +52,11 @@ static int __init inject_init(void)
 	inject = (void *)ioremap((phys_addr_t)INJECT_START, INJECT_SIZE);
 	p = (unsigned char *)inject;
 
-	if (p[0] != '#' && p[0] != 0x79)
-		p[0] = 0;
+	if (p[0] == '#' && p[1] == '!')
+		proc_create("inject", 0444, NULL, &inject_fops);
+	else
+		iounmap(inject);
 
-	proc_create("inject", 0444, NULL, &inject_fops);
 	return 0;
 }
 arch_initcall(inject_init);
