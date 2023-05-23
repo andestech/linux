@@ -100,6 +100,8 @@ static const struct flash_info macronix_nor_parts[] = {
 	{ "mx66u2g45g",	 INFO(0xc2253c, 0, 64 * 1024, 4096)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		FIXUP_FLAGS(SPI_NOR_4B_OPCODES) },
+	{ "mx25u1635e", INFO(0xc22535, 0, 64 * 1024,  32)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_QUAD_READ) },
 };
 
 static void macronix_nor_default_init(struct spi_nor *nor)
