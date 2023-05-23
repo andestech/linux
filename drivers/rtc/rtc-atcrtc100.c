@@ -49,14 +49,14 @@
 #define MIN_MSK			(0x3f)
 #define SEC_OFF			0
 #define SEC_MSK			(0x3f)
-#define RTC_SECOND		\
-			((RTC_CNT >> SEC_OFF) & SEC_MSK) /* RTC sec */
-#define RTC_MINUTE		\
-			((RTC_CNT >> MIN_OFF) & MIN_MSK) /* RTC min */
-#define RTC_HOUR		\
-			((RTC_CNT >> HOR_OFF) & HOR_MSK) /* RTC hour */
-#define RTC_DAYS		\
-			((RTC_CNT >> DAY_OFF) & DAY_MSK) /* RTC day */
+#define RTC_SECOND(x)		\
+			((x >> SEC_OFF) & SEC_MSK) /* RTC sec */
+#define RTC_MINUTE(x)		\
+			((x >> MIN_OFF) & MIN_MSK) /* RTC min */
+#define RTC_HOUR(x)		\
+			((x >> HOR_OFF) & HOR_MSK) /* RTC hour */
+#define RTC_DAYS(x)		\
+			((x >> DAY_OFF) & DAY_MSK) /* RTC day */
 #define RTC_ALM_SECOND		\
 			((RTC_ALM >> SEC_OFF) & SEC_MSK) /* RTC alarm sec */
 #define RTC_ALM_MINUTE		\
@@ -130,8 +130,9 @@ static int atc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 static int atc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct atc_rtc *rtc = dev_get_drvdata(dev);
-	unsigned long time = RTC_DAYS * 86400 + RTC_HOUR * 3600
-				+ RTC_MINUTE * 60 + RTC_SECOND;
+	unsigned long rtc_cnt = RTC_CNT;
+	unsigned long time = RTC_DAYS(rtc_cnt) * 86400 + RTC_HOUR(rtc_cnt) * 3600
+				+ RTC_MINUTE(rtc_cnt) * 60 + RTC_SECOND(rtc_cnt);
 
 	rtc_time64_to_tm(time, tm);
 	if (rtc_valid_tm(tm) < 0) {
