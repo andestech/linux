@@ -403,20 +403,27 @@ void OSD_Scal(struct faradayfb_info *fbi, int HScal, int VScal)
 
 void OSD_putc(struct faradayfb_info *fbi, char c, int position, unsigned int value)
 {
-	if (c >= '0' && c <= '9')
+	switch (c) {
+	case '0' ... '9':
 		REG32(fbi->io_base + 0xc000 + position * 4) = ((c - '0') << 4) | value;
+		break;
 
-	else if (c >= 'A' && c <= 'Z')
+	case 'A' ... 'Z':
 		REG32(fbi->io_base + 0xc000 + position * 4) = ((c - 'A' + 10) << 4) | value;
+		break;
 
-	if (c == ' ')
+	case ' ':
 		REG32(fbi->io_base + 0xc000 + position * 4) = (('Z' - 'A' + 10 + 1) << 4) | value;
+		break;
 
-	if (c == '=')
+	case '=':
 		REG32(fbi->io_base + 0xc000 + position * 4) = (('Z' - 'A' + 10 + 2) << 4) | value;
+		break;
 
-	if (c == ',')
+	case ',':
 		REG32(fbi->io_base + 0xc000 + position * 4) = (('Z' - 'A' + 10 + 3) << 4) | value;
+		break;
+	}
 }
 
 void OSD_puts(struct faradayfb_info *fbi, char *str, int position, unsigned int value)
