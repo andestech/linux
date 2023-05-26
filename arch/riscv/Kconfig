@@ -720,6 +720,9 @@ config PORTABLE
 	select OF
 	select MMU
 
+config ARCH_SUSPEND_POSSIBLE
+	def_bool RISCV_SBI
+
 menu "Power management options"
 
 source "kernel/power/Kconfig"

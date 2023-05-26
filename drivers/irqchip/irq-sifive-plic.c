@@ -32,6 +32,7 @@
 
 #define MAX_DEVICES			1024
 #define MAX_CONTEXTS			15872
+#define MAX_USE_REGS   (MAX_DEVICES / 32)
 
 /*
  * Each interrupt source has a priority register associated with it.
@@ -61,6 +62,9 @@
 #define	PLIC_ENABLE_THRESHOLD		0
 
 #define PLIC_QUIRK_EDGE_INTERRUPT	0
+
+unsigned int *wake_event;
+void __iomem *plic_regs;
 
 struct plic_priv {
 	struct cpumask lmask;
@@ -154,6 +158,35 @@ static void plic_irq_eoi(struct irq_data *d)
 	}
 }
 
+static int plic_set_wake(struct irq_data *d, unsigned int on)
+{
+	u32 offset = d->hwirq / 32;
+	int cpu;
+
+	if (on)
+		__assign_bit(d->hwirq, (unsigned long *)wake_event, true);
+	else
+		__assign_bit(d->hwirq, (unsigned long *)wake_event, false);
+
+	for_each_cpu(cpu, cpu_possible_mask) {
+		struct plic_handler *handler = per_cpu_ptr(&plic_handlers, cpu);
+
+		if (handler->present && on) {
+			unsigned int interrupt_enable[MAX_USE_REGS];
+			u32 __iomem *reg = handler->enable_base +
+					   (d->hwirq / 32) * sizeof(u32);
+
+			interrupt_enable[offset] = readl(reg);
+
+			__assign_bit(d->hwirq,
+				     (unsigned long *)interrupt_enable, true);
+
+			writel(interrupt_enable[offset], reg);
+		}
+	}
+	return 0;
+}
+
 #ifdef CONFIG_SMP
 static int plic_set_affinity(struct irq_data *d,
 			     const struct cpumask *mask_val, bool force)
@@ -204,6 +237,7 @@ static struct irq_chip plic_chip = {
 	.irq_mask	= plic_irq_mask,
 	.irq_unmask	= plic_irq_unmask,
 	.irq_eoi	= plic_irq_eoi,
+	.irq_set_wake	= plic_set_wake,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = plic_set_affinity,
 #endif
@@ -351,6 +385,10 @@ static int __init __plic_init(struct device_node *node,
 	struct plic_priv *priv;
 	struct plic_handler *handler;
 
+	wake_event = kzalloc((MAX_USE_REGS) * sizeof(u32), GFP_KERNEL);
+	if (WARN_ON(!wake_event))
+		return -ENOMEM;
+
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -358,6 +396,7 @@ static int __init __plic_init(struct device_node *node,
 	priv->plic_quirks = plic_quirks;
 
 	priv->regs = of_iomap(node, 0);
+	plic_regs = priv->regs;
 	if (WARN_ON(!priv->regs)) {
 		error = -EIO;
 		goto out_free_priv;
