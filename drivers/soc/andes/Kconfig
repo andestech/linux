@@ -36,4 +36,12 @@ config PLATFORM_AHBDMA
 	bool "Platform AHB DMA support"
 	depends on ATCDMAC300
 
+config ANDES_ATCSMU
+	bool "Andes ATCSMU Support"
+	depends on RISCV && PLAT_AE350
+	help
+	  Andes System Management Unit (SMU) supports
+	  light/sleep and hotplug utilities. ATCSMU
+	  driver utilizes this hardware to implement
+	  power management.
 endmenu
