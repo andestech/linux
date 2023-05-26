@@ -346,7 +346,7 @@ static int (*reloc_handlers_rela_nds(unsigned int type)) (struct module *me,
 {
 	if (type == R_RISCV_10_PCREL)
 		return apply_r_riscv_10_pcrel_rela;
-	else if (type >= R_RISCV_ALIGN_BTB && type <= R_RISCV_RELAX_REGION_END)
+	else if (type >= R_RISCV_NO_RVC_REGION_BEGIN && type <= R_RISCV_RELAX_REGION_END)
 		return apply_r_riscv_ignore_rela;
 	else
 		return NULL;
