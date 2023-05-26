@@ -15,6 +15,8 @@
 #include <asm/numa.h>
 #include <asm/sbi.h>
 
+#include <soc/andes/smu.h>
+
 bool cpu_has_hotplug(unsigned int cpu)
 {
 	if (cpu_ops[cpu]->cpu_stop)
@@ -76,6 +78,10 @@ void arch_cpu_idle_dead(void)
 	idle_task_exit();
 
 	(void)cpu_report_death();
+
+#ifdef CONFIG_ANDES_ATCSMU
+	atcsmu_set_suspend_mode();
+#endif
 
 	cpu_ops[smp_processor_id()]->cpu_stop();
 	/* It should never reach here */

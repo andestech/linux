@@ -16,6 +16,7 @@ extern void __iomem *plic_regs;
 
 int suspend_begin;
 
+#ifndef CONFIG_ANDES_ATCSMU
 static void andes_suspend_cpu(void)
 {
 	int i;
@@ -35,19 +36,29 @@ static void andes_suspend_cpu(void)
 wakeup:
 	return;
 }
+#endif
 
 static int andes_pm_enter(suspend_state_t state)
 {
 	pr_debug("%s:state:%d\n", __func__, state);
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
+#ifdef CONFIG_ANDES_ATCSMU
+		atcsmu_suspend2standby();
+#else
 		andes_suspend_cpu();
-		break;
+#endif
+		return 0;
+	case PM_SUSPEND_MEM:
+#ifdef CONFIG_ANDES_ATCSMU
+		atcsmu_suspend2ram();
+#else
+		andes_suspend_cpu();
+#endif
+		return 0;
 	default:
 		return -EINVAL;
 	}
-	return 0;
 }
 
 static int andes_pm_valid(suspend_state_t state)
