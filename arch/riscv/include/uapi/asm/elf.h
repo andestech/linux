@@ -94,7 +94,9 @@ typedef union __riscv_fp_state elf_fpregset_t;
 #define R_RISCV_SET32		56
 #define R_RISCV_32_PCREL	57
 
-/* Andes V5 */
+/* Relocation types numbered 200 and above are defined by Andes */
+#define R_RISCV_NO_RVC_REGION_BEGIN	237
+#define R_RISCV_NO_RVC_REGION_END	238
 #define R_RISCV_ALIGN_BTB	240
 #define R_RISCV_10_PCREL	241
 #define R_RISCV_DATA		242
