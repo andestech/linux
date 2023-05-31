@@ -16,6 +16,7 @@ config ANDES_DMA_NONCOHERENT
 	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_DMA_SET_UNCACHED
+	select ARCH_HAS_DMA_CLEAR_UNCACHED
 	depends on RISCV && PLAT_AE350
 	help
 	  Andes DMA noncoherent support
