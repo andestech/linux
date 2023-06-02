@@ -59,4 +59,7 @@ void sbi_andes_set_ppma(void *arg);
 void sbi_andes_free_ppma(void *addr);
 long sbi_andes_probe_ppma(void);
 
+/* Trigger module support debug application with gdbserver */
+void sbi_andes_set_trigger(unsigned int type, uintptr_t data, int enable);
+
 #endif /* !__SOC_ANDES_SBI_H */
