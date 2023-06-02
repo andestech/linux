@@ -94,13 +94,24 @@ struct thread_info {
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_RESTORE_SIGMASK	4	/* restore signal mask in do_signal() */
-#define TIF_MEMDIE		5	/* is terminating due to OOM killer */
+#define TIF_MEMDIE		12	/* is terminating due to OOM killer */
 #define TIF_SYSCALL_TRACEPOINT  6       /* syscall tracepoint instrumentation */
 #define TIF_SYSCALL_AUDIT	7	/* syscall auditing */
 #define TIF_SECCOMP		8	/* syscall secure computing */
 #define TIF_NOTIFY_SIGNAL	9	/* signal notifications exist */
 #define TIF_UPROBE		10	/* uprobe breakpoint or singlestep */
 #define TIF_32BIT		11	/* compat-mode 32bit process */
+
+/*
+ * Andes trigger module support ptrace single step
+ *
+ * During the system call switch, the current context's thread flag
+ * uses the 'andi' instruction with _TIF_SYSCALL_WORK for a bitwise check.
+ * Therefore, if TIF_SINGLESTEP exceeds 12, it will cause a compile error.
+ * So, we swap the values of the new TIF_SINGLESETP and OOM's TIF_MEMDIE
+ * since TIF_MEMDIE doesn't judge in this case.
+ */
+#define TIF_SINGLESTEP		5
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
@@ -111,6 +122,7 @@ struct thread_info {
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
 #define _TIF_NOTIFY_SIGNAL	(1 << TIF_NOTIFY_SIGNAL)
 #define _TIF_UPROBE		(1 << TIF_UPROBE)
+#define _TIF_SINGLESTEP		(1 << TIF_SINGLESTEP)
 
 #define _TIF_WORK_MASK \
 	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | _TIF_NEED_RESCHED | \
@@ -118,6 +130,6 @@ struct thread_info {
 
 #define _TIF_SYSCALL_WORK \
 	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT | \
-	 _TIF_SECCOMP)
+	 _TIF_SECCOMP | _TIF_SINGLESTEP)
 
 #endif /* _ASM_RISCV_THREAD_INFO_H */

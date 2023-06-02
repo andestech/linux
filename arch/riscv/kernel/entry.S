@@ -273,6 +273,12 @@ resume_userspace:
 	call user_enter_callable
 #endif
 
+.global bypass_singlestep
+bypass_singlestep:
+	j 1f
+	/* Set trigger module for single step */
+	call do_singlestep
+1:
 	/* Save unwound kernel stack pointer in thread_info */
 	addi s0, sp, PT_SIZE_ON_STACK
 	REG_S s0, TASK_TI_KERNEL_SP(tp)

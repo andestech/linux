@@ -11,6 +11,7 @@
 #include <asm/syscall.h>
 #include <asm/thread_info.h>
 #include <asm/switch_to.h>
+#include <asm/cacheflush.h>
 #include <linux/audit.h>
 #include <linux/compat.h>
 #include <linux/ptrace.h>
@@ -18,6 +19,7 @@
 #include <linux/regset.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
+#include <soc/andes/trigger_module.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -213,6 +215,7 @@ unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
 void ptrace_disable(struct task_struct *child)
 {
 	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+	user_disable_single_step(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request,
@@ -227,6 +230,42 @@ long arch_ptrace(struct task_struct *child, long request,
 	}
 
 	return ret;
+}
+
+
+extern void bypass_singlestep(void);
+static void modify_bypass_to_nop(void)
+{
+	unsigned int nop = CNOP;
+
+	copy_to_kernel_nofault(&bypass_singlestep, &nop, CNOP_SIZE);
+	smp_mb();
+	flush_icache_range(&bypass_singlestep, &bypass_singlestep + CNOP_SIZE);
+}
+
+void do_singlestep(void)
+{
+	if (test_thread_flag(TIF_SINGLESTEP)) {
+		sbi_andes_set_trigger(TRIGGER_TYPE_ICOUNT, ICOUNT, 1);
+		csr_write(CSR_SCONTEXT, 1);
+	} else {
+		csr_write(CSR_SCONTEXT, 0);
+	}
+}
+
+static bool is_bypass_singlestep = true;
+void user_enable_single_step(struct task_struct *child)
+{
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+	if (is_bypass_singlestep) {
+		modify_bypass_to_nop();
+		is_bypass_singlestep = false;
+	}
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 /*
@@ -258,10 +297,13 @@ __visible int do_syscall_trace_enter(struct pt_regs *regs)
 
 __visible void do_syscall_trace_exit(struct pt_regs *regs)
 {
+	int step;
+
 	audit_syscall_exit(regs);
+	step = test_thread_flag(TIF_SINGLESTEP);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		ptrace_report_syscall_exit(regs, 0);
+		ptrace_report_syscall_exit(regs, step);
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
