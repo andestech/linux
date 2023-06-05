@@ -14,11 +14,6 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/jump_label.h>
-/*
- * This yields a mask that user programs can use to figure out what
- * instruction set this cpu supports.
- */
-#define ELF_HWCAP		(elf_hwcap)
 
 enum {
 	CAP_HWCAP = 1,
