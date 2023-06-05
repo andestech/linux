@@ -42,6 +42,7 @@ struct thread_struct {
 	struct __riscv_dsp_state dspstate;
 #endif
 	unsigned long bad_cause;
+	struct __riscv_v_ext_state vstate;
 };
 
 /* Whitelist the fstate from the task_struct for hardened usercopy */
