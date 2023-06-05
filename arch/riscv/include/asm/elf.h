@@ -64,7 +64,7 @@ extern bool compat_elf_check_arch(Elf32_Ehdr *hdr);
  * instruction set this CPU supports.  This could be done in user space,
  * but it's not easy, and we've already done it here.
  */
-#define ELF_HWCAP	(elf_hwcap)
+#define ELF_HWCAP	riscv_get_elf_hwcap()
 extern unsigned long elf_hwcap;
 
 /*

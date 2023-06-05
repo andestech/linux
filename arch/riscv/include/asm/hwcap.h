@@ -78,6 +78,8 @@ enum riscv_isa_ext_key {
 	RISCV_ISA_EXT_KEY_MAX,
 };
 
+unsigned long riscv_get_elf_hwcap(void);
+
 struct riscv_isa_ext_data {
 	/* Name of the extension displayed to userspace via /proc/cpuinfo */
 	char uprop[RISCV_ISA_EXT_NAME_LEN_MAX];
