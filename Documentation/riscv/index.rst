@@ -9,6 +9,7 @@ RISC-V architecture
     vm-layout
     patch-acceptance
     uabi
+    vector
 
     features
 
