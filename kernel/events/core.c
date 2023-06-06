@@ -4128,6 +4128,11 @@ static void perf_adjust_freq_unthr_context(struct perf_event_context *ctx,
 
 		if (hwc->interrupts == MAX_INTERRUPTS) {
 			hwc->interrupts = 0;
+
+			/*
+			 * This is a workaround that may be reverted in the future.
+			 */
+			event->pmu->stop(event, 0);
 			perf_log_throttle(event, 1);
 			event->pmu->start(event, 0);
 		}
