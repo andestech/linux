@@ -9381,8 +9381,18 @@ __perf_event_account_interrupt(struct perf_event *event, int throttle)
 
 		hwc->freq_time_stamp = now;
 
-		if (delta > 0 && delta < 2*TICK_NSEC)
-			perf_adjust_period(event, delta, hwc->last_period, true);
+		/*
+		 * This is a workaround that "should" be reverted once the
+		 * root cause is found.
+		 */
+		event->pmu->stop(event, PERF_EF_UPDATE);
+		u64 now_count = local64_read(&event->count);
+		s64 delta_count = now_count - hwc->freq_count_stamp;
+		hwc->freq_count_stamp = now_count;
+
+		if ((delta > 0) && (delta < 2 * TICK_NSEC) && (delta_count > 0))
+			perf_adjust_period(event, delta, delta_count, true);
+		event->pmu->start(event, delta_count > 0 ? PERF_EF_RELOAD : 0);
 	}
 
 	return ret;
