@@ -3293,7 +3293,12 @@ static struct record record = {
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
-		.freq		     = 4000,
+		/*
+		 * Due to the slower speed of our FPGA, we have temporarily
+		 * set the clock frequency to 1000.
+		 * It may be reverted in the future.
+		 */
+		.freq		     = 1000,
 		.target		     = {
 			.uses_mmap   = true,
 			.default_per_cpu = true,

@@ -1419,7 +1419,7 @@ int cmd_top(int argc, const char **argv)
 			.mmap_pages	= UINT_MAX,
 			.user_freq	= UINT_MAX,
 			.user_interval	= ULLONG_MAX,
-			.freq		= 4000, /* 4 KHz */
+			.freq		= 1000, /* 1 KHz */
 			.target		= {
 				.uses_mmap   = true,
 			},
