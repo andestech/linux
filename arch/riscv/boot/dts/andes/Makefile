@@ -6,6 +6,7 @@ dtb-$(CONFIG_PLAT_AE350) += a45_c1_d_dsp_noncoherent_ae350.dtb
 dtb-$(CONFIG_PLAT_AE350) += ax25_c1_d_dsp_noncoherent_ae350.dtb
 dtb-$(CONFIG_PLAT_AE350) += ax27l2_c1_d_dsp_noncoherent_ae350.dtb
 dtb-$(CONFIG_PLAT_AE350) += ax45_c1_d_dsp_noncoherent_ae350.dtb
+dtb-$(CONFIG_PLAT_AE350) += ax25mp_amp_c2_64_d_ae350.dtb
 
 # FPGA : VCU118
 dtb-$(CONFIG_PLAT_AE350) += a25mp_c4_d_dsp_ae350.dtb
