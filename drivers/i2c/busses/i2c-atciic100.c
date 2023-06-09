@@ -469,6 +469,8 @@ static int atciic_probe(struct platform_device *pdev)
 	padap->algo_data = iface;
 	padap->timeout = 3 * HZ;
 	padap->retries = 1;
+	padap->nr = -1;
+
 	rc = i2c_add_numbered_adapter(padap);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "Can't add i2c adapter!\n");
