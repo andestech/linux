@@ -90,9 +90,11 @@ int get_rpmsg_chrdev_fd(const char *rpmsg_dev_name,
 				fprintf(stderr,
 					"Failed to open rpmsg char dev %s,%s\n",
 					fpath, strerror(errno));
+				closedir(dir);
 				return fd;
 			}
 			sprintf(rpmsg_ctrl_name, "%s", ent->d_name);
+			closedir(dir);
 			return fd;
 		}
 	}
