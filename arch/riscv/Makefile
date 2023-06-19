@@ -217,4 +217,4 @@ ae350_rv64_smp_sv48_defconfig:
 
 PHONY += ae350_rv64_ax25_amp_defconfig
 ae350_rv64_ax25_amp_defconfig:
-	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config amp.config sv39.config
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config smp.config amp.config sv39.config

@@ -352,6 +352,17 @@ config TI_K3_R5_REMOTEPROC
 	  It's safe to say N here if you're not interested in utilizing
 	  a slave processor.
 
+config ANDES_REMOTEPROC
+	tristate "Andes remoteproc support"
+	depends on REMOTEPROC
+	help
+	  Say M here to support Andes remote processor subsystems
+	  on various AE350 family of SoCs through the remote processor
+	  framework.
+
+	  It's safe to say N here if you're not interested in utilizing
+	  a slave processor.
+
 endif # REMOTEPROC
 
 endmenu
