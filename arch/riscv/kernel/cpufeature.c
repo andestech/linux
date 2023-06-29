@@ -21,6 +21,8 @@
 #include <asm/processor.h>
 #include <asm/smp.h>
 #include <asm/switch_to.h>
+#include <linux/memory.h>
+#include <linux/mutex.h>
 
 #define NUM_ALPHA_EXTS ('z' - 'a' + 1)
 
