@@ -180,22 +180,25 @@
 		};
 
 		mmc@f0e00000 {
-			compatible = "andestech,atfsdc010";
+			compatible = "andestech,atfsdc010g";
 			reg = <0x00 0xf0e00000 0x00 0x1000>;
 			interrupts = <0x12 0x04>;
-			interrupt-parent = <0x03>;
+			interrupt-parent = <0x02>;
 			clock-freq-min-max = <0x61a80 0x5f5e100>;
 			max-frequency = <0x5f5e100>;
 			fifo-depth = <0x10>;
-			cap-sd-highspeed;
+			dma-names = "rxtx";
+			dmas = <0x03 0x09>;
 		};
 
 		dma@f0c00000 {
-			compatible = "andestech,atcdmac300";
+			compatible = "andestech,atcdmac300g";
 			reg = <0x00 0xf0c00000 0x00 0x1000>;
-			interrupts = <0x0a 0x04 0x40 0x04 0x41 0x04 0x42 0x04 0x43 0x04 0x44 0x04 0x45 0x04 0x46 0x04 0x47 0x04>;
-			interrupt-parent = <0x03>;
+			interrupts = <0x0a 0x04>;
+			interrupt-parent = <0x02>;
 			dma-channels = <0x08>;
+			#dma-cells = <0x01>;
+			phandle = <0x05>;
 		};
 
 		lcd@e0200000 {
