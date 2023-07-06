@@ -29,6 +29,7 @@
 #define DEBOUNCE_ENABLE			0x70
 
 #define ATCGPIO100_VIRTUAL_IRQ_BASE	0
+#define DEFAULT_PIN_NUMBER		16
 
 struct atcgpio_priv {
 	struct gpio_chip gc;
@@ -222,6 +223,8 @@ static int atcgpio100_gpio_probe(struct platform_device *pdev)
 	struct atcgpio_priv *priv;
 	struct gpio_chip *gc;
 	struct gpio_irq_chip *girq;
+	struct device_node *node;
+	u32 ngpios;
 
 	priv = devm_kzalloc(&pdev->dev,	sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -254,6 +257,15 @@ static int atcgpio100_gpio_probe(struct platform_device *pdev)
 			"Failed to read ID register, ATCGPIO100 is not supported.\n");
 		return -ENXIO;
 	}
+	
+	node = pdev->dev.of_node;
+	if (!node)
+		return -EINVAL;
+	
+	ret = of_property_read_u32(node, "ngpios", &ngpios);
+	if (ret)
+		ngpios = DEFAULT_PIN_NUMBER;
+
 	/* disable interrupt */
 	GPIO_WRITEL(0x00000000UL, INT_ENABLE, priv->base);
 	/* clear interrupt */
@@ -267,7 +279,7 @@ static int atcgpio100_gpio_probe(struct platform_device *pdev)
 	gc->parent = &pdev->dev;
 	gc->label = "atcgpio100";
 	gc->base = 0;
-	gc->ngpio = 16;
+	gc->ngpio = ngpios;
 	gc->direction_output = atcgpio_dir_out;
 	gc->direction_input = atcgpio_dir_in;
 	gc->set = atcgpio_set;
