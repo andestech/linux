@@ -22,7 +22,7 @@ EXPORT_SYMBOL(andes_probe_ppma);
 void andes_set_ppma(phys_addr_t phys_addr, void *va_addr, size_t size)
 {
 	int cpu_num = num_online_cpus();
-	int id = smp_processor_id();
+	int id;
 	int i, err;
 	bool within_memory = pfn_valid(phys_addr >> PAGE_SHIFT);
 
@@ -50,6 +50,7 @@ void andes_set_ppma(phys_addr_t phys_addr, void *va_addr, size_t size)
 	 * Send IPI
 	 * FIXME: we need online CPU mask, not the number
 	 */
+	id = get_cpu();
 	for (i = 0; i < cpu_num; i++) {
 		if (i == id)
 			continue;
@@ -64,19 +65,21 @@ void andes_set_ppma(phys_addr_t phys_addr, void *va_addr, size_t size)
 	}
 
 	sbi_andes_set_ppma(&ppma_arg);
+	put_cpu();
 }
 EXPORT_SYMBOL(andes_set_ppma);
 
 void andes_free_ppma(void *addr)
 {
 	int cpu_num = num_online_cpus();
-	int id = smp_processor_id();
+	int id;
 	int i, err;
 
 	/*
 	 * Send IPI
 	 * FIXME: we need online CPU mask, not the number
 	 */
+	id = get_cpu();
 	for (i = 0; i < cpu_num; i++) {
 		if (i == id)
 			continue;
@@ -90,6 +93,6 @@ void andes_free_ppma(void *addr)
 	}
 
 	sbi_andes_free_ppma(addr);
-
+	put_cpu();
 }
 EXPORT_SYMBOL(andes_free_ppma);
