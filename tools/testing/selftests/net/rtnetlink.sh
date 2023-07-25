@@ -490,10 +490,6 @@ kci_test_encap_fou()
 		return $ksft_skip
 	fi
 
-	if ! /sbin/modprobe -q -n fou; then
-		end_test "SKIP: module fou is not found"
-		return $ksft_skip
-	fi
 	/sbin/modprobe -q fou
 
 	run_cmd ip -netns "$testns" fou add port 7777 ipproto 47
