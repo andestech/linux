@@ -35,7 +35,7 @@ create_loopback()
 mount_image()
 {
     mkdir -p "${MNT_PATH}"
-    sudo mount -o loop "${IMG_PATH}" "${MNT_PATH}"
+    mount -o loop "${IMG_PATH}" "${MNT_PATH}"
 }
 
 rename_exchange_test()
@@ -44,10 +44,10 @@ rename_exchange_test()
     local old_path="${MNT_PATH}/old_file"
     local new_path="${MNT_PATH}/new_file"
 
-    echo old | sudo tee "${old_path}" >/dev/null 2>&1
-    echo new | sudo tee "${new_path}" >/dev/null 2>&1
-    sudo "${rename_exchange}" "${old_path}" "${new_path}" >/dev/null 2>&1
-    sudo sync -f "${MNT_PATH}"
+    echo old | tee "${old_path}" >/dev/null 2>&1
+    echo new | tee "${new_path}" >/dev/null 2>&1
+    "${rename_exchange}" "${old_path}" "${new_path}" >/dev/null 2>&1
+    sync -f "${MNT_PATH}"
     grep new "${old_path}" >/dev/null 2>&1
     grep old "${new_path}" >/dev/null 2>&1
 }
@@ -59,18 +59,18 @@ rename_exchange_subdir_test()
     local old_path="${MNT_PATH}/old_file"
     local new_path="${dir_path}/new_file"
 
-    sudo mkdir -p "${dir_path}"
-    echo old | sudo tee "${old_path}" >/dev/null 2>&1
-    echo new | sudo tee "${new_path}" >/dev/null 2>&1
-    sudo "${rename_exchange}" "${old_path}" "${new_path}" >/dev/null 2>&1
-    sudo sync -f "${MNT_PATH}"
+    mkdir -p "${dir_path}"
+    echo old | tee "${old_path}" >/dev/null 2>&1
+    echo new | tee "${new_path}" >/dev/null 2>&1
+    "${rename_exchange}" "${old_path}" "${new_path}" >/dev/null 2>&1
+    sync -f "${MNT_PATH}"
     grep new "${old_path}" >/dev/null 2>&1
     grep old "${new_path}" >/dev/null 2>&1
 }
 
 unmount_image()
 {
-    sudo umount "${MNT_PATH}" &> /dev/null
+    umount "${MNT_PATH}" &> /dev/null
 }
 
 create_loopback
