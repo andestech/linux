@@ -22,7 +22,6 @@ modprobe="/sbin/modprobe"
 main() {
     parse_args "$@"
     assert_root
-    assert_have_module
     run_module
 }
 
@@ -44,12 +43,6 @@ parse_args() {
 assert_root() {
     if [ ! -w /dev ]; then
 	skip "please run as root"
-    fi
-}
-
-assert_have_module() {
-    if ! $modprobe -q -n $module; then
-	skip "module $module is not found"
     fi
 }
 

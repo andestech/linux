@@ -94,7 +94,7 @@ for i in $(seq 1 $repeat); do
 done
 
 # Record and dump the results
-dmesg | comm --nocheck-order -13 "$DMESG" - > "$LOG" || true
+dmesg | comm -13 "$DMESG" - > "$LOG" || true
 
 cat "$LOG"
 # Check for expected output
