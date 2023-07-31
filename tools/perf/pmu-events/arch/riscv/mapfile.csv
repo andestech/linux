@@ -16,3 +16,7 @@
 #MVENDORID-MARCHID-MIMPID,Version,Filename,EventType
 0x489-0x8000000000000007-0x[[:xdigit:]]+,v1,sifive/u74,core
 0x31e-0x8000000000008a45-0x[[:xdigit:]]+,V5,andes/AX45,core
+0x31e-0x8000000000000a45-0x[[:xdigit:]]+,V5,andes/A45,core
+0x31e-0x8000000000008a25-0x[[:xdigit:]]+,V5,andes/AX25,core
+0x31e-0x8000000000000a25-0x[[:xdigit:]]+,V5,andes/A25,core
+0x31e-0x8000000000008a65-0x[[:xdigit:]]+,V5,andes/AX65,core
