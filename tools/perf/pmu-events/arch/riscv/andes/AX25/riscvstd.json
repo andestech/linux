@@ -120,11 +120,6 @@
 	"BriefDescription": "Integer multiplication and add/sub instruction count"
 	},
 	{
-	"EventCode": "0x190",
-	"EventName": "op_count",
-	"BriefDescription": "Retired operation count"
-	},
-	{
 	"EventCode": "0x01",
 	"EventName": "ilm_access",
 	"BriefDescription": "ILM access"
@@ -240,16 +235,6 @@
 	"BriefDescription": "Pipeline stall cycles caused by Main DTLB miss"
 	},
 	{
-	"EventCode": "0x171",
-	"EventName": "prefetch_bus_access",
-	"BriefDescription": "Hardware prefetch bus access"
-	},
-	{
-	"EventCode": "0x181",
-	"EventName": "cycle_wait_for_operand",
-	"BriefDescription": "Cycles waiting for source operand ready in the integer register file scoreboard"
-	},
-	{
 	"EventCode": "0x02",
 	"EventName": "mispredict_condition_br",
 	"BriefDescription": "Misprediction of conditional branches"
@@ -263,5 +248,10 @@
 	"EventCode": "0x22",
 	"EventName": "mispredict_target_ret_inst",
 	"BriefDescription": "Misprediction of targets of Return instructions"
+	},
+	{
+	"EventCode": "0x32",
+	"EventName": "replay_load_store",
+	"BriefDescription": "Replay for load-after-store or store-after-store cases"
 	}
 ]
