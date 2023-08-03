@@ -34,6 +34,7 @@ struct range_info {
 	struct page *page;
 };
 
+#ifdef CONFIG_PLAT_AE350
 void cpu_dma_inval_range(void *info);
 void cpu_dma_wb_range(void *info);
 
@@ -56,7 +57,7 @@ static inline void dma_flush_page(struct page *page, size_t size)
 }
 
 static inline void andes_cache_op(phys_addr_t paddr, size_t size,
-		void (*fn)(void *ri))
+				  void (*fn)(void *ri))
 {
 	struct page *page = pfn_to_page(paddr >> PAGE_SHIFT);
 	unsigned offset = paddr & ~PAGE_MASK;
@@ -100,5 +101,13 @@ static inline void andes_cache_op(phys_addr_t paddr, size_t size,
 
 extern void *arch_dma_set_uncached(void *addr, size_t size);
 extern void arch_dma_clear_uncached(void *addr, size_t size);
+
+#else
+static inline void cpu_dma_inval_range(void *info) {}
+static inline void cpu_dma_wb_range(void *info) {}
+static inline void dma_flush_page(struct page *page, size_t size) {}
+static inline void andes_cache_op(phys_addr_t paddr, size_t size,
+				  void (*fn)(void *ri)) {}
+#endif /* !CONFIG_PLAT_AE350 */
 
 #endif /* !__SOC_ANDES_DMA_H */

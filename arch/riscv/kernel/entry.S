@@ -90,14 +90,18 @@ _save_context:
 	csrr s3, CSR_TVAL
 	csrr s4, CSR_CAUSE
 	csrr s5, CSR_SCRATCH
+#ifdef CONFIG_PLAT_AE350
 	csrr s6, CSR_SDCAUSE
+#endif
 	REG_S s0, PT_SP(sp)
 	REG_S s1, PT_STATUS(sp)
 	REG_S s2, PT_EPC(sp)
 	REG_S s3, PT_BADADDR(sp)
 	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
+#ifdef CONFIG_PLAT_AE350
 	REG_S s6, PT_SDCAUSE(sp)
+#endif
 
 	/*
 	 * Set the scratch register to 0, so that if a recursive exception

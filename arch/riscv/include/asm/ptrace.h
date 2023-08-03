@@ -50,8 +50,10 @@ struct pt_regs {
 	unsigned long badaddr;
 	unsigned long cause;
 
+#ifdef CONFIG_PLAT_AE350
 	/* Andes supervisor detailed trap cause */
 	unsigned long sdcause;
+#endif
 	/* a0 value before the syscall */
 	unsigned long orig_a0;
 };
