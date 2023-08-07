@@ -47,6 +47,17 @@ static inline void fstate_restore(struct task_struct *task,
 	}
 }
 
+static inline void __switch_to_aux(struct task_struct *prev,
+				   struct task_struct *next)
+{
+	struct pt_regs *regs;
+
+	regs = task_pt_regs(prev);
+	if (unlikely(regs->status & SR_SD))
+		fstate_save(prev, regs);
+	fstate_restore(next, task_pt_regs(next));
+}
+
 static __always_inline bool has_fpu(void)
 {
 	return static_branch_likely(&riscv_isa_ext_keys[RISCV_ISA_EXT_KEY_FPU]);
@@ -55,6 +66,7 @@ static __always_inline bool has_fpu(void)
 static __always_inline bool has_fpu(void) { return false; }
 #define fstate_save(task, regs) do { } while (0)
 #define fstate_restore(task, regs) do { } while (0)
+#define __switch_to_aux(__prev, __next) do { } while (0)
 #endif /* CONFIG_FPU */
 
 #ifdef CONFIG_DSP
@@ -68,6 +80,13 @@ static inline void dspstate_restore(struct task_struct *task)
 	csr_write(CSR_UCODE, task->thread.dspstate.ucode);
 }
 
+static inline void __switch_to_dsp(struct task_struct *prev,
+				   struct task_struct *next)
+{
+	dspstate_save(prev);
+	dspstate_restore(next);
+}
+
 static __always_inline bool has_dsp(void)
 {
 	return static_branch_likely(&riscv_isa_ext_keys[ANDES_ISA_EXT_KEY_DSP]);
@@ -76,25 +95,8 @@ static __always_inline bool has_dsp(void)
 static __always_inline bool has_dsp(void) { return false; }
 #define dspstate_save(task) do { } while (0)
 #define dspstate_restore(task) do { } while (0)
+#define __switch_to_dsp(__prev, __next) do { } while (0)
 #endif /* CONFIG_DSP */
-
-static inline void __switch_to_aux(struct task_struct *prev,
-				   struct task_struct *next)
-{
-#ifdef CONFIG_FPU
-	struct pt_regs *regs;
-	regs = task_pt_regs(prev);
-	if (unlikely(regs->status & SR_SD))
-		fstate_save(prev, regs);
-	fstate_restore(next, task_pt_regs(next));
-#endif /* CONFIG_FPU */
-#ifdef CONFIG_DSP
-	if (has_dsp()) {
-		dspstate_save(prev);
-		dspstate_restore(next);
-	}
-#endif /* CONFIG_DSP */
-}
 
 extern struct task_struct *__switch_to(struct task_struct *,
 				       struct task_struct *);
@@ -103,8 +105,10 @@ extern struct task_struct *__switch_to(struct task_struct *,
 do {							\
 	struct task_struct *__prev = (prev);		\
 	struct task_struct *__next = (next);		\
-	if (has_fpu() || has_dsp())			\
+	if (has_fpu())			\
 		__switch_to_aux(__prev, __next);	\
+	if (has_dsp())			\
+		__switch_to_dsp(__prev, __next);	\
 	((last) = __switch_to(__prev, __next));		\
 } while (0)
 
