@@ -37,3 +37,21 @@ void sbi_andes_set_trigger(unsigned int type, uintptr_t data, int enable)
 		  type, data, enable, 0, 0, 0);
 }
 EXPORT_SYMBOL(sbi_andes_set_trigger);
+
+/* PowerBrake */
+void sbi_andes_write_powerbrake(unsigned int val)
+{
+	sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_WRITE_POWERBRAKE,
+		  val, 0, 0, 0, 0, 0);
+}
+EXPORT_SYMBOL(sbi_andes_write_powerbrake);
+
+long sbi_andes_read_powerbrake(void)
+{
+	struct sbiret ret;
+
+	ret = sbi_ecall(SBI_EXT_ANDES, SBI_EXT_ANDES_READ_POWERBRAKE,
+			0, 0, 0, 0, 0, 0);
+	return ret.value;
+}
+EXPORT_SYMBOL(sbi_andes_read_powerbrake);
