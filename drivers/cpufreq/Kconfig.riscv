@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# RISC-V CPU Frequency scaling drivers
+#
+
+config RISCV_ANDES_CPUFREQ_POWERBRAKE
+	bool "Andes RISC-V processor PowerBrake CPUFreq driver"
+	depends on PLAT_AE350
+	default n
+	help
+	  This adds CPUFreq driver for Andes RISC-V processor PowerBrake.

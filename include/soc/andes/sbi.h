@@ -68,4 +68,8 @@ static inline void sbi_andes_set_trigger(unsigned int type,
 					 int enable) {}
 #endif /* !CONFIG_PLAT_AE350 */
 
+/* PowerBrake */
+void sbi_andes_write_powerbrake(unsigned int val);
+long sbi_andes_read_powerbrake(void);
+
 #endif /* !__SOC_ANDES_SBI_H */
