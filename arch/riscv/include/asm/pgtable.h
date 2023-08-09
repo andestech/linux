@@ -153,11 +153,7 @@ extern struct pt_alloc_ops pt_ops __initdata;
 #ifdef CONFIG_PLAT_AE350
 /* Noncacheable page prot for Andes MSB */
 extern phys_addr_t andes_pa_msb;
-#ifdef CONFIG_ANDES_QEMU_SUPPORT
-#define _PAGE_NONCACHEABLE      0
-#else
 #define _PAGE_NONCACHEABLE      ((!!andes_pa_msb) << 31)
-#endif
 #endif /* CONFIG_PLAT_AE350 */
 
 /* Number of PGD entries that a user-mode program can use */
