@@ -13,6 +13,7 @@ dtb-$(CONFIG_PLAT_AE350) += a25mp_c4_d_dsp_ae350.dtb
 dtb-$(CONFIG_PLAT_AE350) += a45mp_c4_d_dsp_ae350.dtb
 dtb-$(CONFIG_PLAT_AE350) += ax25mp_c4_d_dsp_ae350.dtb
 dtb-$(CONFIG_PLAT_AE350) += ax45mp_c4_d_dsp_ae350.dtb
+dtb-$(CONFIG_PLAT_AE350) += ax45mpv_c4_d_dsp_ae350.dtb
 dtb-$(CONFIG_PLAT_AE350) += ax45mp_c8_ae350.dtb
 
 # FPGA : VU19P
