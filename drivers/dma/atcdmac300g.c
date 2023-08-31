@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for the Andestech ATCDMAC300
+ * Driver for the Andes ATCDMAC300
  *
- * Copyright (C) 2021 Andestech Corporation
+ * Copyright (C) 2021 Andes Technology Corporation
  *
  */
 #include <linux/dmaengine.h>
