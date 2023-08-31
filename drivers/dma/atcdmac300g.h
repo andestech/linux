@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Header file for the Andestech DMA Controller driver
+ * Header file for the Andes DMA Controller driver
  *
- * Copyright (C) 2021 Andestech Corporation
+ * Copyright (C) 2021 Andes Technology Corporation
  */
 #ifndef ATCDMAC300G_H
 #define	ATCDMAC300G_H
