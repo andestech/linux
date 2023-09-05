@@ -1416,6 +1416,7 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 	struct ftsdc_mmc_config *pdata = NULL;
 	struct resource *r, *mem = NULL;
 	int ret = -ENOMEM;
+	int ret2 = -ENOMEM;
 	u32 con;
 	int irq = 0;
 	size_t mem_size;
@@ -1471,8 +1472,9 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 	/* Check revision register */
 	read_fixup = symbol_get(readl_fixup);
 	ret = read_fixup(host->base + SDC_REVISION_REG, 0x00030107, 0);
+	ret2 = read_fixup(host->base + SDC_REVISION_REG, 0x00030108, 0);
 	symbol_put(readl_fixup);
-	if (!ret) {
+	if (!ret && !ret2) {
 		dev_err(&pdev->dev,
 			"failed to read revision reg, bitmap not support ftdsdc\n");
 		ret = -ENXIO;
