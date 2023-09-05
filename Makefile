@@ -1395,7 +1395,31 @@ kselftest-%: headers FORCE
 PHONY += kselftest-merge
 kselftest-merge:
 	$(if $(wildcard $(objtree)/.config),, $(error No .config exists, config your kernel first!))
-	$(Q)find $(srctree)/tools/testing/selftests -name config -o -name config.$(UTS_MACHINE) | \
+	$(Q)find $(srctree)/tools/testing/selftests -name config -o -name config.$(UTS_MACHINE) \
+	        -not -path '$(srctree)/tools/testing/selftests/bpf/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/seccomp/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/alsa/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/dma/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/dmabuf-heaps/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/drivers/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/ia64/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/kmod/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/locking/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/media_tests/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/net/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/nolibc/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/ntb/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/perf_events/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/prctl/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/ptp/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/rcutorture/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/safesetid/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/sched/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/uevent/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/user_events/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/vm/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/watchdog/*' \
+	        -not -path '$(srctree)/tools/testing/selftests/wireguar/*' | \
 		xargs $(srctree)/scripts/kconfig/merge_config.sh -y -m $(objtree)/.config
 	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
 
