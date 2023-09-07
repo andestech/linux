@@ -89,6 +89,23 @@ config TOUCHSCREEN_AD7879_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7879-spi.
 
+config TOUCHSCREEN_CPE_TS_AE350
+	tristate "Touchscreen Driver for AE350/XC7"
+	help
+	  This driver directly accesses SPI controller to communicate with
+	  the ads7846 chip.
+
+	  Once we have a SPI controller driver, we can adopt to the SPI
+	  framework that kernel provides.
+
+config TOUCHSCREEN_CPE_TS_DEJITTER_AE350
+	bool "Dejitter Detection"
+	depends on TOUCHSCREEN_CPE_TS_AE350
+	help
+	  Say Y here to enable dejitter detection in AE350/Big Orca Touchscreen Driver.
+
+	  If unsure, say y.
+
 config TOUCHSCREEN_ADC
 	tristate "Generic ADC based resistive touchscreen"
 	depends on IIO
