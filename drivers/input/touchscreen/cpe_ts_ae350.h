@@ -1,10 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (C) 2023 Andes technology Corporation
+ */
+
 #ifndef SPI_ANDES_H
 #define SPI_ANDES_H
 
 #define XILINX_SPI_NAME "andes-spi"
 
 struct at_ts_platdata {
-	resource_size_t regs;
+	void __iomem *regs;
 	unsigned int clk;
 	unsigned int sclk;
 	unsigned int x_max;
@@ -24,7 +29,7 @@ struct at_ts_platdata {
 #define DATA_LEN_MSK	(0x1f<<8)
 
 /* SPI Transfer Control Register */
-#define TCONTROL		0x20
+#define TCONTROL	0x20
 #define TRANS_MODE_OFF	24
 #define TRANS_MODE_MSK	(0xf<<TRANS_MODE_OFF)
 #define WRITE_THEN_READ	(0x3<<TRANS_MODE_OFF)
@@ -67,7 +72,7 @@ struct at_ts_platdata {
 #define XSPI_CR_MASTER_MODE	0x04
 #define XSPI_CR_CPOL		0x08
 #define XSPI_CR_CPHA		0x10
-#define XSPI_CR_MODE_MASK	( XSPI_CR_CPHA | XSPI_CR_CPOL)
+#define XSPI_CR_MODE_MASK	(XSPI_CR_CPHA | XSPI_CR_CPOL)
 #define XSPI_CR_TXFIFO_RESET	0x20
 #define XSPI_CR_RXFIFO_RESET	0x40
 #define XSPI_CR_MANUAL_SSELECT	0x80
