@@ -249,7 +249,7 @@
 			compatible = "andestech,atciic100";
 			reg = <0x00 0xf0a00000 0x00 0x1000>;
 			interrupts = <0x06 0x04>;
-			interrupt-parent = <0x02>;
+			interrupt-parent = <0x06>;
 			wakeup-source;
 		};
 
