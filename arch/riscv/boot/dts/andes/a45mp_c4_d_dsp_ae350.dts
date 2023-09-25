@@ -26,7 +26,7 @@
 			reg = <0x00>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv32i2p0m2p0a2p0f2p0d2p0c2p0xv5-1p1xdsp0p0";
+			riscv,isa = "rv32imafdc_xandes_xdsp";
 			riscv,priv-major = <0x01>;
 			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv32";
@@ -54,7 +54,7 @@
 			reg = <0x01>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv32i2p0m2p0a2p0f2p0d2p0c2p0xv5-1p1xdsp0p0";
+			riscv,isa = "rv32imafdc_xandes_xdsp";
 			riscv,priv-major = <0x01>;
 			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv32";
@@ -82,7 +82,7 @@
 			reg = <0x02>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv32i2p0m2p0a2p0f2p0d2p0c2p0xv5-1p1xdsp0p0";
+			riscv,isa = "rv32imafdc_xandes_xdsp";
 			riscv,priv-major = <0x01>;
 			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv32";
@@ -110,7 +110,7 @@
 			reg = <0x03>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv32i2p0m2p0a2p0f2p0d2p0c2p0xv5-1p1xdsp0p0";
+			riscv,isa = "rv32imafdc_xandes_xdsp";
 			riscv,priv-major = <0x01>;
 			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv32";
