@@ -244,7 +244,7 @@ zram_makefs()
 		which mkfs.$fs > /dev/null 2>&1 || fs=ext2
 
 		echo "make $fs filesystem on /dev/zram$i"
-		mkfs.$fs /dev/zram$i > err.log 2>&1
+		mkfs.$fs /dev/zram$i -b 4096 > err.log 2>&1
 		if [ $? -ne 0 ]; then
 			cat err.log
 			echo "FAIL failed to make $fs on /dev/zram$i"
