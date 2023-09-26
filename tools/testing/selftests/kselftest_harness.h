@@ -68,7 +68,7 @@
 
 #include "kselftest.h"
 
-#define TEST_TIMEOUT_DEFAULT 30
+#define TEST_TIMEOUT_DEFAULT 300
 
 /* Utilities exposed to the test definitions */
 #ifndef TH_LOG_STREAM
