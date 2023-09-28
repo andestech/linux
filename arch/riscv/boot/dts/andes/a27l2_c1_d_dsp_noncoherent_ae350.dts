@@ -67,6 +67,19 @@
 		device_type = "memory";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dma_global_pool0@3e800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x3e800000 0x0 0x200000>;
+			no-map;
+			linux,dma-default;
+		};
+	};
+
 	soc {
 		#address-cells = <0x02>;
 		#size-cells = <0x02>;
