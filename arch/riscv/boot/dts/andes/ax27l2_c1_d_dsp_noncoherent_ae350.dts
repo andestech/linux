@@ -185,6 +185,7 @@
 			reg = <0x00 0xe0100000 0x00 0x1000>;
 			interrupts = <0x13 0x04>;
 			interrupt-parent = <0x03>;
+			dma-noncoherent;
 		};
 
 		smu@f0100000 {
@@ -202,6 +203,7 @@
 			fifo-depth = <0x10>;
 			dma-names = "rxtx";
 			dmas = <0x03 0x09>;
+			dma-noncoherent;
 		};
 
 		dma@f0c00000 {
@@ -212,6 +214,7 @@
 			dma-channels = <0x08>;
 			#dma-cells = <0x01>;
 			phandle = <0x05>;
+			dma-noncoherent;
 		};
 
 		lcd@e0200000 {
@@ -219,6 +222,7 @@
 			reg = <0x00 0xe0200000 0x00 0x1000>;
 			interrupts = <0x14 0x04>;
 			interrupt-parent = <0x03>;
+			dma-noncoherent;
 		};
 
 		smc@e0400000 {
@@ -238,6 +242,7 @@
 			reg = <0x00 0xf0d00000 0x00 0x1000>;
 			interrupts = <0x11 0x04>;
 			interrupt-parent = <0x03>;
+			dma-noncoherent;
 		};
 
 		pmu {
