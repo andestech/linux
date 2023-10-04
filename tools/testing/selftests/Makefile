@@ -96,6 +96,7 @@ TARGETS_HOTPLUG += memory-hotplug
 # BPF since it has cutting edge build time dependencies which require
 # more effort to install.
 SKIP_TARGETS ?= bpf
+SKIP_TARGETS += breakpoints drivers/dma-buf drivers/s390x/uvdevice drivers/net/bonding drivers/net/team firmware net net/af_unix net/forwarding net/mptcp net/openvswitch lkdtm pstore
 ifneq ($(SKIP_TARGETS),)
 	TMP := $(filter-out $(SKIP_TARGETS), $(TARGETS))
 	override TARGETS := $(TMP)
