@@ -241,8 +241,10 @@ static inline bool pmd_leaf(pmd_t pmd)
 
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
+	preempt_disable();
 	WRITE_ONCE(*pmdp, pmd);
 	ALT_LEGACY_MMU_FLUSH_TLB();
+	preempt_enable();
 }
 
 static inline void pmd_clear(pmd_t *pmdp)
@@ -545,8 +547,10 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
  */
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
+	preempt_disable();
 	WRITE_ONCE(*ptep, pteval);
 	ALT_LEGACY_MMU_FLUSH_TLB();
+	preempt_enable();
 }
 
 void flush_icache_pte(struct mm_struct *mm, pte_t pte);
