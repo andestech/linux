@@ -198,8 +198,10 @@ static inline int pud_user(pud_t pud)
 
 static inline void set_pud(pud_t *pudp, pud_t pud)
 {
+	preempt_disable();
 	*pudp = pud;
 	ALT_LEGACY_MMU_FLUSH_TLB();
+	preempt_enable();
 }
 
 static inline void pud_clear(pud_t *pudp)

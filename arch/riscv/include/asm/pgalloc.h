@@ -21,8 +21,10 @@ static inline void pmd_populate_kernel(struct mm_struct *mm,
 {
 	unsigned long pfn = virt_to_pfn(pte);
 
+	preempt_disable();
 	set_pmd(pmd, __pmd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
 	ALT_LEGACY_MMU_FLUSH_TLB();
+	preempt_enable();
 }
 
 static inline void pmd_populate(struct mm_struct *mm,
@@ -30,8 +32,10 @@ static inline void pmd_populate(struct mm_struct *mm,
 {
 	unsigned long pfn = virt_to_pfn(page_address(pte));
 
+	preempt_disable();
 	set_pmd(pmd, __pmd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
 	ALT_LEGACY_MMU_FLUSH_TLB();
+	preempt_enable();
 }
 
 #ifndef __PAGETABLE_PMD_FOLDED
@@ -39,8 +43,10 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
 	unsigned long pfn = virt_to_pfn(pmd);
 
+	preempt_disable();
 	set_pud(pud, __pud((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
 	ALT_LEGACY_MMU_FLUSH_TLB();
+	preempt_enable();
 }
 
 static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4d, pud_t *pud)
@@ -144,10 +150,12 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	pgd = (pgd_t *)__get_free_page(GFP_KERNEL);
 	if (likely(pgd != NULL)) {
+		preempt_disable();
 		memset(pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
 		/* Copy kernel mappings */
 		sync_kernel_mappings(pgd);
 		ALT_LEGACY_MMU_FLUSH_TLB();
+		preempt_enable();
 	}
 	return pgd;
 }
