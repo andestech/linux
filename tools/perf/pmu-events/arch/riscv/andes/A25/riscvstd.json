@@ -251,7 +251,7 @@
 	},
 	{
 	"EventCode": "0x32",
-	"EventName": "replay_load_store",
+	"EventName": "replay_las_sas",
 	"BriefDescription": "Replay for load-after-store or store-after-store cases"
 	}
 ]
