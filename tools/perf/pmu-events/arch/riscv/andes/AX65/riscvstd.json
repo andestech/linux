@@ -256,7 +256,7 @@
 	},
 	{
 	"EventCode": "0x32",
-	"EventName": "replay_las_sas",
-	"BriefDescription": "Replay for load-after-store or store-after-store cases"
+	"EventName": "replay_load_order_ecc_err",
+	"BriefDescription": "Replay for load with memory-order violations or correctable ECC error"
 	}
 ]
