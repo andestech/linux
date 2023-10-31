@@ -90,21 +90,19 @@ int rpmsg_release_channel(struct rpmsg_device *rpdev,
  */
 static inline int rpmsg_chrdev_register_device(struct rpmsg_device *rpdev)
 {
-	char *driver = "rpmsg_chrdev", *driver_override;
+	int ret;
 
-	strcpy(rpdev->id.name, driver);
+	strcpy(rpdev->id.name, "rpmsg_chrdev");
+	ret = driver_set_override(&rpdev->dev, &rpdev->driver_override,
+				  rpdev->id.name, strlen(rpdev->id.name));
+	if (ret)
+		return ret;
 
-	driver_override = kstrndup(driver, strlen(driver), GFP_KERNEL);
-	if (!driver_override)
-		return -ENOMEM;
+	ret = rpmsg_register_device(rpdev);
+	if (ret)
+		kfree(rpdev->driver_override);
 
-	driver_override[strcspn(driver_override, "\n")] = '\0';
-
-	device_lock(&rpdev->dev);
-	rpdev->driver_override = driver_override;
-	device_unlock(&rpdev->dev);
-
-	return rpmsg_register_device(rpdev);
+	return ret;
 }
 
 #endif
