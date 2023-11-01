@@ -3,6 +3,7 @@
 
 obj-y	+= andes_sbi.o pm.o
 obj-y	+= inject_init.o
+obj-y	+= dcause.o
 obj-$(CONFIG_ATCDMAC300)	+= atcdmac300.o dmad_intc.o
 obj-$(CONFIG_ANDES_CACHE)	+= cache.o
 obj-$(CONFIG_ANDES_DMA_NONCOHERENT)	+= dma-noncoherent.o
