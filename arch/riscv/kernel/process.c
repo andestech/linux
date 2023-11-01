@@ -29,6 +29,12 @@
 #include <asm/cpufeature.h>
 #include <asm/exec.h>
 
+#ifdef CONFIG_ARCH_ANDES
+#include <linux/soc/andes/dcause.h>
+#endif
+
+register unsigned long gp_in_global __asm__("gp");
+
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
@@ -90,9 +96,11 @@ void __show_regs(struct pt_regs *regs)
 		regs->s11, regs->t3, regs->t4);
 	pr_cont(" t5 : " REG_FMT " t6 : " REG_FMT "\n",
 		regs->t5, regs->t6);
-
+#ifdef CONFIG_ARCH_ANDES
 	pr_cont("status: " REG_FMT " badaddr: " REG_FMT " cause: " REG_FMT " sdcause: " REG_FMT "\n",
 		regs->status, regs->badaddr, regs->cause, regs->sdcause);
+	print_detailed_cause(regs->cause, regs->sdcause);
+#endif /* CONFIG_ARCH_ANDES */
 }
 void show_regs(struct pt_regs *regs)
 {
