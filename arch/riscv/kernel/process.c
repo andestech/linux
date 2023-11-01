@@ -26,6 +26,12 @@
 #include <asm/cpuidle.h>
 #include <asm/vector.h>
 
+#ifdef CONFIG_PLAT_AE350
+#include <soc/andes/dcause.h>
+#endif
+
+register unsigned long gp_in_global __asm__("gp");
+
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
@@ -76,6 +82,7 @@ void __show_regs(struct pt_regs *regs)
 #ifdef CONFIG_PLAT_AE350
 	pr_cont("status: " REG_FMT " badaddr: " REG_FMT " cause: " REG_FMT " sdcause: " REG_FMT "\n",
 		regs->status, regs->badaddr, regs->cause, regs->sdcause);
+	print_detailed_cause(regs->cause, regs->sdcause);
 #endif
 }
 void show_regs(struct pt_regs *regs)
