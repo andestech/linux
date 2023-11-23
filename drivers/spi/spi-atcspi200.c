@@ -387,6 +387,11 @@ static void atcspi200_set_qmode(struct atcspi200_spi *spi, const struct spi_mem_
 	atcspi200_spi_write(spi, SPI_CMD, op->cmd.opcode);
 }
 
+static irqreturn_t andes_spi_irq(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
 static int atcspi200_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	int ret, max_trans_len, data_len, trans_len, num_blks, num_chunks;
@@ -444,7 +449,7 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct spi_master *master;
 	struct atcspi200_spi *spi;
-	int ret;
+	int ret, irq;
 	u32 num_cs = NSPI_MAX_CS_NUM;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct atcspi200_spi));
@@ -485,6 +490,12 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(spi->clk)) {
 		dev_err(&pdev->dev, "Unable to find bus clock\n");
 		ret = PTR_ERR(spi->clk);
+		goto put_master;
+	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
 		goto put_master;
 	}
 
@@ -530,6 +541,15 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 	/* Configure the SPI master hardware */
 	atcspi200_spi_setup(spi);
 	spi->mtiming = atcspi200_spi_read(spi, SPI_TIMING);
+
+	ret = devm_request_irq(&pdev->dev, irq, andes_spi_irq, 0,
+			       "andes-spi", spi);
+
+	if (ret)
+		dev_err(&pdev->dev, "Unable to bind to Interrupt\n");
+
+	dev_info(&pdev->dev, "mapped; irq=%d, cs=%d\n",
+		 irq, master->num_chipselect);
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
