@@ -10,8 +10,11 @@
 #include <linux/dma-direction.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/of_irq.h>
+#include <linux/interrupt.h>
 
 #include <asm/dma-noncoherent.h>
+#include <linux/soc/andes/csr.h>
 
 /* L2 cache registers */
 #define ANDES_L2C_REG_CTL_OFFSET		0x8
@@ -53,6 +56,61 @@ struct andes_priv {
 };
 
 static struct andes_priv andes_priv;
+
+/* L2 Cache IRQ handler and print error messages */
+static uint32_t get_l2c_async_err(void)
+{
+	return readl((void *)(andes_priv.l2c_base + L2C_REG_ASYNC_ERR_OFFSET));
+}
+
+static uint32_t get_l2c_err(void)
+{
+	return readl((void *)(andes_priv.l2c_base + L2C_REG_ERR_OFFSET));
+}
+
+static void l2c_print_err(u32 async_err_reg, u32 err_reg)
+{
+	if (async_err_reg) {
+		u32 err_type = err_reg & L2C_ERR_TYPE_MASK;
+		bool more_err = err_reg & L2C_ERR_MORERR_MASK;
+
+		if (more_err)
+			pr_err_ratelimited("More errors occur due to L2 cache. Below is the first error type\n");
+
+		switch (err_type) {
+		case L2C_RAM_ERROR:
+			pr_err_ratelimited("L2C RAM error: CCTL operation encounters uncorrectable RAM errors\n");
+			break;
+		case L2C_RELEASE_ERROR:
+			pr_err_ratelimited("L2C release error: D-cache writes back a line that is not in L2-cache\n");
+			break;
+		case L2C_PROBE_ERROR:
+			pr_err_ratelimited("L2C probe error: CCTL operation probes D-cache when D-cache coherency is disabled\n");
+			break;
+		case L2C_BUS_ERROR:
+			pr_err_ratelimited("L2C bus error: CCTL operation or writing back a line to L3 has bus errors\n");
+			break;
+		default:
+			pr_err_ratelimited("L2C unknown error\n");
+			break;
+		}
+	} else {
+		pr_err_ratelimited("L2C synchronous error\n");
+	}
+}
+
+static irqreturn_t l2c_irq(int irq, void *dev_id)
+{
+	u32 async_err_reg = get_l2c_async_err();
+	u32 err_reg = get_l2c_err();
+
+	/* Clear the error status */
+	writel(0x0, andes_priv.l2c_base + L2C_REG_ASYNC_ERR_OFFSET);
+	writel(0x0, andes_priv.l2c_base + L2C_REG_ERR_OFFSET);
+
+	l2c_print_err(async_err_reg, err_reg);
+	return IRQ_HANDLED;
+}
 
 /* L2 Cache operations */
 static inline uint32_t andes_cpu_l2c_get_cctl_status(void)
@@ -178,7 +236,8 @@ static int __init andes_cache_init(void)
 {
 	struct device_node *np;
 	struct resource res;
-	int ret;
+	int ret, error;
+	u32 irq;
 
 	/*
 	 * Initialize l2c_base and cache_line_size to provide
@@ -203,9 +262,24 @@ static int __init andes_cache_init(void)
 	if (!of_device_is_available(np))
 		return -ENODEV;
 
+	/* l2c cache irq */
+	irq = irq_of_parse_and_map(np, 0);
+	if (irq <= 0) {
+		pr_err("Failed to get L2C irq number\n");
+		return irq;
+	}
+
+	error = request_irq(irq, l2c_irq, 0, "L2C", NULL);
+	if (error) {
+		pr_err("Failed to register L2C irq\n");
+		return error;
+	}
+
 	ret = of_address_to_resource(np, 0, &res);
-	if (ret)
+	if (ret) {
+		free_irq(irq, NULL);
 		return ret;
+	}
 
 	/*
 	 * If IOCP is present on the Andes ANDES core riscv_cbom_block_size
@@ -218,12 +292,15 @@ static int __init andes_cache_init(void)
 		return 0;
 
 	andes_priv.l2c_base = ioremap(res.start, resource_size(&res));
-	if (!andes_priv.l2c_base)
+	if (!andes_priv.l2c_base) {
+		free_irq(irq, NULL);
 		return -ENOMEM;
+	}
 
 	ret = andes_get_l2_line_size(np);
 	if (ret) {
 		iounmap(andes_priv.l2c_base);
+		free_irq(irq, NULL);
 		return ret;
 	}
 
