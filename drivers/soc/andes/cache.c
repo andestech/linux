@@ -9,6 +9,7 @@
 #include <linux/smp.h>
 #include <linux/irqflags.h>
 #include <linux/io.h>
+#include <linux/of_irq.h>
 #include <asm/csr.h>
 #include <asm/sbi.h>
 #include <soc/andes/csr.h>
@@ -189,10 +190,65 @@ void cpu_dma_wb_range(void *info)
 }
 EXPORT_SYMBOL(cpu_dma_wb_range);
 
+static uint32_t get_l2c_async_err(void)
+{
+	return readl((void *)(l2c_base + L2C_REG_ASYNC_ERR_OFFSET));
+}
+
+static uint32_t get_l2c_err(void)
+{
+	return readl((void *)(l2c_base + L2C_REG_ERR_OFFSET));
+}
+
+static void l2c_print_err(u32 async_err_reg, u32 err_reg)
+{
+	if (async_err_reg) {
+		u32 err_type = err_reg & L2C_ERR_TYPE_MASK;
+		bool more_err = err_reg & L2C_ERR_MORERR_MASK;
+
+		if (more_err)
+			pr_err_ratelimited("More errors occur due to L2 cache. Below is the first error type\n");
+
+		switch (err_type) {
+		case L2C_RAM_ERROR:
+			pr_err_ratelimited("L2C RAM error: CCTL operation encounters uncorrectable RAM errors\n");
+			break;
+		case L2C_RELEASE_ERROR:
+			pr_err_ratelimited("L2C release error: D-cache writes back a line that is not in L2-cache\n");
+			break;
+		case L2C_PROBE_ERROR:
+			pr_err_ratelimited("L2C probe error: CCTL operation probes D-cache when D-cache coherency is disabled\n");
+			break;
+		case L2C_BUS_ERROR:
+			pr_err_ratelimited("L2C bus error: CCTL operation or writing back a line to L3 has bus errors\n");
+			break;
+		default:
+			pr_err_ratelimited("L2C unknown error\n");
+			break;
+		}
+	} else {
+		pr_err_ratelimited("L2C synchronous error\n");
+	}
+}
+
+static irqreturn_t l2c_irq(int irq, void *dev_id)
+{
+	u32 async_err_reg = get_l2c_async_err();
+	u32 err_reg = get_l2c_err();
+
+	/* Clear the error status */
+	writel(0x0, l2c_base + L2C_REG_ASYNC_ERR_OFFSET);
+	writel(0x0, l2c_base + L2C_REG_ERR_OFFSET);
+
+	l2c_print_err(async_err_reg, err_reg);
+	return IRQ_HANDLED;
+}
+
 int __init l2c_init(void)
 {
 	struct device_node *node;
-	u32 l2c_cfg = 0;
+	u32 l2c_cfg = 0, irq;
+	int error;
 
 	node = of_find_compatible_node(NULL, NULL, "cache");
 
@@ -209,6 +265,18 @@ int __init l2c_init(void)
 		L2C_REG_PER_CORE_OFFSET = 0x1000;
 		CCTL_L2_STATUS_PER_CORE_OFFSET = 0;
 		L2C_REG_STATUS_OFFSET = 0x1000;
+	}
+
+	irq = irq_of_parse_and_map(node, 0);
+	if (irq <= 0) {
+		pr_err("Failed to get L2C irq number\n");
+		return irq;
+	}
+
+	error = request_irq(irq, l2c_irq, 0, "L2C", NULL);
+	if (error) {
+		pr_err("Failed to register L2C irq\n");
+		return error;
 	}
 
 	return 0;

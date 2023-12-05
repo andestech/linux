@@ -255,6 +255,8 @@
 		andes,data-prefetch = <0x03>;
 		andes,tag-ram-ctl = <0x00 0x00>;
 		andes,data-ram-ctl = <0x00 0x00>;
+		interrupts = <0x10 0x04>;
+		interrupt-parent = <0x0a>;
 		phandle = <0x01>;
 	};
 
