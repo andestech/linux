@@ -83,6 +83,8 @@
 		cache-size = <0x200000>;
 		cache-line-size = <64>;
 		reg = <0x00 0xe0500000 0x00 0x10000>;
+		interrupts = <0x10 0x04>;
+		interrupt-parent = <0x04>;
 		phandle = <0x01>;
 	};
 
