@@ -47,8 +47,6 @@
 #define AX45MP_CCTL_REG_UCCTLBEGINADDR_NUM	0x80b
 #define AX45MP_CCTL_REG_UCCTLCOMMAND_NUM	0x80c
 
-#define AX45MP_CACHE_LINE_SIZE			64
-
 struct ax45mp_priv {
 	void __iomem *l2c_base;
 	u32 ax45mp_cache_line_size;
@@ -70,19 +68,28 @@ static void ax45mp_cpu_cache_operation(unsigned long start, unsigned long end,
 	int mhartid = smp_processor_id();
 	unsigned long pa;
 
-	while (end > start) {
-		csr_write(AX45MP_CCTL_REG_UCCTLBEGINADDR_NUM, start);
-		csr_write(AX45MP_CCTL_REG_UCCTLCOMMAND_NUM, l1_op);
+	if (base) {
+		while (end > start) {
+			csr_write(AX45MP_CCTL_REG_UCCTLBEGINADDR_NUM, start);
+			csr_write(AX45MP_CCTL_REG_UCCTLCOMMAND_NUM, l1_op);
 
-		pa = virt_to_phys((void *)start);
-		writel(pa, base + AX45MP_L2C_REG_CN_ACC_OFFSET(mhartid));
-		writel(l2_op, base + AX45MP_L2C_REG_CN_CMD_OFFSET(mhartid));
-		while ((ax45mp_cpu_l2c_get_cctl_status() &
-			AX45MP_CCTL_L2_STATUS_CN_MASK(mhartid)) !=
-			AX45MP_CCTL_L2_STATUS_IDLE)
-			;
+			pa = virt_to_phys((void *)start);
+			writel(pa, base + AX45MP_L2C_REG_CN_ACC_OFFSET(mhartid));
+			writel(l2_op, base + AX45MP_L2C_REG_CN_CMD_OFFSET(mhartid));
+			while ((ax45mp_cpu_l2c_get_cctl_status() &
+				AX45MP_CCTL_L2_STATUS_CN_MASK(mhartid)) !=
+				AX45MP_CCTL_L2_STATUS_IDLE)
+				;
 
-		start += line_size;
+			start += line_size;
+		}
+	} else {
+		while (end > start) {
+			csr_write(AX45MP_CCTL_REG_UCCTLBEGINADDR_NUM, start);
+			csr_write(AX45MP_CCTL_REG_UCCTLCOMMAND_NUM, l1_op);
+
+			start += line_size;
+		}
 	}
 }
 
@@ -152,14 +159,8 @@ static int ax45mp_get_l2_line_size(struct device_node *np)
 
 	ret = of_property_read_u32(np, "cache-line-size", &ax45mp_priv.ax45mp_cache_line_size);
 	if (ret) {
-		pr_err("Failed to get cache-line-size, defaulting to 64 bytes\n");
+		pr_err("Failed to get cache-line-size.\n");
 		return ret;
-	}
-
-	if (ax45mp_priv.ax45mp_cache_line_size != AX45MP_CACHE_LINE_SIZE) {
-		pr_err("Expected cache-line-size to be 64 bytes (found:%u)\n",
-		       ax45mp_priv.ax45mp_cache_line_size);
-		return -EINVAL;
 	}
 
 	return 0;
@@ -173,6 +174,7 @@ static const struct riscv_nonstd_cache_ops ax45mp_cmo_ops __initdata = {
 
 static const struct of_device_id ax45mp_cache_ids[] = {
 	{ .compatible = "andestech,ax45mp-cache" },
+	{ .compatible = "cache" },
 	{ /* sentinel */ }
 };
 
@@ -181,6 +183,25 @@ static int __init ax45mp_cache_init(void)
 	struct device_node *np;
 	struct resource res;
 	int ret;
+
+	/*
+	 * Initialize l2c_base and cache_line_size to provide
+	 * default settings in the absence of an l2c layout.
+	 */
+	ax45mp_priv.l2c_base = 0;
+
+	np = of_cpu_device_node_get(0);
+	if (!of_device_is_available(np))
+		return -ENODEV;
+
+	ret = of_property_read_u32(np, "d-cache-line-size",
+				   &ax45mp_priv.ax45mp_cache_line_size);
+	if (ret) {
+		pr_err("Failed to get d-cache-line-size.\n");
+		return ret;
+	}
+
+	riscv_noncoherent_register_cache_ops(&ax45mp_cmo_ops);
 
 	np = of_find_matching_node(NULL, ax45mp_cache_ids);
 	if (!of_device_is_available(np))
@@ -209,8 +230,6 @@ static int __init ax45mp_cache_init(void)
 		iounmap(ax45mp_priv.l2c_base);
 		return ret;
 	}
-
-	riscv_noncoherent_register_cache_ops(&ax45mp_cmo_ops);
 
 	return 0;
 }
