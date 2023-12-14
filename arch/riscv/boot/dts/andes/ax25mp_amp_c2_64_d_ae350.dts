@@ -60,6 +60,7 @@
 		compatible = "cache";
 		cache-level = <0x2>;
 		cache-size = <0x40000>;
+		cache-line-size = <32>;
 		reg = <0x0 0xe0500000 0x0 0x40000>;
 		phandle = <0x1>;
 	};
