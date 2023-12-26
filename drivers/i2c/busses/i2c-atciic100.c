@@ -527,7 +527,19 @@ static struct platform_driver atciic_platform_driver = {
 	.remove		= atciic_remove,
 };
 
-module_platform_driver(atciic_platform_driver);
+/* I2C may be needed to bring up other drivers */
+static int __init andes_i2c_init_driver(void)
+{
+	return platform_driver_register(&atciic_platform_driver);
+}
+subsys_initcall(andes_i2c_init_driver);
+
+static void __exit andes_i2c_exit_driver(void)
+{
+	platform_driver_unregister(&atciic_platform_driver);
+}
+module_exit(andes_i2c_exit_driver);
+
 MODULE_AUTHOR("Rick Chen");
 MODULE_AUTHOR("Dylan Jhong");
 MODULE_DESCRIPTION("I2C driver for Andes atciic100");
