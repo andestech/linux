@@ -10,6 +10,8 @@
 #define IRQ_BUS_RW_TRANS	0x111
 #define IRQ_PMOVI		0x112
 
+#define SDCAUSE_DCAUSE_MASK	0x1f
+
 static const char *const sdcause_fetch_access[] = {
 	"Reserved",
 	"ECC/Parity error",
