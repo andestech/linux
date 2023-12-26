@@ -49,10 +49,16 @@
 #define ATCSPI200_TRANSCTRL_WRTRANCNT_MASK	(0x1FF << ATCSPI200_TRANSCTRL_WRTRANCNT_OFFSET)
 #define ATCSPI200_TRANSCTRL_RDTRANCNT_OFFSET	0
 #define ATCSPI200_TRANSCTRL_RDTRANCNT_MASK	(0x1FF << ATCSPI200_TRANSCTRL_RDTRANCNT_OFFSET)
-#define CMD_EN					(1 << 30)
-#define ADDR_EN					(1 << 29)
-#define DUAL_QUAD(x)				(x << 22)
-#define DUMMY_CNT(x)				((x - 1) << 9)
+#define RDTRAN_CNT(x)				((x == 0) ? 0 : (x - 1) << 0)
+#define DUMMY_CNT(x)				((x == 0) ? 0 : (x - 1) << 9)
+#define WRTRAN_CNT(x)				((x == 0) ? 0 : (x - 1) << 12)
+#define TOKEN_VAl(x)				((x == 0) ? 0 : (1 << 11))
+#define TOKEN_EN(x)				((x == 0) ? 0 : (1 << 21))
+#define DUAL_QUAD(x)				((x == 0) ? 0 : (x << 22))
+#define TRANSMODE(x)				((x == 0) ? 0 : (x << 24))
+#define ADDR_FMT(x)				((x == 0) ? 0 : (1 << 28))
+#define ADDR_EN(x)				((x == 0) ? 0 : (1 << 29))
+#define CMD_EN(x)				((x == 0) ? 0 : (1 << 30))
 
 /* SPI Control Register */
 #define ATCSPI200_CTRL_TXFIFORST_MASK		(1 << 2)
@@ -91,6 +97,11 @@
 #define SPI_INTR_ST		0x3C	// SPI Interrupt Status Registe
 #define SPI_TIMING		0x40	// SPI Interface timing Register
 
+/* SPI transfer mode */
+#define REGULAR_MODE		0x1
+#define DUAL_MODE		0x2
+#define QUAD_MODE		0x4
+
 struct ts_buf {
 	u8 cmd;
 	__be16 data;
@@ -115,6 +126,7 @@ struct atcspi200_spi {
 	unsigned int	mtiming;
 	int		timeout;
 	spinlock_t	lock;
+	struct mutex	mutex_lock;
 };
 
 static void atcspi200_spi_write(struct atcspi200_spi *spi, int offset, u32 value)
@@ -268,12 +280,13 @@ static int transfer_data(struct atcspi200_spi *spi, u8 *rx_buf, u8 *tx_buf, int 
 	int num_bytes, rf_cnt;
 	u8 *dout = tx_buf;
 	u8 *din = rx_buf;
+	int timeout = spi->timeout;
 
 	num_bytes = (spi->trans_len) % CHUNK_SIZE;
 	if (num_bytes == 0)
 		num_bytes = CHUNK_SIZE;
 
-	while (num_blks) {
+	while (num_blks && (timeout--)) {
 		event = atcspi200_spi_read(spi, SPI_STATUS);
 		if ((event & ATCSPI200_STATUS_TXEMPTY_OFFSET) && (tx_buf)) {
 			atcspi200_spi_tx(spi, dout);
@@ -430,28 +443,71 @@ static int atcspi200_spi_transfer_one_message(struct spi_master *master, struct 
 	return 0;
 }
 
-static void atcspi200_set_qmode(struct atcspi200_spi *spi, const struct spi_mem_op *op)
+static void atcspi200_set_transfer_ctl(struct atcspi200_spi *spi,
+				       const struct spi_mem_op *op)
 {
 	int tc = 0;
-
-	tc |= (CMD_EN | ADDR_EN | DUAL_QUAD(2) | ATCSPI200_TRANSMODE_DMYREAD | DUMMY_CNT(4));
-
-	/* Set transfer length. */
-	if (op->data.nbytes) {
-		if (op->data.dir == SPI_MEM_DATA_IN)
-			tc |= ((spi->trans_len - 1) << ATCSPI200_TRANSCTRL_RDTRANCNT_OFFSET);
-		else
-			tc |= ((spi->trans_len - 1) << ATCSPI200_TRANSCTRL_WRTRANCNT_OFFSET);
-
+	if (op->cmd.nbytes)
+		tc |= CMD_EN(op->cmd.nbytes);
+	if (op->addr.nbytes) {
+		tc |= ADDR_EN(op->addr.nbytes);
+		if (op->addr.buswidth > 1)
+			tc |= ADDR_FMT(1);
 	}
-
-	/* Set SPI_TRANSCTRL and address register. */
+	if (op->data.nbytes) {
+		switch (op->data.buswidth) {
+		case REGULAR_MODE:
+			tc |= DUAL_QUAD(0);
+			break;
+		case DUAL_MODE:
+			tc |= DUAL_QUAD(1);
+			break;
+		case QUAD_MODE:
+			tc |= DUAL_QUAD(2);
+			break;
+		}
+		if (op->data.dir == SPI_MEM_DATA_IN) { /* rx */
+			if (op->dummy.nbytes) {
+				tc |= ATCSPI200_TRANSMODE_DMYREAD;
+				if (tc & DUAL_QUAD(2)) {
+					tc |= DUMMY_CNT(2);
+					tc |= TOKEN_EN(1);
+				}
+			} else {
+				tc |= ATCSPI200_TRANSMODE_R_ONLY;
+			}
+			tc |= RDTRAN_CNT(op->data.nbytes);
+		} else {
+			tc |= ATCSPI200_TRANSMODE_W_ONLY;
+			tc |= WRTRAN_CNT(op->data.nbytes);
+		}
+	} else {
+			tc |= ATCSPI200_TRANSMODE_NONEDATA;
+	}
 	atcspi200_spi_write(spi, SPI_TRANSCTRL, tc);
+}
+
+static int atcspi200_spi_setting(struct atcspi200_spi *spi, const struct spi_mem_op *op)
+{
+	 /* Set SPI transfer ctl register */
+	atcspi200_set_transfer_ctl(spi, op);
+
+	/* Set SPI address register. */
 	if (op->addr.nbytes)
-		atcspi200_spi_write(spi, SPI_ADDR, spi->addr);
+		atcspi200_spi_write(spi, SPI_ADDR, op->addr.val);
 
 	/* Write cmd to start SPI. */
 	atcspi200_spi_write(spi, SPI_CMD, op->cmd.opcode);
+
+	return 0;
+}
+
+static int atcspi200_nor_adjust_op_size(struct spi_mem *mem,
+					struct spi_mem_op *op)
+{
+	op->data.nbytes = min(op->data.nbytes, MAX_TRANSFER_LEN);
+
+	return 0;
 }
 
 static irqreturn_t andes_spi_irq(int irq, void *dev_id)
@@ -461,20 +517,13 @@ static irqreturn_t andes_spi_irq(int irq, void *dev_id)
 
 static int atcspi200_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	int ret, max_trans_len, data_len, trans_len, num_blks, num_chunks;
+	int ret;
 	struct spi_device *atcspi200_spi = mem->spi;
 	struct atcspi200_spi *spi = spi_master_get_devdata(atcspi200_spi->master);
 
-	if (op->cmd.opcode != SPINOR_OP_READ_1_1_4)
-		return -ENOTSUPP;
-
+	mutex_lock(&spi->mutex_lock);
 	/* Check spi status. */
 	atcspi200_polling_spiactive(spi);
-
-	max_trans_len = spi->max_transfer_length = MAX_TRANSFER_LEN;
-	data_len = spi->data_len = op->data.nbytes;
-	num_chunks = DIV_ROUND_UP(data_len, max_trans_len);
-	spi->addr = op->addr.val;
 
 	if (op->data.nbytes) {
 		if (op->data.dir == SPI_MEM_DATA_IN) {
@@ -485,28 +534,21 @@ static int atcspi200_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *o
 			spi->din = 0;
 		}
 	}
+	/* set transfer length and data information. */
+	ret = atcspi200_spi_setting(spi, op);
+	/* Transfer data */
 
-	while (num_chunks--) {
-		/* set transfer length and data information. */
-		trans_len = min_t(size_t, data_len, max_trans_len);
-		spi->trans_len = trans_len;
-		num_blks = DIV_ROUND_UP(trans_len, CHUNK_SIZE);
-		atcspi200_set_qmode(spi, op);
-		/* Transfer data */
-		data_len = transfer_data(spi, spi->din, spi->dout, num_blks);
+	transfer_data(spi, spi->din, spi->dout, op->data.nbytes);
 
-		if (data_len)
-			spi->addr += max_trans_len;
-
-		ret = atcspi200_spi_stop(spi);
-	}
 	ret = atcspi200_spi_stop(spi);
+	mutex_unlock(&spi->mutex_lock);
 
 	return ret;
 }
 
 static const struct spi_controller_mem_ops atcspi200_mem_ops = {
 	.exec_op = atcspi200_exec_mem_op,
+	.adjust_op_size = atcspi200_nor_adjust_op_size,
 };
 
 static int atcspi200_spi_probe(struct platform_device *pdev)
@@ -603,7 +645,7 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 
 	/* Define our master */
 	master->bus_num = pdev->id;
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_RX_QUAD;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_RX_QUAD | SPI_TX_QUAD;
 	master->dev.of_node = pdev->dev.of_node;
 	master->num_chipselect = num_cs;
 	master->transfer_one_message = atcspi200_spi_transfer_one_message;
