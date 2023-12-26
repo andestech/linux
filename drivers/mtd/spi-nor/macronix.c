@@ -28,6 +28,17 @@ mx25l25635_post_bfpt_fixups(struct spi_nor *nor,
 	return 0;
 }
 
+static void mx25u1635_late_init(struct spi_nor *nor)
+{
+	nor->params->hwcaps.mask |= SNOR_HWCAPS_PP_1_4_4;
+	spi_nor_set_pp_settings(&nor->params->page_programs[SNOR_CMD_PP_1_4_4],
+				SPINOR_OP_PP_1_4_4, SNOR_PROTO_1_4_4);
+}
+
+static const struct spi_nor_fixups mx25u1635_fixups = {
+	.late_init = mx25u1635_late_init,
+};
+
 static const struct spi_nor_fixups mx25l25635_fixups = {
 	.post_bfpt = mx25l25635_post_bfpt_fixups,
 };
@@ -101,7 +112,9 @@ static const struct flash_info macronix_nor_parts[] = {
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		FIXUP_FLAGS(SPI_NOR_4B_OPCODES) },
 	{ "mx25u1635e", INFO(0xc22535, 0, 64 * 1024,  32)
-		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_QUAD_READ) },
+		PARSE_SFDP
+		.fixups = &mx25u1635_fixups,
+	},
 };
 
 static void macronix_nor_default_init(struct spi_nor *nor)
