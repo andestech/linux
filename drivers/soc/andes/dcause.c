@@ -45,6 +45,7 @@ void print_detailed_cause(long scause, unsigned long sdcause)
 		}
 	} else {
 		scause &= ~CAUSE_IRQ_FLAG;
+		sdcause &= SDCAUSE_DCAUSE_MASK;
 		switch (scause) {
 		case IRQ_IMPRECISE_ECC:
 			pr_info("The detailed trap cause: %s\n",
