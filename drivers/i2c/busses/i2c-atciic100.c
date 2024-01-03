@@ -466,6 +466,7 @@ static int atciic_probe(struct platform_device *pdev)
 	padap->algo = &atciic_algorithm;
 	padap->class = I2C_CLASS_HWMON;
 	padap->dev.parent = &pdev->dev;
+	padap->dev.of_node = pdev->dev.of_node;
 	padap->algo_data = iface;
 	padap->timeout = 3 * HZ;
 	padap->retries = 1;
