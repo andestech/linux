@@ -5,7 +5,7 @@ config ARCH_ANDES
 	depends on MMU && !XIP_KERNEL
 	select ERRATA_ANDES
 	select ERRATA_ANDES_CMO
-	select AX45MP_L2_CACHE
+	select ANDES_CACHE
 	help
 	  This enables support for Andes platform hardware.
 
