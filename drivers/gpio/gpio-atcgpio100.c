@@ -63,25 +63,37 @@ static int atcgpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 static int atcgpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct atcgpio_priv *priv;
+	unsigned long flags;
+	u32 val;
 
 	priv = gpiochip_get_data(gc);
+	spin_lock_irqsave(&priv->lock, flags);
+	val = GPIO_READL(GPIO_DATA_IN, priv->base);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return (GPIO_READL(GPIO_DATA_IN, priv->base) >> gpio & 1);
+	return (val >> gpio & 1);
 }
 
-static void atcgpio_set(struct gpio_chip *gc, unsigned int gpio, int data)
+static void atcgpio_setgpio_val(struct atcgpio_priv *priv, unsigned int gpio, int data)
 {
 	unsigned long val;
-	struct atcgpio_priv *priv;
-
-	priv = gpiochip_get_data(gc);
 
 	if (data)
 		val = GPIO_READL(GPIO_DATA_OUT, priv->base) | (0x1UL << gpio);
 	else
 		val = GPIO_READL(GPIO_DATA_OUT, priv->base) & ~(0x1UL << gpio);
-
 	GPIO_WRITEL(val, GPIO_DATA_OUT, priv->base);
+}
+
+static void atcgpio_set(struct gpio_chip *gc, unsigned int gpio, int data)
+{
+	unsigned long flags;
+	struct atcgpio_priv *priv;
+
+	priv = gpiochip_get_data(gc);
+	spin_lock_irqsave(&priv->lock, flags);
+	atcgpio_setgpio_val(priv, gpio, data);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int atcgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
@@ -107,9 +119,9 @@ static int atcgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int data)
 
 	priv = gpiochip_get_data(gc);
 	spin_lock_irqsave(&priv->lock, flags);
+	atcgpio_setgpio_val(priv, gpio, data);
 	val = GPIO_READL(PIN_DIR, priv->base) | (0x1UL << gpio);
 	GPIO_WRITEL(val, PIN_DIR, priv->base);
-	gc->set(gc, gpio, data);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
