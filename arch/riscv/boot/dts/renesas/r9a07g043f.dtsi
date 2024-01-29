@@ -23,7 +23,7 @@
 			#cooling-cells = <2>;
 			reg = <0x0>;
 			status = "okay";
-			riscv,isa = "rv64imafdc";
+			riscv,isa = "rv64imafdc_xandespmu";
 			mmu-type = "riscv,sv39";
 			i-cache-size = <0x8000>;
 			i-cache-line-size = <0x40>;
