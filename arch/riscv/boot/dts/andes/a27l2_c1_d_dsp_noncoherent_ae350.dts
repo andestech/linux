@@ -75,6 +75,12 @@
 			no-map;
 			linux,dma-default;
 		};
+
+		andes_inject@100000 {
+			compatible = "inject";
+			reg = <0x00 0x100000 0x00 0x100000>;
+			reusable;
+		};
 	};
 
 	soc {
