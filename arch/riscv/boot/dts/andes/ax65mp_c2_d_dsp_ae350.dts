@@ -93,6 +93,18 @@
 		device_type = "memory";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		andes_inject@100000 {
+			compatible = "inject";
+			reg = <0x00 0x100000 0x00 0x100000>;
+			reusable;
+		};
+	};
+
 	soc {
 		#address-cells = <0x02>;
 		#size-cells = <0x02>;
