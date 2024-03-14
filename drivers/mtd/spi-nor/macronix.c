@@ -28,11 +28,12 @@ mx25l25635_post_bfpt_fixups(struct spi_nor *nor,
 	return 0;
 }
 
-static void mx25u1635_late_init(struct spi_nor *nor)
+static int mx25u1635_late_init(struct spi_nor *nor)
 {
 	nor->params->hwcaps.mask |= SNOR_HWCAPS_PP_1_4_4;
 	spi_nor_set_pp_settings(&nor->params->page_programs[SNOR_CMD_PP_1_4_4],
 				SPINOR_OP_PP_1_4_4, SNOR_PROTO_1_4_4);
+	return 0;
 }
 
 static const struct spi_nor_fixups mx25u1635_fixups = {
