@@ -78,6 +78,15 @@
 #define ATCRTC_TIME_TO_SEC(D, H, M, S)	(D * 86400LL + H * 3600 + M * 60 + S)
 
 /*
+ * The maximum day counter available for the ATCRTC100 hardware is 15 bits
+ * long and can count up to 32767 days. This means that the ATCRTC100 hardware
+ * can count up to about 89 years, so we set range_min to 2000 and range_max
+ * to the end of the year 2089.
+ */
+#define ATCRTC_RTC_TIMESTAMP_END_2089	3786911999LL  /* 2089-12-31 23:59:59 */
+#define ATCRTC_RTC_TIMESTAMP_BEGIN_2000 RTC_TIMESTAMP_BEGIN_2000
+
+/*
  * WARNING: This variable is only intended to pass the LTP test. The Andes
  * internal implementation of the RTC on FPGA cannot count more than 32 days
  * because the day counter is 5 bits long.
@@ -355,6 +364,8 @@ static int atc_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
 	rtc->rtc_dev->ops = &rtc_ops;
+	rtc->rtc_dev->range_min = ATCRTC_RTC_TIMESTAMP_BEGIN_2000;
+	rtc->rtc_dev->range_max = ATCRTC_RTC_TIMESTAMP_END_2089;
 
 	if (IS_ERR(rtc->rtc_dev)) {
 		ret = PTR_ERR(rtc->rtc_dev);
