@@ -69,11 +69,42 @@ static uint32_t cpu_l2c_get_cctl_status(void)
 		     mhartid * L2C_REG_STATUS_OFFSET));
 }
 
+static void cpu_l2c_cctl(unsigned long long pa, int mhartid, unsigned long ops)
+{
+#ifdef CONFIG_64BIT
+	writeq(pa,
+	       (void *)(l2c_base +
+			L2C_REG_CN_ACC_OFFSET(mhartid)));
+#else
+	/*
+	 * Considering RV32 potential to use over 4G memory,
+	 * the physical address is split into upper and lower 32 bits
+	 * and stored in a 64-bits PA-type L2C CCTL access line register.
+	 */
+	writel((unsigned long)(pa & 0xFFFFFFFF),
+	       (void *)(l2c_base +
+			L2C_REG_CN_ACC_OFFSET(mhartid)));
+
+	writel((unsigned long)(pa >> 32),
+	       (void *)(l2c_base +
+			L2C_REG_CN_ACC_OFFSET(mhartid)) + 0x4);
+#endif /* !CONFIG_64BIT */
+
+	writel(ops,
+	       (void *)(l2c_base +
+			L2C_REG_CN_CMD_OFFSET(mhartid)));
+
+	while ((cpu_l2c_get_cctl_status() &
+		CCTL_L2_STATUS_CN_MASK(mhartid)) !=
+		CCTL_L2_STATUS_IDLE)
+		;
+}
+
 void cpu_dcache_wb_range(unsigned long start, unsigned long end, int line_size,
 			 struct page *page)
 {
 	int mhartid = get_cpu();
-	unsigned long pa = page_to_phys(page);
+	unsigned long long pa = page_to_phys(page);
 
 	if (start & (~PAGE_MASK))
 		pa += start & ~PAGE_MASK;
@@ -82,20 +113,8 @@ void cpu_dcache_wb_range(unsigned long start, unsigned long end, int line_size,
 		custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
 		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_WB);
 
-		if (l2c_base) {
-			writel(pa,
-			       (void *)(l2c_base +
-					L2C_REG_CN_ACC_OFFSET(mhartid)));
-
-			writel(CCTL_L2_PA_WB,
-			       (void *)(l2c_base +
-					L2C_REG_CN_CMD_OFFSET(mhartid)));
-
-			while ((cpu_l2c_get_cctl_status() &
-				CCTL_L2_STATUS_CN_MASK(mhartid)) !=
-				CCTL_L2_STATUS_IDLE)
-				;
-		}
+		if (likely(l2c_base))
+			cpu_l2c_cctl(pa, mhartid, CCTL_L2_PA_WB);
 
 		start += line_size;
 		pa += line_size;
@@ -107,7 +126,7 @@ void cpu_dcache_inval_range(unsigned long start, unsigned long end,
 			    int line_size, struct page *page)
 {
 	int mhartid = get_cpu();
-	unsigned long pa = page_to_phys(page);
+	unsigned long long pa = page_to_phys(page);
 
 	if (start & (~PAGE_MASK))
 		pa += start & ~PAGE_MASK;
@@ -116,20 +135,8 @@ void cpu_dcache_inval_range(unsigned long start, unsigned long end,
 		custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
 		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_INVAL);
 
-		if (l2c_base) {
-			writel(pa,
-			       (void *)(l2c_base +
-					L2C_REG_CN_ACC_OFFSET(mhartid)));
-
-			writel(CCTL_L2_PA_INVAL,
-			       (void *)(l2c_base +
-					L2C_REG_CN_CMD_OFFSET(mhartid)));
-
-			while ((cpu_l2c_get_cctl_status() &
-				CCTL_L2_STATUS_CN_MASK(mhartid)) !=
-				CCTL_L2_STATUS_IDLE)
-				;
-		}
+		if (likely(l2c_base))
+			cpu_l2c_cctl(pa, mhartid, CCTL_L2_PA_INVAL);
 
 		start += line_size;
 		pa += line_size;
