@@ -202,6 +202,9 @@ static void v5_desc_chain(struct v5_desc **first, struct v5_desc **prev,
  */
 static void v5_dostart(struct v5_dma_chan *v5chan, struct v5_desc *first)
 {
+	struct v5_dma *v5dma = v5chan->device;
+	unsigned long dma_flags;
+
 	if (v5_chan_is_enabled(v5chan)) {
 		dev_err(chan2dev(&v5chan->chan_common),
 			"BUG: Attempted to start non-idle channel\n");
@@ -214,6 +217,10 @@ static void v5_dostart(struct v5_dma_chan *v5chan, struct v5_desc *first)
 			v5_channel_readl(v5chan, CH_LLP_LOW_OFF));
 		return;
 	}
+	spin_lock_irqsave(&v5dma->dma_lock, dma_flags);
+	v5dma->used_chan |= (1 << v5chan->chan_id);
+	spin_unlock_irqrestore(&v5dma->dma_lock, dma_flags);
+
 	vdbg_dump_regs(v5chan);
 	v5_channel_writel(v5chan, CH_CTL_OFF, first->lli.ctrl);
 	v5_channel_writel(v5chan, CH_SIZE_OFF, first->lli.tranSize);
@@ -392,34 +399,45 @@ static irqreturn_t v5_dma_interrupt(int irq, void *dev_id)
 {
 	struct v5_dma		*v5dma = (struct v5_dma *)dev_id;
 	struct v5_dma_chan	*v5chan;
+	unsigned long		dma_flags;
 	int			i;
 	u32			status;
 	int			ret = IRQ_NONE;
+	u32			int_ch;
+	u16			used_ch;
 
-	do {
-		status = v5_dma_readl(v5dma, INT_STA);
+	status = v5_dma_readl(v5dma, INT_STA);
+	used_ch = v5dma->used_chan;
+	int_ch = used_ch & V5_DMA_INT_ALL(status);
 
-		dev_vdbg(v5dma->dma_common.dev,
-			"int: sta = 0x%08x\n", status);
-		if (status == 0)
-			break;
-
-		v5_dma_writel(v5dma, INT_STA, status);
+	while (int_ch) {
+		spin_lock_irqsave(&v5dma->dma_lock, dma_flags);
+		v5dma->used_chan &= ~int_ch;
+		spin_unlock_irqrestore(&v5dma->dma_lock, dma_flags);
+		v5_dma_writel(v5dma, INT_STA, V5_DMA_INT_CLR(int_ch));
 
 		for (i = 0; i < v5dma->dma_common.chancnt; i++) {
-			v5chan = &v5dma->chan[i];
-			if (status & (V5_DMA_TC(i)))
-				set_bit(V5_IS_TC, &v5chan->status);
+			if (int_ch & (1 << i)) {
+				int_ch &= ~(1 << i);
+				v5chan = &v5dma->chan[i];
 
-			if (status & (V5_DMA_ABT(i) | V5_DMA_ERR(i)))
-				set_bit(V5_IS_ERR, &v5chan->status);
+				if (status & (V5_DMA_TC(i)))
+					set_bit(V5_IS_TC, &v5chan->status);
 
-			if (v5chan->status) {
+				if (status & (V5_DMA_ABT(i) | V5_DMA_ERR(i)))
+					set_bit(V5_IS_ERR, &v5chan->status);
+
 				tasklet_schedule(&v5chan->tasklet);
 				ret = IRQ_HANDLED;
 			}
+			if (!int_ch)
+				break;
 		}
-	} while (status);
+
+		status = v5_dma_readl(v5dma, INT_STA);
+		used_ch = v5dma->used_chan;
+		int_ch = used_ch & V5_DMA_INT_ALL(status);
+	};
 
 	return ret;
 }
@@ -1144,6 +1162,7 @@ static int __init v5_dma_probe(struct platform_device *pdev)
 	if (!v5dma)
 		return -ENOMEM;
 
+	spin_lock_init(&v5dma->dma_lock);
 	v5dma->io_regs = 0;
 	if (dev_is_dma_coherent(&pdev->dev)) {
 		u64 taddr;
@@ -1175,7 +1194,7 @@ static int __init v5_dma_probe(struct platform_device *pdev)
 		v5dma->ch : plat_dat->nr_channels;
 
 	v5_dma_off(v5dma);
-	err = request_irq(irq, v5_dma_interrupt, 0, "v5_dmac", v5dma);
+	err = request_irq(irq, v5_dma_interrupt, IRQF_SHARED, "v5_dmac", v5dma);
 	if (err)
 		goto err_irq;
 
