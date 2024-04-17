@@ -41,6 +41,9 @@ static inline void clrbl(addr_t bit, void __iomem *reg)
 #define	V5_DMA_TC(x)			(0x1 << (TC_OFFSET + (x)))
 #define	V5_DMA_ABT(x)			(0x1 << (ABT_OFFSET + (x)))
 #define	V5_DMA_ERR(x)			(0x1 << (ERR_OFFSET + (x)))
+#define	V5_DMA_INT_ALL(x)		(((x >> TC_OFFSET) & 0xFF) | ((x >> ABT_OFFSET) & 0xFF) \
+					 | ((x >> ERR_OFFSET) & 0xFF))
+#define	V5_DMA_INT_CLR(x)		((x << TC_OFFSET) | (x << ABT_OFFSET) | (x << ERR_OFFSET))
 /* Channel Enable Register */
 #define CH_EN				(DMAC_BASE + 0x34)
 /* Channel Base Register */
@@ -303,7 +306,9 @@ struct v5_dma {
 	struct dma_device	dma_common;
 	void __iomem		*regs;
 	void __iomem		*io_regs;
+	spinlock_t		dma_lock;
 	u32			ctl;
+	u16			used_chan;
 	u8			data_width;
 	u8			ch;
 	u8			all_chan_mask;
