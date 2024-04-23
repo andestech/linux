@@ -1,7 +1,7 @@
 menu "CPU errata selection"
 
 config ERRATA_ANDES
-	bool "Andes AX45MP errata"
+	bool "Andes errata"
 	depends on RISCV_ALTERNATIVE && RISCV_SBI
 	help
 	  All Andes errata Kconfig depend on this Kconfig. Disabling
@@ -12,8 +12,9 @@ config ERRATA_ANDES
 
 config ERRATA_ANDES_CMO
 	bool "Apply Andes cache management errata"
-	depends on ERRATA_ANDES && ARCH_R9A07G043
+	depends on ERRATA_ANDES
 	select RISCV_DMA_NONCOHERENT
+	select DMA_GLOBAL_POOL
 	default y
 	help
 	  This will apply the cache management errata to handle the
