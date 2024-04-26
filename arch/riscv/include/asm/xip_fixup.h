@@ -5,7 +5,7 @@
 #ifndef _ASM_RISCV_XIP_FIXUP_H
 #define _ASM_RISCV_XIP_FIXUP_H
 
-#include <linux/pgtable.h>
+#include <asm/pgtable.h>
 
 #ifdef CONFIG_XIP_KERNEL
 .macro XIP_FIXUP_OFFSET reg

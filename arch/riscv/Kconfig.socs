@@ -6,6 +6,7 @@ config ARCH_ANDES
 	select ERRATA_ANDES
 	select ERRATA_ANDES_CMO
 	select ANDES_CACHE
+	select PHYS_ADDR_T_64BIT if 32BIT
 	help
 	  This enables support for Andes platform hardware.
 
