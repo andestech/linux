@@ -19,6 +19,7 @@
 #include <asm/vendor_extensions.h>
 #include <linux/soc/andes/sbi.h>
 #include <linux/soc/andes/andes.h>
+#include <linux/soc/andes/ppma.h>
 
 #define ANDES_AX45MP_MARCHID		0x8000000000008a45UL
 #define ANDES_AX45MP_MIMPID		0x500UL
@@ -107,6 +108,9 @@ static bool errata_support_uncache(unsigned int stage,
 	/* Set this just to make core cbo code happy */
 	riscv_cbom_block_size = 1;
 	riscv_noncoherent_supported();
+
+	if (andes_probe_ppma())
+		return true;
 
 	csr_write(satp, SATP_PPN);
 	andes_pfn_msb = (csr_read(satp) + 1) >> 1;

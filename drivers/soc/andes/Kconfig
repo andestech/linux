@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "Andes AE350 platform drivers"
+
+config ANDES_PPMA
+	bool "Andes PPMA Support"
+	depends on ARCH_ANDES
+	depends on ERRATA_ANDES
+	depends on ERRATA_ANDES_CMO
+	help
+	  When calling memremap with MEMREMAP_WC flag,
+	  Andes programmable physical memory attributes (PPMA)
+	  can map memory as non-cacheable bufferable PMA region.
+
+endmenu
