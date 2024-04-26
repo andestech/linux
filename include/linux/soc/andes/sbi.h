@@ -7,6 +7,7 @@
 
 #include <asm/sbi.h>
 #include <asm/vendorid_list.h>
+#include <linux/soc/andes/ppma.h>
 
 #define ANDES_SBI_EXT_ANDES	0x0900031E
 
@@ -39,5 +40,10 @@ enum sbi_ext_andes_fid {
 	SBI_EXT_ANDES_SUSPEND_MODE_SET,
 	SBI_EXT_ANDES_SUSPEND_MODE_ENTER,
 };
+
+/* Programmable physical memory attributes (PPMA) */
+void sbi_andes_set_ppma(void *arg);
+void sbi_andes_free_ppma(void *addr);
+long sbi_andes_probe_ppma(void);
 
 #endif /* !__LINUX_SOC_ANDES_SBI_H */
