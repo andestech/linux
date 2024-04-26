@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2023 Andes Technology Corporation.
+
+obj-y	+= andes_sbi.o
+obj-$(CONFIG_ANDES_PPMA)	+= ppma.o
