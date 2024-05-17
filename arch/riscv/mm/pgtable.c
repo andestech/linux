@@ -17,6 +17,16 @@ void p4d_clear_huge(p4d_t *p4d)
 
 int pud_set_huge(pud_t *pud, phys_addr_t phys, pgprot_t prot)
 {
+
+#ifdef CONFIG_ARCH_ANDES
+	/*
+	 * When PPMA is on and activated: andes_pfn_msb == 0
+	 *                     Otherwise: andes_pfn_msb != 0
+	 */
+	if (andes_pfn_msb && (pgprot_val(prot) & _PAGE_ANDES25_NOCACHE))
+		phys |= (andes_pfn_msb << (_PAGE_PFN_SHIFT + 2));
+#endif /* CONFIG_ARCH_ANDES */
+
 	pud_t new_pud = pfn_pud(__phys_to_pfn(phys), prot);
 
 	set_pud(pud, new_pud);
@@ -55,6 +65,16 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
 
 int pmd_set_huge(pmd_t *pmd, phys_addr_t phys, pgprot_t prot)
 {
+
+#ifdef CONFIG_ARCH_ANDES
+	/*
+	 * When PPMA is on and activated: andes_pfn_msb == 0
+	 *                     Otherwise: andes_pfn_msb != 0
+	 */
+	if (andes_pfn_msb && (pgprot_val(prot) & _PAGE_ANDES25_NOCACHE))
+		phys |= (andes_pfn_msb << (_PAGE_PFN_SHIFT + 2));
+#endif /* CONFIG_ARCH_ANDES */
+
 	pmd_t new_pmd = pfn_pmd(__phys_to_pfn(phys), prot);
 
 	set_pmd(pmd, new_pmd);
