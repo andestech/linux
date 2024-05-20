@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
+#include <linux/mmc/sd.h>
 #include <linux/mmc/card.h>
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
@@ -964,6 +965,17 @@ static void ftsdc_send_request(struct mmc_host *mmc)
 	host->ccnt++;
 	prepare_dbgmsg(host, cmd, host->cmd_is_stop);
 	dbg(host, dbg_debug, "%s\n", host->dbgmsg_cmd);
+
+	/*
+	 * ftsdc010 controller only supports SD spec v2. From kernel v5.14 SD spec v4
+	 * is supported, and CMD48 is sent during SD card initialization, causing
+	 * SD card recognition failure. So, we block CMD48 here.
+	 */
+	if (cmd->opcode == SD_READ_EXTR_SINGLE) {
+		dbg(host, dbg_info, "Skip sending CMD%d\n", SD_READ_EXTR_SINGLE);
+		mmc_request_done(mmc, mrq);
+		return;
+	}
 
 	if (cmd->data) {
 		int res = ftsdc_setup_data(host, cmd->data);
