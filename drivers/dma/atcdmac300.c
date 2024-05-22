@@ -1263,7 +1263,7 @@ static int __init v5_dma_probe(struct platform_device *pdev)
 	if (v5dma->io_regs) {
 		v5_dma_soc_writel(v5dma, CACHE_CTRL, IOCP_CACHE_DMAC0_AW |
 			IOCP_CACHE_DMAC0_AR | IOCP_CACHE_DMAC1_AW |
-			IOCP_CACHE_DMAC1_AW);
+			IOCP_CACHE_DMAC1_AR);
 	}
 	/*
 	 * Do not return an error if the dmac node is not present in order to
