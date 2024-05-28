@@ -26,6 +26,13 @@
 	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |\
 	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
 
+#define INIT_DESC(desc) do {					\
+				desc->at = NULL;		\
+				desc->cyclic = false;		\
+				desc->num_sg = 0;		\
+				INIT_LIST_HEAD(&desc->tx_list);	\
+			} while (0)
+
 static unsigned int init_nr_desc_per_channel = 64;
 module_param(init_nr_desc_per_channel, uint, 0644);
 MODULE_PARM_DESC(init_nr_desc_per_channel,
@@ -148,19 +155,28 @@ static struct v5_desc *v5_desc_get(struct v5_dma_chan *v5chan)
  */
 static void v5_desc_put(struct v5_dma_chan *v5chan, struct v5_desc *desc)
 {
+	struct list_head *next_node;
+	unsigned long flags;
+	u16 num_sg;
+	u16 index;
+
 	if (desc) {
-		struct v5_desc *child;
-		unsigned long flags;
+		next_node = desc->tx_list.next;
+		num_sg = desc->num_sg;
 
 		spin_lock_irqsave(&v5chan->lock, flags);
-		list_for_each_entry(child, &desc->tx_list, desc_node)
-			dev_vdbg(chan2dev(&v5chan->chan_common),
-					"moving child desc %p to freelist\n",
-					child);
-		list_splice_init(&desc->tx_list, &v5chan->free_list);
-		dev_vdbg(chan2dev(&v5chan->chan_common),
-			 "moving desc %p to freelist\n", desc);
-		list_add(&desc->desc_node, &v5chan->free_list);
+		list_del(&desc->desc_node);
+		INIT_DESC(desc);
+		list_add_tail(&desc->desc_node, &v5chan->free_list);
+
+		index = 1;
+		while (index < num_sg) {
+			desc = list_entry(next_node, struct v5_desc, desc_node);
+			next_node = desc->desc_node.next;
+			INIT_DESC(desc);
+			list_add_tail(&desc->desc_node, &v5chan->free_list);
+			index++;
+		}
 		spin_unlock_irqrestore(&v5chan->lock, flags);
 	}
 }
@@ -250,10 +266,8 @@ static void v5_chain_complete(struct v5_dma_chan *v5chan,
 	dev_vdbg(chan2dev(&v5chan->chan_common),
 		"descriptor %u complete\n", txd->cookie);
 	dma_cookie_complete(txd);
-	/* move children to free_list */
-	list_splice_init(&desc->tx_list, &v5chan->free_list);
-	/* move myself to free_list */
-	list_move(&desc->desc_node, &v5chan->free_list);
+	v5_desc_put(v5chan, desc);
+
 	dma_descriptor_unmap(txd);
 	dmaengine_desc_get_callback_invoke(txd, &res);
 	dma_run_dependencies(txd);
@@ -618,7 +632,7 @@ v5_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lli.tranSize = (len >> src_reg_width);
 			v5_desc_chain(&first, &prev, desc);
 			total_len += len;
-			desc->num_sg = 1;
+			desc->num_sg = sg_len;
 		}
 		break;
 
@@ -661,7 +675,7 @@ v5_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lli.tranSize = (len >> src_reg_width);
 			v5_desc_chain(&first, &prev, desc);
 			total_len += len;
-			desc->num_sg = 1;
+			desc->num_sg = sg_len;
 		}
 		break;
 	default:
@@ -865,8 +879,8 @@ static int v5_config(struct dma_chan *chan,
 
 static int v5_terminate_all(struct dma_chan *chan)
 {
-	struct v5_dma_chan	*v5chan = to_v5_dma_chan(chan);
-	LIST_HEAD(list);
+	struct v5_dma_chan *v5chan = to_v5_dma_chan(chan);
+	struct v5_desc *desc_cur, *desc_next;
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 	/*
@@ -881,12 +895,17 @@ static int v5_terminate_all(struct dma_chan *chan)
 	/* confirm that this channel is disabled */
 	while (v5_chan_is_enabled(v5chan))
 		cpu_relax();
+
 	/* active_list entries will end up before queued entries */
-	list_splice_init(&v5chan->queue, &v5chan->free_list);
-	list_splice_init(&v5chan->active_list, &v5chan->free_list);
+	list_for_each_entry_safe(desc_cur, desc_next, &v5chan->queue, desc_node) {
+		v5_desc_put(v5chan, desc_cur);
+	}
+
+	list_for_each_entry_safe(desc_cur, desc_next, &v5chan->active_list, desc_node) {
+		v5_desc_put(v5chan, desc_cur);
+	}
 
 	clear_bit(V5_IS_PAUSED, &v5chan->status);
-
 	return 0;
 }
 
