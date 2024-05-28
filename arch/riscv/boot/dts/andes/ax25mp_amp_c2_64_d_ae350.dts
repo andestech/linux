@@ -95,7 +95,7 @@
 		};
 
 		interrupt-controller@e6400000 {
-			compatible = "riscv,plic1";
+			compatible = "andestech,plicsw";
 			#address-cells = <0x2>;
 			#interrupt-cells = <0x2>;
 			interrupt-controller;

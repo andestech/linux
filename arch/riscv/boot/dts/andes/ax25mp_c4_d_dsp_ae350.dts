@@ -169,7 +169,7 @@
 		};
 
 		interrupt-controller@e6400000 {
-			compatible = "riscv,plic1";
+			compatible = "andestech,plicsw";
 			reg = <0x00 0xe6400000 0x00 0x400000>;
 			interrupts-extended = <0x02 0x03 0x03 0x03 0x04 0x03 0x05 0x03>;
 			interrupt-controller;
