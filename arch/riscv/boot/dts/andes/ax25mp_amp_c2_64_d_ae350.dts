@@ -105,7 +105,7 @@
 		};
 
 		plmt0@e6000000 {
-			compatible = "riscv,plmt0";
+			compatible = "andestech,plmt0";
 			reg = <0x0 0xe6000000 0x0 0x100000>;
 			interrupts-extended = <0x2 0x7 0x3 0x7>;
 		};
