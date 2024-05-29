@@ -272,7 +272,7 @@
 
 	pmu {
 		device_type = "pmu";
-		compatible = "riscv,andes-pmu";
+		compatible = "riscv,pmu";
 	};
 
 	nor@0,0 {
