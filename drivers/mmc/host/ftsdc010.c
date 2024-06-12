@@ -23,12 +23,12 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/io.h>
-#include "ftsdc010g.h"
+#include "ftsdc010.h"
 #include "../core/core.h"
 #include <linux/highmem.h>
 #include <linux/kernel.h>
 
-#define DRIVER_NAME "ftsdc010g"
+#define DRIVER_NAME "ftsdc010"
 #define REG_READ(addr) readl((host->base + addr))
 #define REG_WRITE(data, addr) writel((data), (host->base + addr))
 
@@ -1314,7 +1314,7 @@ MODULE_DEVICE_TABLE(platform, ftsdc_mmc_devtype);
 
 static const struct of_device_id ftsdc_mmc_dt_ids[] = {
 	{
-		.compatible = "andestech,atfsdc010g",
+		.compatible = "andestech,atfsdc010",
 		.data = &ftsdc_mmc_devtype[MMC_CTLR_VERSION_2],
 	},
 	{},
@@ -1579,7 +1579,7 @@ static int ftsdc_resume(struct platform_device *pdev)
 
 static struct platform_driver ftsdc_driver = {
 	.driver	= {
-		.name	= "ftsdc010g",
+		.name	= "ftsdc010",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ftsdc_mmc_dt_ids),
 	},

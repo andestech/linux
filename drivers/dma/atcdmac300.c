@@ -19,7 +19,7 @@
 #include <linux/of_platform.h>
 #include <linux/dma-map-ops.h>
 #include "dmaengine.h"
-#include "atcdmac300g.h"
+#include "atcdmac300.h"
 
 #define V5_DMA_BUSWIDTHS\
 	(BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED) |\
@@ -1079,7 +1079,7 @@ static struct v5_dma_platform_data v5dma_config = {
 #if defined(CONFIG_OF)
 static const struct of_device_id v5_dma_dt_ids[] = {
 	{
-		.compatible = "andestech,atcdmac300g",
+		.compatible = "andestech,atcdmac300",
 		.data = &v5dma_config,
 	}, {
 		/* sentinel */
