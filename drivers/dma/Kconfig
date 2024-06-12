@@ -93,7 +93,7 @@ config APPLE_ADMAC
 	help
 	  Enable support for Audio DMA Controller found on Apple Silicon SoCs.
 
-config ATCDMAC300G
+config ATCDMAC300
 	tristate "Andes generic DMA support"
 	depends on ARCH_ANDES
 	select DMA_ENGINE
@@ -785,7 +785,7 @@ config ASYNC_TX_DMA
 config DMATEST
 	tristate "DMA Test client"
 	depends on DMA_ENGINE
-	depends on ATCDMAC300G
+	depends on ATCDMAC300
 	select DMA_ENGINE_RAID
 	help
 	  Simple DMA test client. Say N unless you're debugging a

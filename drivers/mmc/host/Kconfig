@@ -616,10 +616,10 @@ config MMC_DAVINCI
 	  If you have an DAVINCI board with a Multimedia Card slot,
 	  say Y or M here.  If unsure, say N.
 
-config MMC_FTSDCG
-	tristate "Andestech SDC Multimedia Card Interface support dmeengine"
+config MMC_FTSDC
+	tristate "Andestech SDC Multimedia Card Interface use dmaengine"
 	depends on RISCV
-	depends on ATCDMAC300G
+	depends on ATCDMAC300
 	help
 	  This selects the TI DAVINCI Multimedia card Interface.
 	  If you have an DAVINCI board with a Multimedia Card slot,

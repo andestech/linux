@@ -197,7 +197,7 @@
 		};
 
 		mmc@f0e00000 {
-			compatible = "andestech,atfsdc010g";
+			compatible = "andestech,atfsdc010";
 			reg = <0x00 0xf0e00000 0x00 0x1000>;
 			interrupts = <0x12 0x04>;
 			interrupt-parent = <0x03>;
@@ -210,7 +210,7 @@
 		};
 
 		dma@f0c00000 {
-			compatible = "andestech,atcdmac300g";
+			compatible = "andestech,atcdmac300";
 			reg = <0x00 0xf0c00000 0x00 0x1000>;
 			interrupts = <0x0a 0x04>;
 			interrupt-parent = <0x03>;
