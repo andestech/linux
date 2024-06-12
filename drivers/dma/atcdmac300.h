@@ -4,8 +4,8 @@
  *
  * Copyright (C) 2021 Andes Technology Corporation
  */
-#ifndef ATCDMAC300G_H
-#define	ATCDMAC300G_H
+#ifndef ATCDMAC300_H
+#define	ATCDMAC300_H
 
 #include <linux/platform_data/dma-v5.h>
 
@@ -397,4 +397,4 @@ static inline int v5_chan_is_paused(struct v5_dma_chan *v5chan)
 {
 	return 0;
 }
-#endif /* ATCDMAC300G_H */
+#endif /* ATCDMAC300_H */
