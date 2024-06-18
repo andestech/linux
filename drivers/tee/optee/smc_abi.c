@@ -32,6 +32,15 @@
 #include <linux/kmemleak.h>
 #define CREATE_TRACE_POINTS
 #include "optee_trace.h"
+#include <asm/sbi.h>
+
+#ifdef CONFIG_RISCV
+struct sbi_mpxy_opteed_ctx {
+	u32 channel_id;
+};
+
+static struct sbi_mpxy_opteed_ctx mpxy_opteed_ctx __ro_after_init = { 0 };
+#endif
 
 /*
  * This file implement the SMC ABI used when communicating with secure world
@@ -1405,6 +1414,30 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 	return rc;
 }
 
+/** OPTEED MPXY Message IDs */
+enum mpxy_opteed_message_id {
+	OPTEED_MSG_COMMUNICATE = 0x01,
+	OPTEED_MSG_COMPLETE = 0x02,
+};
+
+struct mpxy_opteed_msg {
+	unsigned long a0;
+	unsigned long a1;
+	unsigned long a2;
+	unsigned long a3;
+	unsigned long a4;
+	unsigned long a5;
+	unsigned long a6;
+	unsigned long a7;
+};
+
+struct mpxy_opteed_resp {
+	unsigned long value;
+	unsigned long extp1;
+	unsigned long extp2;
+	unsigned long extp3;
+};
+
 /* Simple wrapper functions to be able to use a function pointer */
 static void optee_smccc_smc(unsigned long a0, unsigned long a1,
 			    unsigned long a2, unsigned long a3,
@@ -1412,7 +1445,38 @@ static void optee_smccc_smc(unsigned long a0, unsigned long a1,
 			    unsigned long a6, unsigned long a7,
 			    struct arm_smccc_res *res)
 {
+#ifndef CONFIG_RISCV
 	arm_smccc_smc(a0, a1, a2, a3, a4, a5, a6, a7, res);
+#else
+	struct mpxy_opteed_msg tx = { .a0 = a0,
+				      .a1 = a1,
+				      .a2 = a2,
+				      .a3 = a3,
+				      .a4 = a4,
+				      .a5 = a5,
+				      .a6 = a6,
+				      .a7 = a7 };
+	struct mpxy_opteed_resp rx;
+	unsigned long rx_msglen;
+	int ret;
+
+	ret = sbi_mpxy_send_message_withresp(mpxy_opteed_ctx.channel_id,
+					     OPTEED_MSG_COMMUNICATE, &tx,
+					     sizeof(tx), &rx, &rx_msglen);
+	if (ret)
+		pr_err_ratelimited(
+			"%s: OPTEED MPXY messaging failed, errno: %d\n",
+			__func__, ret);
+
+	if (rx_msglen != sizeof(rx))
+		pr_warn_ratelimited("%s: OPTEED MPXY response length unmatched",
+				    __func__);
+
+	res->a0 = rx.value;
+	res->a1 = rx.extp1;
+	res->a2 = rx.extp2;
+	res->a3 = rx.extp3;
+#endif
 }
 
 static void optee_smccc_hvc(unsigned long a0, unsigned long a1,
@@ -1421,7 +1485,9 @@ static void optee_smccc_hvc(unsigned long a0, unsigned long a1,
 			    unsigned long a6, unsigned long a7,
 			    struct arm_smccc_res *res)
 {
+#ifndef CONFIG_RISCV
 	arm_smccc_hvc(a0, a1, a2, a3, a4, a5, a6, a7, res);
+#endif
 }
 
 static optee_invoke_fn *get_invoke_func(struct device *dev)
@@ -1602,6 +1668,63 @@ static inline int optee_load_fw(struct platform_device *pdev,
 }
 #endif
 
+#ifdef CONFIG_RISCV
+static int sbi_mpxy_tee_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct device_node *node;
+	uint32_t attr_buf[1]; /* Store only the MSG_PROT_ID attribute */
+	const uint32_t attr_count = 1;
+
+	if ((sbi_spec_version < sbi_mk_version(1, 0)) ||
+	    sbi_probe_extension(SBI_EXT_MPXY) <= 0) {
+		pr_err("sbi mpxy extension not present\n");
+		return -ENODEV;
+	}
+
+	node = of_find_compatible_node(NULL, NULL, "riscv,sbi-mpxy-opteed");
+	if (!node) {
+		pr_err("OP-TEE Dispatcher MPXY channel is not found\n");
+		return -ENODEV;
+	}
+
+	ret = of_property_read_u32(node, "riscv,sbi-mpxy-channel-id",
+				   &mpxy_opteed_ctx.channel_id);
+	if (ret) {
+		pr_err("Failed to read 'riscv,sbi-mpxy-channel-id' property\n");
+		return ret;
+	}
+
+	/* Read MPXY protocol id from channel attributes */
+	ret = sbi_mpxy_read_attrs(mpxy_opteed_ctx.channel_id,
+				  SBI_MPXY_ATTR_MSG_PROT_ID, attr_count,
+				  attr_buf);
+	if (ret == -ENOTSUPP) {
+		pr_err("mpxy channel-%u not available\n",
+		       mpxy_opteed_ctx.channel_id);
+		return -EPROBE_DEFER;
+	}
+
+	if (ret) {
+		pr_err("channel-%u: read attributes - %d\n",
+		       mpxy_opteed_ctx.channel_id, ret);
+		return ret;
+	}
+
+	if (attr_buf[0] != SBI_MPXY_MSGPROTO_TEE_ID) {
+		pr_err("channel-%u: msgproto mismatch, expect:%u, found:%u\n",
+		       mpxy_opteed_ctx.channel_id, SBI_MPXY_MSGPROTO_RPMI_ID,
+		       attr_buf[0]);
+		return -EINVAL;
+	}
+
+	pr_info("found MPXY channel-%d with TEE protocol support\n",
+		mpxy_opteed_ctx.channel_id);
+
+	return 0;
+}
+#endif /* CONFIG_RISCV */
+
 static int optee_probe(struct platform_device *pdev)
 {
 	optee_invoke_fn *invoke_fn;
@@ -1615,6 +1738,12 @@ static int optee_probe(struct platform_device *pdev)
 	u32 arg_cache_flags;
 	u32 sec_caps;
 	int rc;
+
+#ifdef CONFIG_RISCV
+	rc = sbi_mpxy_tee_probe(pdev);
+	if (rc)
+		return rc;
+#endif
 
 	invoke_fn = get_invoke_func(&pdev->dev);
 	if (IS_ERR(invoke_fn))
