@@ -147,7 +147,7 @@ static void andes_cpu_cache_operation(unsigned long start, unsigned long end,
 {
 	unsigned long line_size = andes_priv.andes_cache_line_size;
 	void __iomem *base = andes_priv.l2c_base;
-	int mhartid = smp_processor_id();
+	int mhartid = get_cpu();
 	unsigned long pa;
 
 	if (likely(base)) {
@@ -168,6 +168,7 @@ static void andes_cpu_cache_operation(unsigned long start, unsigned long end,
 			start += line_size;
 		}
 	}
+	put_cpu();
 }
 
 /* Write-back L1 and L2 cache entry */
@@ -195,14 +196,11 @@ static void andes_dma_cache_inv(phys_addr_t paddr, size_t size)
 		return;
 
 	line_size = andes_priv.andes_cache_line_size;
-
 	start = start & (~(line_size - 1));
 	end = ((end + line_size - 1) & (~(line_size - 1)));
 
 	local_irq_save(flags);
-
 	andes_cpu_dcache_inval_range(start, end);
-
 	local_irq_restore(flags);
 }
 
@@ -215,6 +213,8 @@ static void andes_dma_cache_wback(phys_addr_t paddr, size_t size)
 
 	line_size = andes_priv.andes_cache_line_size;
 	start = start & (~(line_size - 1));
+	end = ((end + line_size - 1) & (~(line_size - 1)));
+
 	local_irq_save(flags);
 	andes_cpu_dcache_wb_range(start, end);
 	local_irq_restore(flags);
