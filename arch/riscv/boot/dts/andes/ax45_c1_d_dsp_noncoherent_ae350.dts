@@ -27,8 +27,6 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes_xdsp_xandespmu";
-			riscv,priv-major = <0x01>;
-			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv48";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;

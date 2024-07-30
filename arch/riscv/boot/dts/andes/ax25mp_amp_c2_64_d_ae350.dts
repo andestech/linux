@@ -17,8 +17,6 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes";
-			riscv,priv-major = <0x1>;
-			riscv,priv-minor = <0xa>;
 			mmu-type = "riscv,sv39";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -40,8 +38,6 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes";
-			riscv,priv-major = <0x1>;
-			riscv,priv-minor = <0xa>;
 			mmu-type = "riscv,sv39";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -65,10 +61,6 @@
 		cache-level = <0x2>;
 		cache-size = <0x40000>;
 		reg = <0x0 0xe0500000 0x0 0x40000>;
-		andes,inst-prefetch = <0x3>;
-		andes,data-prefetch = <0x3>;
-		andes,tag-ram-ctl = <0x0 0x0>;
-		andes,data-ram-ctl = <0x0 0x0>;
 		phandle = <0x1>;
 	};
 
