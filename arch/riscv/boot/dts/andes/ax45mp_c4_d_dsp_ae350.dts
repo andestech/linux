@@ -27,8 +27,6 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes_xdsp_xandespmu";
-			riscv,priv-major = <0x01>;
-			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv48";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -55,8 +53,6 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes_xdsp_xandespmu";
-			riscv,priv-major = <0x01>;
-			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv48";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -83,8 +79,6 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes_xdsp_xandespmu";
-			riscv,priv-major = <0x01>;
-			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv48";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -111,8 +105,6 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes_xdsp_xandespmu";
-			riscv,priv-major = <0x01>;
-			riscv,priv-minor = <0x0a>;
 			mmu-type = "riscv,sv48";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -139,10 +131,6 @@
 		cache-level = <0x02>;
 		cache-size = <0x80000>;
 		reg = <0x00 0xe0500000 0x00 0x10000>;
-		andes,inst-prefetch = <0x03>;
-		andes,data-prefetch = <0x03>;
-		andes,tag-ram-ctl = <0x00 0x00>;
-		andes,data-ram-ctl = <0x00 0x00>;
 		phandle = <0x01>;
 	};
 
