@@ -42,7 +42,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x02>;
 			};
 		};
