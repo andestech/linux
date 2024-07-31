@@ -236,6 +236,8 @@ enum v5_status {
  * @dma_sconfig: configuration for slave transfers, passed via
  * .device_config
  * @lock: serializes enqueue/dequeue operations to descriptors lists
+ * @chan_used: This variable shows that the DMA channel is in use and
+               prevents new DMA operations on it.
  * @active_list: list of descriptors dmaengine is being running on
  * @queue: list of descriptors ready to be submitted to engine
  * @free_list: list of descriptors usable by the channel
@@ -251,6 +253,7 @@ struct v5_dma_chan {
 	struct tasklet_struct	tasklet;
 	struct dma_slave_config dma_sconfig;
 	spinlock_t		lock;
+	bool			chan_used;
 
 	/* these other elements are all protected by lock */
 	struct list_head active_list;

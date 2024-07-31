@@ -58,12 +58,11 @@ static dma_cookie_t v5_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct v5_desc		*desc = txd_to_v5_desc(tx);
 	struct v5_dma_chan	*v5chan = to_v5_dma_chan(tx->chan);
 	dma_cookie_t		cookie;
-	unsigned long		flags;
 
-	spin_lock_irqsave(&v5chan->lock, flags);
+	spin_lock_bh(&v5chan->lock);
 	cookie = dma_cookie_assign(tx);
 	list_add_tail(&desc->desc_node, &v5chan->queue);
-	spin_unlock_irqrestore(&v5chan->lock, flags);
+	spin_unlock_bh(&v5chan->lock);
 
 	return cookie;
 }
@@ -71,12 +70,6 @@ static dma_cookie_t v5_tx_submit(struct dma_async_tx_descriptor *tx)
 static struct v5_desc *v5_first_active(struct v5_dma_chan *v5chan)
 {
 	return list_first_entry(&v5chan->active_list,
-				struct v5_desc, desc_node);
-}
-
-static struct v5_desc *v5_first_queued(struct v5_dma_chan *v5chan)
-{
-	return list_first_entry(&v5chan->queue,
 				struct v5_desc, desc_node);
 }
 
@@ -116,10 +109,9 @@ static struct v5_desc *v5_desc_get(struct v5_dma_chan *v5chan)
 {
 	struct v5_desc *desc, *_desc;
 	struct v5_desc *ret = NULL;
-	unsigned long flags;
 	unsigned int i = 0;
 
-	spin_lock_irqsave(&v5chan->lock, flags);
+	spin_lock_bh(&v5chan->lock);
 	list_for_each_entry_safe(desc, _desc, &v5chan->free_list, desc_node) {
 		i++;
 		if (async_tx_test_ack(&desc->txd)) {
@@ -130,15 +122,15 @@ static struct v5_desc *v5_desc_get(struct v5_dma_chan *v5chan)
 		dev_dbg(chan2dev(&v5chan->chan_common),
 				"desc %p not ACKed\n", desc);
 	}
-	spin_unlock_irqrestore(&v5chan->lock, flags);
+	spin_unlock_bh(&v5chan->lock);
 	dev_vdbg(chan2dev(&v5chan->chan_common),
 		"scanned %u descriptors on freelist\n", i);
 	if (!ret) {
 		ret = v5_alloc_descriptor(&v5chan->chan_common, GFP_ATOMIC);
 		if (ret) {
-			spin_lock_irqsave(&v5chan->lock, flags);
+			spin_lock_bh(&v5chan->lock);
 			v5chan->descs_allocated++;
-			spin_unlock_irqrestore(&v5chan->lock, flags);
+			spin_unlock_bh(&v5chan->lock);
 		} else {
 			dev_err(chan2dev(&v5chan->chan_common),
 					"not enough descriptors available\n");
@@ -149,14 +141,17 @@ static struct v5_desc *v5_desc_get(struct v5_dma_chan *v5chan)
 }
 
 /**
- * v5_desc_put - move a descriptor, including any children, to the free list
+ * v5_desc_put_nolock - move a descriptor to the free list.
+ *
+ * This function does not use a lock to protect the free linked list,
+ * so please remember to add a proper lock when calling the function.
+ *
  * @v5chan: channel we work on
  * @desc: descriptor, at the head of a chain, to move to free list
  */
-static void v5_desc_put(struct v5_dma_chan *v5chan, struct v5_desc *desc)
+static void v5_desc_put_nolock(struct v5_dma_chan *v5chan, struct v5_desc *desc)
 {
 	struct list_head *next_node;
-	unsigned long flags;
 	u16 num_sg;
 	u16 index;
 
@@ -164,7 +159,6 @@ static void v5_desc_put(struct v5_dma_chan *v5chan, struct v5_desc *desc)
 		next_node = desc->tx_list.next;
 		num_sg = desc->num_sg;
 
-		spin_lock_irqsave(&v5chan->lock, flags);
 		list_del(&desc->desc_node);
 		INIT_DESC(desc);
 		list_add_tail(&desc->desc_node, &v5chan->free_list);
@@ -177,8 +171,14 @@ static void v5_desc_put(struct v5_dma_chan *v5chan, struct v5_desc *desc)
 			list_add_tail(&desc->desc_node, &v5chan->free_list);
 			index++;
 		}
-		spin_unlock_irqrestore(&v5chan->lock, flags);
 	}
+}
+
+static void v5_desc_put(struct v5_dma_chan *v5chan, struct v5_desc *desc)
+{
+	spin_lock_bh(&v5chan->lock);
+	v5_desc_put_nolock(v5chan, desc);
+	spin_unlock_bh(&v5chan->lock);
 }
 
 /*
@@ -220,7 +220,7 @@ static void v5_dostart(struct v5_dma_chan *v5chan, struct v5_desc *first)
 	struct v5_dma *v5dma = v5chan->device;
 	unsigned long dma_flags;
 
-	if (v5_chan_is_enabled(v5chan)) {
+	if (v5dma->used_chan & (1 << v5chan->chan_id)) {
 		dev_err(chan2dev(&v5chan->chan_common),
 			"BUG: Attempted to start non-idle channel\n");
 		dev_err(chan2dev(&v5chan->chan_common),
@@ -283,12 +283,13 @@ static void v5_complete_all(struct v5_dma_chan *v5chan)
 	LIST_HEAD(list);
 
 	dev_vdbg(chan2dev(&v5chan->chan_common), "complete all\n");
-	if (!list_empty(&v5chan->queue))
-		v5_dostart(v5chan, v5_first_queued(v5chan));
+
+	spin_lock(&v5chan->lock);
 	/* empty active_list now it is completed */
 	list_splice_init(&v5chan->active_list, &list);
 	/* empty queue list by moving descriptors (if any) to active_list */
 	list_splice_init(&v5chan->queue, &v5chan->active_list);
+	spin_unlock(&v5chan->lock);
 
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		v5_chain_complete(v5chan, desc, DMA_TRANS_NOERROR);
@@ -309,15 +310,17 @@ static void v5_advance_work(struct v5_dma_chan *v5chan)
 
 	v5desc = v5_first_active(v5chan);
 	if (!v5desc->cyclic) {
-		if (list_empty(&v5chan->active_list) ||
-		    list_is_singular(&v5chan->active_list)) {
+		if (list_is_singular(&v5chan->active_list)) {
 			v5_complete_all(v5chan);
 		} else {
-			v5_chain_complete(v5chan, v5_first_active(v5chan),
+			v5_chain_complete(v5chan, v5desc,
 				DMA_TRANS_NOERROR);
-			/* advance work */
-			v5_dostart(v5chan, v5_first_active(v5chan));
 		}
+
+		if (list_empty(&v5chan->active_list))
+			v5chan->chan_used = 0;
+		else
+			v5_dostart(v5chan, v5_first_active(v5chan));
 	} else {
 		/* For cyclic mode */
 		struct dmaengine_result res;
@@ -330,12 +333,10 @@ static void v5_advance_work(struct v5_dma_chan *v5chan)
 				v5_dostart(v5chan, v5_first_active(v5chan));
 			} else {
 				struct v5_desc *next_tx;
-				unsigned long flags;
 
 				/* do next SG and set the at pointer */
 				v5desc->at = v5desc->at->next;
 
-				spin_lock_irqsave(&v5chan->lock, flags);
 				if ((uintptr_t)v5desc->at == (uintptr_t)&v5desc->tx_list) {
 					next_tx = list_entry(v5desc->at, struct v5_desc,
 						tx_list);
@@ -343,7 +344,6 @@ static void v5_advance_work(struct v5_dma_chan *v5chan)
 					next_tx = list_entry(v5desc->at, struct v5_desc,
 						desc_node);
 				}
-				spin_unlock_irqrestore(&v5chan->lock, flags);
 
 				v5_dostart(v5chan, next_tx);
 
@@ -370,6 +370,7 @@ static void v5_handle_error(struct v5_dma_chan *v5chan)
 	 * broked. Since we don't have any way to report errors, we'll
 	 * just have to scream loudly and try to carry on.
 	 */
+	spin_lock(&v5chan->lock);
 	bad_desc = v5_first_active(v5chan);
 	list_del_init(&bad_desc->desc_node);
 
@@ -378,10 +379,13 @@ static void v5_handle_error(struct v5_dma_chan *v5chan)
 	 * to push queued descriptors in active_list
 	 */
 	list_splice_init(&v5chan->queue, v5chan->active_list.prev);
+	spin_unlock(&v5chan->lock);
 
 	/* Try to restart the controller */
 	if (!list_empty(&v5chan->active_list))
 		v5_dostart(v5chan, v5_first_active(v5chan));
+	else
+		v5chan->chan_used = 0;
 
 	/*
 	 * KERN_CRITICAL may seem harsh, but since this only happens
@@ -412,7 +416,6 @@ static irqreturn_t v5_dma_interrupt(int irq, void *dev_id)
 {
 	struct v5_dma		*v5dma = (struct v5_dma *)dev_id;
 	struct v5_dma_chan	*v5chan;
-	unsigned long		dma_flags;
 	int			i;
 	u32			status;
 	int			ret = IRQ_NONE;
@@ -424,9 +427,9 @@ static irqreturn_t v5_dma_interrupt(int irq, void *dev_id)
 	int_ch = used_ch & V5_DMA_INT_ALL(status);
 
 	while (int_ch) {
-		spin_lock_irqsave(&v5dma->dma_lock, dma_flags);
+		spin_lock(&v5dma->dma_lock);
 		v5dma->used_chan &= ~int_ch;
-		spin_unlock_irqrestore(&v5dma->dma_lock, dma_flags);
+		spin_unlock(&v5dma->dma_lock);
 		v5_dma_writel(v5dma, INT_STA, V5_DMA_INT_CLR(int_ch));
 
 		for (i = 0; i < v5dma->dma_common.chancnt; i++) {
@@ -458,13 +461,15 @@ static irqreturn_t v5_dma_interrupt(int irq, void *dev_id)
 static void v5_issue_pending(struct dma_chan *chan)
 {
 	struct v5_dma_chan	*v5chan = to_v5_dma_chan(chan);
-	unsigned long		flags;
 
-	spin_lock_irqsave(&v5chan->lock, flags);
-	if (list_empty(&v5chan->active_list))
+	spin_lock_bh(&v5chan->lock);
+	if (v5chan->chan_used == 0 && !list_empty(&v5chan->queue)) {
+		v5chan->chan_used = 1;
 		list_move(v5chan->queue.next, &v5chan->active_list);
-	v5_dostart(v5chan, v5_first_active(v5chan));
-	spin_unlock_irqrestore(&v5chan->lock, flags);
+		v5_dostart(v5chan, v5_first_active(v5chan));
+	}
+
+	spin_unlock_bh(&v5chan->lock);
 }
 
 static inline unsigned int xfer_width(struct v5_dma *v5dma,
@@ -883,13 +888,8 @@ static int v5_terminate_all(struct dma_chan *chan)
 	struct v5_desc *desc_cur, *desc_next;
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
-	/*
-	 * This is only called when something went wrong elsewhere, so
-	 * we don't really care about the data. Just disable the
-	 * channel.
-	 */
 
-	/* disabling channel: must also remove suspend state */
+	spin_lock_irq(&v5chan->lock);
 	v5_abort_channel(v5chan);
 	v5_dis_channel(v5chan);
 	/* confirm that this channel is disabled */
@@ -898,14 +898,15 @@ static int v5_terminate_all(struct dma_chan *chan)
 
 	/* active_list entries will end up before queued entries */
 	list_for_each_entry_safe(desc_cur, desc_next, &v5chan->queue, desc_node) {
-		v5_desc_put(v5chan, desc_cur);
+		v5_desc_put_nolock(v5chan, desc_cur);
 	}
 
 	list_for_each_entry_safe(desc_cur, desc_next, &v5chan->active_list, desc_node) {
-		v5_desc_put(v5chan, desc_cur);
+		v5_desc_put_nolock(v5chan, desc_cur);
 	}
 
-	clear_bit(V5_IS_PAUSED, &v5chan->status);
+	v5chan->chan_used = 0;
+	spin_unlock_irq(&v5chan->lock);
 	return 0;
 }
 
@@ -967,7 +968,6 @@ static int v5_alloc_chan_resources(struct dma_chan *chan)
 	struct v5_dma_chan	*v5chan = to_v5_dma_chan(chan);
 	struct v5_dma		*v5dma = to_v5_dma(chan->device);
 	struct v5_desc		*desc;
-	unsigned long		flags;
 	int			i;
 	LIST_HEAD(tmp_list);
 
@@ -997,11 +997,11 @@ static int v5_alloc_chan_resources(struct dma_chan *chan)
 		list_add_tail(&desc->desc_node, &tmp_list);
 	}
 
-	spin_lock_irqsave(&v5chan->lock, flags);
+	spin_lock_bh(&v5chan->lock);
 	v5chan->descs_allocated = i;
 	list_splice(&tmp_list, &v5chan->free_list);
 	dma_cookie_init(chan);
-	spin_unlock_irqrestore(&v5chan->lock, flags);
+	spin_unlock_bh(&v5chan->lock);
 
 	dev_dbg(chan2dev(chan),
 		"alloc_chan_resources: allocated %d descriptors\n",
@@ -1247,6 +1247,7 @@ static int __init v5_dma_probe(struct platform_device *pdev)
 		v5_enable_chan_irq(v5dma, i);
 		v5chan->device = v5dma;
 		v5chan->chan_id = i;
+		v5chan->chan_used = 0;
 	}
 	/* set base routines */
 	v5dma->dma_common.device_alloc_chan_resources = v5_alloc_chan_resources;
