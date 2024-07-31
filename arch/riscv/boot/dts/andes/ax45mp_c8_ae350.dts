@@ -42,7 +42,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x02>;
 			};
 		};
@@ -68,7 +68,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x03>;
 			};
 		};
@@ -94,7 +94,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x04>;
 			};
 		};
@@ -120,7 +120,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x05>;
 			};
 		};
@@ -146,7 +146,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x06>;
 			};
 		};
@@ -172,7 +172,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x07>;
 			};
 		};
@@ -198,7 +198,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x08>;
 			};
 		};
@@ -224,7 +224,7 @@
 			interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				phandle = <0x09>;
 			};
 		};
