@@ -3,7 +3,7 @@
 / {
 	#address-cells = <0x02>;
 	#size-cells = <0x02>;
-	compatible = "andestech,ax25";
+	compatible = "andestech,ae350";
 	model = "andestech,ax25";
 
 	aliases {
