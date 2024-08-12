@@ -143,6 +143,21 @@ static inline int suspend_disable_secondary_cpus(void)
 	if (IS_ENABLED(CONFIG_PM_SLEEP_SMP_NONZERO_CPU))
 		cpu = -1;
 
+	/*
+	 * The power domain of L2 and hart 0 is the same,
+	 * we want to make sure "primary cpu" is mhartid 0,
+	 * so that hart0 would be the last hart to enter
+	 * OpenSBI to disable L2 before entering WFI.
+	 * Note: Kernel cpu_id is not mhartid.
+	 */
+
+	if (IS_ENABLED(CONFIG_ANDES_ATCSMU)) {
+	        for_each_possible_cpu(cpu) {
+	                if (cpuid_to_hartid_map(cpu) == 0)
+	                        break;
+	        }
+	}
+
 	return freeze_secondary_cpus(cpu);
 }
 static inline void suspend_enable_secondary_cpus(void)
