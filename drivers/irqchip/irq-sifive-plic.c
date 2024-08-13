@@ -64,6 +64,8 @@
 
 #define PLIC_QUIRK_EDGE_INTERRUPT	0
 
+unsigned long *andes_wake_event;
+
 struct plic_priv {
 	struct fwnode_handle *fwnode;
 	struct cpumask lmask;
@@ -164,6 +166,16 @@ static void plic_irq_eoi(struct irq_data *d)
 	}
 }
 
+static int plic_set_wake(struct irq_data *d, unsigned int on)
+{
+	if (on)
+		__assign_bit(d->hwirq, andes_wake_event, true);
+	else
+		__assign_bit(d->hwirq, andes_wake_event, false);
+
+	return 0;
+}
+
 #ifdef CONFIG_SMP
 static int plic_set_affinity(struct irq_data *d,
 			     const struct cpumask *mask_val, bool force)
@@ -197,12 +209,12 @@ static struct irq_chip plic_edge_chip = {
 	.irq_ack	= plic_irq_eoi,
 	.irq_mask	= plic_irq_mask,
 	.irq_unmask	= plic_irq_unmask,
+	.irq_set_wake	= plic_set_wake,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = plic_set_affinity,
 #endif
 	.irq_set_type	= plic_irq_set_type,
-	.flags		= IRQCHIP_SKIP_SET_WAKE |
-			  IRQCHIP_AFFINITY_PRE_STARTUP,
+	.flags		= IRQCHIP_AFFINITY_PRE_STARTUP,
 };
 
 static struct irq_chip plic_chip = {
@@ -212,12 +224,12 @@ static struct irq_chip plic_chip = {
 	.irq_mask	= plic_irq_mask,
 	.irq_unmask	= plic_irq_unmask,
 	.irq_eoi	= plic_irq_eoi,
+	.irq_set_wake	= plic_set_wake,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = plic_set_affinity,
 #endif
 	.irq_set_type	= plic_irq_set_type,
-	.flags		= IRQCHIP_SKIP_SET_WAKE |
-			  IRQCHIP_AFFINITY_PRE_STARTUP,
+	.flags		= IRQCHIP_AFFINITY_PRE_STARTUP,
 };
 
 static int plic_irq_set_type(struct irq_data *d, unsigned int type)
@@ -544,6 +556,10 @@ static int plic_probe(struct fwnode_handle *fwnode)
 	error = plic_parse_nr_irqs_and_contexts(fwnode, &nr_irqs, &nr_contexts, &gsi_base, &id);
 	if (error)
 		goto fail_free_regs;
+
+	andes_wake_event = kzalloc(sizeof(unsigned long), GFP_KERNEL);
+	if (WARN_ON(!andes_wake_event))
+		return -ENOMEM;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
