@@ -115,27 +115,27 @@ static irqreturn_t l2c_irq(int irq, void *dev_id)
 /* L2 Cache operations */
 static inline uint32_t andes_cpu_l2c_get_cctl_status(void)
 {
-	return readl(andes_priv.l2c_base + ANDES_L2C_REG_STATUS_OFFSET);
+	return readl_relaxed(andes_priv.l2c_base + ANDES_L2C_REG_STATUS_OFFSET);
 }
 
 static void cpu_l2c_cctl(phys_addr_t pa, void __iomem *base,
 			 int mhartid, unsigned long ops)
 {
 #ifdef CONFIG_64BIT
-	writeq(pa, (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid)));
+	writeq_relaxed(pa, (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid)));
 #else
 	/*
 	 * Considering RV32 potential to use over 4G memory,
 	 * the physical address is split into upper and lower 32 bits
 	 * and stored in a 64-bits PA-type L2C CCTL access line register.
 	 */
-	writel((pa & 0xFFFFFFFF),
-	       (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid)));
-	writel((pa >> 32),
-	       (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid) + 0x4));
+	writel_relaxed((pa & 0xFFFFFFFF),
+		       (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid)));
+	writel_relaxed((pa >> 32),
+		       (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid) + 0x4));
 #endif /* !CONFIG_64BIT */
 
-	writel(ops, base + ANDES_L2C_REG_CN_CMD_OFFSET(mhartid));
+	writel_relaxed(ops, base + ANDES_L2C_REG_CN_CMD_OFFSET(mhartid));
 	while ((andes_cpu_l2c_get_cctl_status() &
 		ANDES_CCTL_L2_STATUS_CN_MASK(mhartid)) !=
 		ANDES_CCTL_L2_STATUS_IDLE)
@@ -147,8 +147,11 @@ static void andes_cpu_cache_operation(unsigned long start, unsigned long end,
 {
 	unsigned long line_size = andes_priv.andes_cache_line_size;
 	void __iomem *base = andes_priv.l2c_base;
-	int mhartid = get_cpu();
 	unsigned long pa;
+	int mhartid = 0;
+
+	if (IS_ENABLED(CONFIG_SMP))
+		mhartid = get_cpu();
 
 	if (likely(base)) {
 		while (end > start) {
@@ -168,7 +171,9 @@ static void andes_cpu_cache_operation(unsigned long start, unsigned long end,
 			start += line_size;
 		}
 	}
-	put_cpu();
+
+	if (IS_ENABLED(CONFIG_SMP))
+		put_cpu();
 }
 
 /* Write-back L1 and L2 cache entry */
