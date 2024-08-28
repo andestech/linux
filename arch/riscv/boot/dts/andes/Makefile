@@ -17,5 +17,5 @@ dtb-$(CONFIG_ARCH_ANDES) += ax45mpv_c4_d_dsp_ae350.dtb
 dtb-$(CONFIG_ARCH_ANDES) += ax45mp_c8_ae350.dtb
 
 # FPGA : VU19P
-dtb-$(CONFIG_ARCH_ANDES) += ax65mp_c2_d_dsp_ae350.dtb
+dtb-$(CONFIG_ARCH_ANDES) += ax65mp_c2_d_ae350.dtb
 obj-$(CONFIG_BUILTIN_DTB) += $(addsuffix .o, $(dtb-y))

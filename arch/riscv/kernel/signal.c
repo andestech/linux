@@ -143,6 +143,41 @@ static long __restore_v_state(struct pt_regs *regs, void __user *sc_vec)
 #define __restore_v_state(task, regs) (0)
 #endif
 
+#ifdef CONFIG_ANDES_DSP
+static long
+restore_andesdsp_state(struct pt_regs *regs,
+		       struct __riscv_andesdsp_ext_state *sc_andesdsp_regs)
+{
+	long err;
+
+	err = __copy_from_user(&current->thread.andesdsp_state.ucode,
+			       &sc_andesdsp_regs->ucode,
+			       sizeof(unsigned long));
+	if (unlikely(err))
+		return err;
+	andesdsp_state_restore(current);
+	return 0;
+}
+
+static long
+save_andesdsp_state(struct pt_regs *regs,
+		    struct __riscv_andesdsp_ext_state *sc_andesdsp_regs)
+{
+	long err;
+
+	andesdsp_state_save(current);
+	err = __copy_to_user(&sc_andesdsp_regs->ucode,
+			     &current->thread.andesdsp_state.ucode,
+			     sizeof(unsigned long));
+	if (unlikely(err))
+		return err;
+	return 0;
+}
+#else
+#define save_andesdsp_state(task, regs) (0)
+#define restore_andesdsp_state(task, regs) (0)
+#endif /* CONFIG_ANDES_DSP */
+
 static long restore_sigcontext(struct pt_regs *regs,
 	struct sigcontext __user *sc)
 {
@@ -196,6 +231,13 @@ static long restore_sigcontext(struct pt_regs *regs,
 		}
 		sc_ext_ptr = (void __user *)head + size;
 	}
+
+	if (has_andesdsp()) {
+		err = restore_andesdsp_state(regs, &sc->sc_andesdsp_regs);
+		if (unlikely(err))
+			return err;
+	}
+
 	return err;
 }
 
@@ -282,6 +324,9 @@ static long setup_sigcontext(struct rt_sigframe __user *frame,
 	/* Save the vector state. */
 	if (has_vector() && riscv_v_vstate_query(regs))
 		err |= save_v_state(regs, (void __user **)&sc_ext_ptr);
+	/* Save the ANDES_DSP state. */
+	if (has_andesdsp())
+		err |= save_andesdsp_state(regs, &sc->sc_andesdsp_regs);
 	/* Write zero to fp-reserved space and check it on restore_sigcontext */
 	err |= __put_user(0, &sc->sc_extdesc.reserved);
 	/* And put END __riscv_ctx_hdr at the end. */
