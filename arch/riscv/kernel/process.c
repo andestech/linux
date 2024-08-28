@@ -153,6 +153,10 @@ void flush_thread(void)
 	fstate_off(current, task_pt_regs(current));
 	memset(&current->thread.fstate, 0, sizeof(current->thread.fstate));
 #endif
+#ifdef CONFIG_ANDES_DSP
+	memset(&current->thread.andesdsp_state, 0,
+	       sizeof(current->thread.andesdsp_state));
+#endif
 #ifdef CONFIG_RISCV_ISA_V
 	/* Reset vector state */
 	riscv_v_vstate_ctrl_init(current);
