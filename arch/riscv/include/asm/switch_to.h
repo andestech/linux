@@ -14,6 +14,10 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/csr.h>
+#include <linux/soc/andes/csr.h>
+#include <asm/vendorid_list.h>
+#include <asm/vendor_extensions.h>
+#include <asm/vendor_extensions/andes.h>
 
 #ifdef CONFIG_FPU
 extern void __fstate_save(struct task_struct *save_to);
@@ -70,6 +74,35 @@ static __always_inline bool has_fpu(void) { return false; }
 #define __switch_to_fpu(__prev, __next) do { } while (0)
 #endif
 
+#ifdef CONFIG_ANDES_DSP
+static inline void andesdsp_state_save(struct task_struct *task)
+{
+	task->thread.andesdsp_state.ucode = csr_read(CSR_UCODE);
+}
+
+static inline void andesdsp_state_restore(struct task_struct *task)
+{
+	csr_write(CSR_UCODE, task->thread.andesdsp_state.ucode);
+}
+
+static inline void __switch_to_andesdsp(struct task_struct *prev,
+					struct task_struct *next)
+{
+	andesdsp_state_save(prev);
+	andesdsp_state_restore(next);
+}
+
+static __always_inline bool has_andesdsp(void)
+{
+	return riscv_has_vendor_extension_likely(ANDES_VENDOR_ID, RISCV_ISA_VENDOR_EXT_XANDESDSP);
+}
+#else
+static __always_inline bool has_andesdsp(void) { return false; }
+#define andesdsp_state_save(task) do { } while (0)
+#define andesdsp_state_restore(task) do { } while (0)
+#define __switch_to_andesdsp(__prev, __next) do { } while (0)
+#endif /* CONFIG_ANDES_DSP */
+
 extern struct task_struct *__switch_to(struct task_struct *,
 				       struct task_struct *);
 
@@ -99,6 +132,8 @@ do {							\
 	__set_prev_cpu(__prev->thread);			\
 	if (has_fpu())					\
 		__switch_to_fpu(__prev, __next);	\
+	if (has_andesdsp())				\
+		__switch_to_andesdsp(__prev, __next);	\
 	if (has_vector())					\
 		__switch_to_vector(__prev, __next);	\
 	if (switch_to_should_flush_icache(__next))	\

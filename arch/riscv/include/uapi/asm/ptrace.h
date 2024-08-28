@@ -56,6 +56,10 @@ struct user_regs_struct {
 	unsigned long t6;
 };
 
+struct __riscv_andesdsp_ext_state {
+	unsigned long ucode;
+};
+
 struct __riscv_f_ext_state {
 	__u32 f[32];
 	__u32 fcsr;

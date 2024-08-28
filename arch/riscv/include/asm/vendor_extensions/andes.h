@@ -7,6 +7,7 @@
 #include <linux/types.h>
 
 #define RISCV_ISA_VENDOR_EXT_XANDESPMU		0
+#define RISCV_ISA_VENDOR_EXT_XANDESDSP		1
 
 /*
  * Extension keys should be strictly less than max.
