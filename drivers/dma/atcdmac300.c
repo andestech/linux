@@ -26,12 +26,13 @@
 	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |\
 	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
 
-#define INIT_DESC(desc) do {					\
-				desc->at = NULL;		\
-				desc->cyclic = false;		\
-				desc->num_sg = 0;		\
-				INIT_LIST_HEAD(&desc->tx_list);	\
-			} while (0)
+#define INIT_DESC(desc)				\
+	do {					\
+		desc->at = NULL;		\
+		desc->cyclic = false;		\
+		desc->num_sg = 0;		\
+		INIT_LIST_HEAD(&desc->tx_list);	\
+	} while (0)
 
 static unsigned int init_nr_desc_per_channel = 64;
 module_param(init_nr_desc_per_channel, uint, 0644);
@@ -143,8 +144,9 @@ static struct v5_desc *v5_desc_get(struct v5_dma_chan *v5chan)
 /**
  * v5_desc_put_nolock - move a descriptor to the free list.
  *
- * This function does not use a lock to protect the free linked list,
- * so please remember to add a proper lock when calling the function.
+ * This function does not use a lock to protect any linked lists in
+ * 'struct v5_dma_chan', so please remember to add a proper lock when
+ * calling the function.
  *
  * @v5chan: channel we work on
  * @desc: descriptor, at the head of a chain, to move to free list
@@ -163,13 +165,11 @@ static void v5_desc_put_nolock(struct v5_dma_chan *v5chan, struct v5_desc *desc)
 		INIT_DESC(desc);
 		list_add_tail(&desc->desc_node, &v5chan->free_list);
 
-		index = 1;
-		while (index < num_sg) {
+		for (index = 1; index < num_sg; index++) {
 			desc = list_entry(next_node, struct v5_desc, desc_node);
 			next_node = desc->desc_node.next;
 			INIT_DESC(desc);
 			list_add_tail(&desc->desc_node, &v5chan->free_list);
-			index++;
 		}
 	}
 }
