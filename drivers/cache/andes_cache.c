@@ -286,24 +286,9 @@ static int __init andes_cache_init(void)
 	if (!of_device_is_available(np))
 		return -ENODEV;
 
-	/* l2c cache irq */
-	irq = irq_of_parse_and_map(np, 0);
-	if (irq <= 0) {
-		pr_err("Failed to get L2C irq number\n");
-		return irq;
-	}
-
-	error = request_irq(irq, l2c_irq, 0, "L2C", NULL);
-	if (error) {
-		pr_err("Failed to register L2C irq\n");
-		return error;
-	}
-
 	ret = of_address_to_resource(np, 0, &res);
-	if (ret) {
-		free_irq(irq, NULL);
+	if (ret)
 		return ret;
-	}
 
 	/*
 	 * If IOCP is present on the Andes ANDES core riscv_cbom_block_size
@@ -316,16 +301,33 @@ static int __init andes_cache_init(void)
 		return 0;
 
 	andes_priv.l2c_base = ioremap(res.start, resource_size(&res));
-	if (!andes_priv.l2c_base) {
-		free_irq(irq, NULL);
+	if (!andes_priv.l2c_base)
 		return -ENOMEM;
-	}
 
 	ret = andes_get_l2_line_size(np);
 	if (ret) {
 		iounmap(andes_priv.l2c_base);
-		free_irq(irq, NULL);
 		return ret;
+	}
+
+	/* l2c cache irq */
+	irq = irq_of_parse_and_map(np, 0);
+	if (irq <= 0) {
+		pr_err("Failed to get L2C irq number\n");
+		iounmap(andes_priv.l2c_base);
+		return irq;
+	}
+
+	/*
+	 * The l2c_irq handler references andes_priv.l2c_base.
+	 * Therefore, we should register the IRQ handler only
+	 * after andes_priv.l2c_base has been set.
+	 */
+	error = request_irq(irq, l2c_irq, 0, "L2C", NULL);
+	if (error) {
+		pr_err("Failed to register L2C irq\n");
+		iounmap(andes_priv.l2c_base);
+		return error;
 	}
 
 	return 0;
