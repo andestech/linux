@@ -20,6 +20,31 @@ void __iomem *atcsmu_get_address(void)
 }
 EXPORT_SYMBOL(atcsmu_get_address);
 
+/* SMU per hart scratch reg could be used to store sleep type */
+void atcsmu_set_sleep_type(unsigned long sleep_type)
+{
+	struct atcsmu *smu = &atcsmu;
+	unsigned int cpu, hart;
+
+	for_each_online_cpu(cpu) {
+		hart = cpuid_to_hartid_map(cpu);
+
+		writel(sleep_type, (void *)(smu->base + PCSm_SCRATCH_OFF(hart)));
+	}
+}
+
+void atcsmu_set_wake(unsigned long wake_event)
+{
+	struct atcsmu *smu = &atcsmu;
+	unsigned int cpu, hart;
+
+	for_each_online_cpu(cpu) {
+		hart = cpuid_to_hartid_map(cpu);
+
+		writel(wake_event, (void *)(smu->base + PCSm_WE_OFF(hart)));
+	}
+}
+
 static int atcsmu_probe(struct platform_device *pdev)
 {
 	struct atcsmu *smu = &atcsmu;
