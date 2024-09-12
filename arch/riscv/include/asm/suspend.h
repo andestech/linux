@@ -58,4 +58,6 @@ asmlinkage int hibernate_core_restore_code(void);
 bool riscv_sbi_hsm_is_supported(void);
 bool riscv_sbi_suspend_state_is_valid(u32 state);
 int riscv_sbi_hart_suspend(u32 state);
+int sbi_system_suspend(unsigned long sleep_type, unsigned long resume_addr,
+		       unsigned long opaque);
 #endif

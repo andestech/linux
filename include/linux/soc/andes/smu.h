@@ -28,11 +28,20 @@
 #define PCSm_STATUS_OFF(n)	((n + 3) * 0x20 + PCS0_STATUS_OFF)
 #define PCSm_CTL_OFF(n)		((n + 3) * 0x20 + PCS0_CTL_OFF)
 
+enum sbi_ext_susp_ae350_sleep_type {
+	SBI_SUSP_AE350_LIGHT_SLEEP = 0x80000001,
+	SBI_SUSP_AE350_DEEP_SLEEP,
+};
+
 struct atcsmu {
 	void __iomem *base;
 };
 
 extern unsigned long *andes_wake_event;
 extern void __iomem *atcsmu_get_address(void);
+
+/* SMU per hart scratch reg could be used to store sleep type */
+void atcsmu_set_sleep_type(unsigned long sleep_type);
+void atcsmu_set_wake(unsigned long wake_event);
 
 #endif
