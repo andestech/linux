@@ -94,9 +94,9 @@ int cpu_suspend(unsigned long arg,
 }
 
 #ifdef CONFIG_RISCV_SBI
-static int sbi_system_suspend(unsigned long sleep_type,
-			      unsigned long resume_addr,
-			      unsigned long opaque)
+int sbi_system_suspend(unsigned long sleep_type,
+		       unsigned long resume_addr,
+		       unsigned long opaque)
 {
 	struct sbiret ret;
 
