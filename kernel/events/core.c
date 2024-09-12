@@ -4240,6 +4240,12 @@ static void perf_adjust_freq_unthr_events(struct list_head *event_list)
 
 		if (hwc->interrupts == MAX_INTERRUPTS) {
 			hwc->interrupts = 0;
+
+			/*
+			 * NOTE: this is a workaround to prevent triggering
+			 * WARN_ON_ONCE().
+			 */
+			event->pmu->stop(event, 0);
 			perf_log_throttle(event, 1);
 			if (!event->attr.freq || !event->attr.sample_freq)
 				event->pmu->start(event, 0);
@@ -9732,8 +9738,15 @@ __perf_event_account_interrupt(struct perf_event *event, int throttle)
 
 		hwc->freq_time_stamp = now;
 
-		if (delta > 0 && delta < 2*TICK_NSEC)
-			perf_adjust_period(event, delta, hwc->last_period, true);
+		/* NOTE: this is a workaround for RCU stall problem */
+		event->pmu->stop(event, PERF_EF_UPDATE);
+		u64 now_count = local64_read(&event->count);
+		s64 delta_count = now_count - hwc->freq_count_stamp;
+		hwc->freq_count_stamp = now_count;
+
+		if ((delta > 0) && (delta < 2 * TICK_NSEC) && (delta_count > 0))
+			perf_adjust_period(event, delta, delta_count, true);
+		event->pmu->start(event, delta_count > 0 ? PERF_EF_RELOAD : 0);
 	}
 
 	return ret;
