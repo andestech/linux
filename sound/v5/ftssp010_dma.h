@@ -412,8 +412,7 @@ typedef struct dmad_drb {
 
 /******************************************************************************
  * DMAD Driver Interface
- ******************************************************************************
- */
+ ******************************************************************************/
 extern int dmad_channel_alloc(dmad_chreq *ch_req);
 extern int dmad_channel_free(dmad_chreq *ch_req);
 extern int dmad_channel_enable(const dmad_chreq *ch_req, u8 enable);
