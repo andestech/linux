@@ -14,7 +14,7 @@ struct v5_dma_platform_data {
 	dma_cap_mask_t  cap_mask;
 };
 
-struct v5_dma_slave {
+struct v5_dma_subordinate {
 	struct device		*dma_dev;
 };
 

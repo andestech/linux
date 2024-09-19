@@ -1,9 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for the Andes ATCDMAC300
- *
+ * Andes DMA Controller driver
  * Copyright (C) 2021 Andes Technology Corporation
- *
  */
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -566,7 +564,7 @@ err_desc_get:
 }
 
 /**
- * v5_prep_slave_sg - prepare descriptors for a DMA_SLAVE transaction
+ * v5_prep_device_sg - Preparing descriptors for memory/device DMA transactions
  * @chan: DMA channel
  * @sgl: scatterlist to transfer to/from
  * @sg_len: number of entries in @scatterlist
@@ -575,13 +573,12 @@ err_desc_get:
  * @context: transaction context (ignored)
  */
 static struct dma_async_tx_descriptor *
-v5_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
+v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		unsigned int sg_len, enum dma_transfer_direction direction,
 		unsigned long flags, void *context)
 {
 	struct v5_dma		*v5dma = to_v5_dma(chan->device);
 	struct v5_dma_chan	*v5chan = to_v5_dma_chan(chan);
-	struct v5_dma_slave	*v5slave = chan->private;
 	struct dma_slave_config	*sconfig = &v5chan->dma_sconfig;
 	struct v5_desc		*first = NULL;
 	struct v5_desc		*prev = NULL;
@@ -593,12 +590,12 @@ v5_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct scatterlist	*sg;
 	size_t			total_len = 0;
 
-	dev_vdbg(chan2dev(chan), "prep_slave_sg (%d): %s f0x%lx\n",
-		sg_len,
-	direction == DMA_MEM_TO_DEV ?
-		"TO DEVICE" : "FROM DEVICE", flags);
-	if (unlikely(!v5slave || !sg_len)) {
-		dev_dbg(chan2dev(chan), "prep_slave_sg: sg length is zero!\n");
+	dev_vdbg(chan2dev(chan), "sg_len:%d d:%s f:0x%lx\n",
+		 sg_len,
+		 direction == DMA_MEM_TO_DEV ? "TO DEVICE" : "FROM DEVICE",
+		 flags);
+	if (unlikely(!sg_len)) {
+		dev_dbg(chan2dev(chan), "v5_prep_device_sg: sg length is zero!\n");
 		return NULL;
 	}
 	ctrl = v5_channel_readl(v5chan, CH_CTL_OFF);
@@ -884,7 +881,7 @@ static int v5_config(struct dma_chan *chan,
 	struct v5_dma_chan	*v5chan = to_v5_dma_chan(chan);
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
-	/* Check if it is chan is configured for slave transfers */
+	/* Check if this chan is configured for device transfers */
 	if (!chan->private)
 		return -EINVAL;
 
@@ -1058,36 +1055,38 @@ static void v5_free_chan_resources(struct dma_chan *chan)
 }
 
 #ifdef CONFIG_OF
-static bool v5_dma_filter(struct dma_chan *chan, void *slave)
+static bool v5_dma_filter(struct dma_chan *chan, void *subordinate_info)
 {
-	struct v5_dma_slave *atslave = slave;
+	struct v5_dma_subordinate *subordinate = subordinate_info;
 
-	if (atslave->dma_dev == chan->device->dev) {
-		chan->private = atslave;
+	if (subordinate->dma_dev == chan->device->dev) {
+		chan->private = subordinate;
 
 		return true;
-	} else
+	} else {
 		return false;
+	}
 }
+
 static struct dma_chan *v5_dma_xlate(struct of_phandle_args *dma_spec,
 				     struct of_dma *of_dma)
 {
 	struct dma_chan *chan;
 
 	struct v5_dma_chan *v5chan;
-	struct v5_dma_slave *v5slave;
+	struct v5_dma_subordinate *subordinate;
 	dma_cap_mask_t mask;
 	struct platform_device *dmac_pdev;
 
 	dmac_pdev = of_find_device_by_node(dma_spec->np);
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-	v5slave = kzalloc(sizeof(*v5slave), GFP_KERNEL);
-	if (!v5slave)
+	subordinate = kzalloc(sizeof(*subordinate), GFP_KERNEL);
+	if (!subordinate)
 		return NULL;
 
-	v5slave->dma_dev = &dmac_pdev->dev;
-	chan = dma_request_channel(mask, v5_dma_filter, v5slave);
+	subordinate->dma_dev = &dmac_pdev->dev;
+	chan = dma_request_channel(mask, v5_dma_filter, subordinate);
 	if (!chan)
 		return NULL;
 
@@ -1277,7 +1276,7 @@ static int __init v5_dma_probe(struct platform_device *pdev)
 	}
 
 	if (dma_has_cap(DMA_SLAVE, v5dma->dma_common.cap_mask)) {
-		v5dma->dma_common.device_prep_slave_sg = v5_prep_slave_sg;
+		v5dma->dma_common.device_prep_slave_sg = v5_prep_device_sg;
 		v5dma->dma_common.device_config = v5_config;
 		v5dma->dma_common.device_terminate_all = v5_terminate_all;
 		v5dma->dma_common.src_addr_widths = V5_DMA_BUSWIDTHS;
@@ -1386,7 +1385,6 @@ static void __exit v5_dma_exit(void)
 	platform_driver_unregister(&v5_dma_driver);
 }
 module_exit(v5_dma_exit);
-MODULE_DESCRIPTION("Andestech ATCDMAC300 Controller driver");
+MODULE_DESCRIPTION("Andes DMA Controller driver");
 MODULE_AUTHOR("Rick Chen <rick@andestech.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:v5dmac");
