@@ -205,7 +205,7 @@
 			max-frequency = <0x5f5e100>;
 			fifo-depth = <0x10>;
 			dma-names = "rxtx";
-			dmas = <0x03 0x09>;
+			dmas = <0x05 0x09>;
 			dma-noncoherent;
 		};
 
