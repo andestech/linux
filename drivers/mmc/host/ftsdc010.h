@@ -1,16 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  Andestech FTSDC010 Device Driver for dmaengine
- *
- *  Copyright (C) 2021 Andestech
- *
- *  All Rights Reserved
+ * Header file for Andes MMC/SD driver
+ * Copyright (C) 2021 Andes Technology Corporation, All Rights Reserved.
  */
 #ifndef _FTSDC010_H_
 #define _FTSDC010_H_
 
 #include <linux/dmaengine.h>
-
 
 #define DELAY_FOR_DMA_READ
 
@@ -238,23 +234,17 @@ struct ftsdc_host {
 };
 
 struct ftsdc_mmc_config {
-	/* get_cd()/get_wp() may sleep */
-	int	(*get_cd)(int module);
-	int	(*get_ro)(int module);
+	/* get_cd() may sleep */
+	int		(*get_cd)(int module);
+	int		(*get_ro)(int module);
 
-	void	(*set_power)(int module, bool on);
+	void		(*set_power)(int module, bool on);
 
-	/* wires == 0 is equivalent to wires == 4 (4-bit parallel) */
-	u8	wires;
+	/* The variable "wires" indicates the bus width. */
+	u8		wires;
 
-	u32     max_freq;
-
-	/* any additional host capabilities: OR'd in to mmc->f_caps */
-	u32     caps;
-
-	/* Number of sg segments */
-	u8	nr_sg;
-	void			*dma_slave;
-	dma_filter_fn		dma_filter;
+	u32		max_freq;
+	u32		caps;
+	u8		nr_sg;
 };
 #endif

@@ -1,11 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/* drivers/mmc/host/ftsdc010.c
- *  Copyright (C) 2021 Andestech
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Andes MMC/SD driver
+ * Copyright (C) 2021 Andes Technology Corporation, All Rights Reserved.
  */
+
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
@@ -50,7 +48,7 @@ static const int dbgmap_err   = dbg_fail;
 static const int dbgmap_info  = dbg_info | dbg_conf;
 static const int dbgmap_debug = dbg_err | dbg_debug | dbg_info | dbg_conf;
 #define dbg(host, channels, args...)			\
-do {						\
+do {							\
 	if (dbgmap_err & channels)			\
 		dev_err(&host->pdev->dev, args);	\
 	else if (dbgmap_info & channels)		\
@@ -410,16 +408,11 @@ static int ftsdc_configure_dma(struct ftsdc_host *host)
 	host->dma.chan = dma_request_chan(&host->pdev->dev,
 		"rxtx");
 	if (PTR_ERR(host->dma.chan) == -ENODEV) {
-		struct ftsdc_mmc_config *pdata = host->pdev->dev.platform_data;
 		dma_cap_mask_t mask;
-
-		if (!pdata || !pdata->dma_filter)
-			return -ENODEV;
 
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
-		host->dma.chan = dma_request_channel(mask, pdata->dma_filter,
-			pdata->dma_slave);
+		host->dma.chan = dma_request_channel(mask, NULL, NULL);
 		if (!host->dma.chan)
 			host->dma.chan = ERR_PTR(-ENODEV);
 	}
@@ -458,7 +451,7 @@ static u32 ftsdc_prepare_data_dma(struct ftsdc_host *host,
 {
 	struct dma_chan			*chan;
 	struct dma_async_tx_descriptor	*desc;
-	enum dma_transfer_direction	slave_dirn;
+	enum dma_transfer_direction	trans_dir;
 	unsigned int			sglen;
 
 	chan = host->dma.chan;
@@ -466,11 +459,11 @@ static u32 ftsdc_prepare_data_dma(struct ftsdc_host *host,
 		return -ENODEV;
 
 	if (data->flags & MMC_DATA_READ) {
-		host->dma_conf.direction = slave_dirn = DMA_DEV_TO_MEM;
+		host->dma_conf.direction = trans_dir = DMA_DEV_TO_MEM;
 		host->dma_conf.src_addr = host->mem->start +
 					  SDC_DATA_WINDOW_REG;
 	} else {
-		host->dma_conf.direction = slave_dirn = DMA_MEM_TO_DEV;
+		host->dma_conf.direction = trans_dir = DMA_MEM_TO_DEV;
 		host->dma_conf.dst_addr = host->mem->start +
 					  SDC_DATA_WINDOW_REG;
 	}
@@ -478,7 +471,7 @@ static u32 ftsdc_prepare_data_dma(struct ftsdc_host *host,
 			data->sg_len, mmc_get_dma_dir(data));
 	dmaengine_slave_config(chan, &host->dma_conf);
 	desc = dmaengine_prep_slave_sg(chan,
-			data->sg, sglen, slave_dirn,
+			data->sg, sglen, trans_dir,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		goto unmap_exit;
@@ -1590,6 +1583,6 @@ static struct platform_driver ftsdc_driver = {
 };
 
 module_platform_driver_probe(ftsdc_driver, ftsdc_probe);
-MODULE_DESCRIPTION("Andestech Leopard MMC/SD Card Interface driver");
+MODULE_DESCRIPTION("Andes MMC/SD Card driver");
 MODULE_AUTHOR("Rick Chen <rick@andestech.com>");
 MODULE_LICENSE("GPL v2");
