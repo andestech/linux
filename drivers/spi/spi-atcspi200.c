@@ -273,7 +273,7 @@ static int atcspi200_spi_rx(struct atcspi200_spi *spi, u8 *din, unsigned int byt
 
 static int transfer_data(struct atcspi200_spi *spi, u8 *rx_buf, u8 *tx_buf, int num_blks)
 {
-	unsigned int event, rx_bytes;
+	unsigned int event;
 	u8 *dout = tx_buf;
 	u8 *din = rx_buf;
 	int timeout = spi->timeout;
