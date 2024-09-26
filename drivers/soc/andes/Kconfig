@@ -11,4 +11,12 @@ config ANDES_PPMA
 	  Andes programmable physical memory attributes (PPMA)
 	  can map memory as non-cacheable bufferable PMA region.
 
+config ANDES_ATCSMU
+	bool "Andes ATCSMU Support"
+	depends on RISCV && ARCH_ANDES
+	help
+	  Enable the driver for Andes System Management
+	  Unit (SMU) to support light/deep sleep and
+	  hotplug utilities.
+
 endmenu
