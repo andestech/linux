@@ -46,4 +46,8 @@ void sbi_andes_set_ppma(void *arg);
 void sbi_andes_free_ppma(void *addr);
 long sbi_andes_probe_ppma(void);
 
+/* PowerBrake */
+void sbi_andes_write_powerbrake(unsigned int val);
+long sbi_andes_read_powerbrake(void);
+
 #endif /* !__LINUX_SOC_ANDES_SBI_H */
