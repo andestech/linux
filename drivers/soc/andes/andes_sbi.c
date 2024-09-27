@@ -47,3 +47,11 @@ long sbi_andes_read_powerbrake(void)
 	return ret.value;
 }
 EXPORT_SYMBOL(sbi_andes_read_powerbrake);
+
+/* trigger module support debug application with gdbserver */
+void sbi_andes_set_trigger(unsigned int type, uintptr_t data, int enable)
+{
+	sbi_ecall(ANDES_SBI_EXT_ANDES, SBI_EXT_ANDES_TRIGGER_SET,
+		  type, data, enable, 0, 0, 0);
+}
+EXPORT_SYMBOL(sbi_andes_set_trigger);

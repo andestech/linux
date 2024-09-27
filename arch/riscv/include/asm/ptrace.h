@@ -67,6 +67,11 @@ struct pt_regs {
 #define REG_FMT "%08lx"
 #endif
 
+#ifdef CONFIG_ARCH_ANDES
+/* Andes use trigger module to implement the ptrace single step. */
+#define arch_has_single_step() (1)
+#endif
+
 #define user_mode(regs) (((regs)->status & SR_PP) == 0)
 
 #define MAX_REG_OFFSET offsetof(struct pt_regs, orig_a0)
