@@ -50,4 +50,13 @@ long sbi_andes_probe_ppma(void);
 void sbi_andes_write_powerbrake(unsigned int val);
 long sbi_andes_read_powerbrake(void);
 
+#ifdef CONFIG_ARCH_ANDES
+/* Trigger module support debug application with gdbserver */
+void sbi_andes_set_trigger(unsigned int type, uintptr_t data, int enable);
+#else
+static inline void sbi_andes_set_trigger(unsigned int type,
+					 uintptr_t data,
+					 int enable) {}
+#endif /* !CONFIG_ARCH_ANDES */
+
 #endif /* !__LINUX_SOC_ANDES_SBI_H */
