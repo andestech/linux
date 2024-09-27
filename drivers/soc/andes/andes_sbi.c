@@ -29,3 +29,21 @@ long sbi_andes_probe_ppma(void)
 			0, 0, 0, 0, 0, 0);
 	return ret.value;
 }
+
+/* PowerBrake */
+void sbi_andes_write_powerbrake(unsigned int val)
+{
+	sbi_ecall(ANDES_SBI_EXT_ANDES, SBI_EXT_ANDES_POWERBRAKE_WRITE,
+		  val, 0, 0, 0, 0, 0);
+}
+EXPORT_SYMBOL(sbi_andes_write_powerbrake);
+
+long sbi_andes_read_powerbrake(void)
+{
+	struct sbiret ret;
+
+	ret = sbi_ecall(ANDES_SBI_EXT_ANDES, SBI_EXT_ANDES_POWERBRAKE_READ,
+			0, 0, 0, 0, 0, 0);
+	return ret.value;
+}
+EXPORT_SYMBOL(sbi_andes_read_powerbrake);

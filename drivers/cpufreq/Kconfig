@@ -239,6 +239,10 @@ if PPC32 || PPC64
 source "drivers/cpufreq/Kconfig.powerpc"
 endif
 
+if RISCV
+source "drivers/cpufreq/Kconfig.riscv"
+endif
+
 if IA64
 config IA64_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"
