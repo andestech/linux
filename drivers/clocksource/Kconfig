@@ -642,6 +642,15 @@ config GXP_TIMER
 	  Provides a driver for the timer control found on HPE
 	  GXP SOCs. This is required for all GXP SOCs.
 
+config ATCPIT100_TIMER
+	bool "ATCPIT100 timer driver"
+	select CLKSRC_MMIO
+	depends on HAS_IOMEM
+	select TIMER_PROBE
+	select TIMER_OF
+	help
+	  This option enables support for Andes ATCPIT100 timer.
+
 config RISCV_TIMER
 	bool "Timer for the RISC-V platform" if COMPILE_TEST
 	depends on GENERIC_SCHED_CLOCK && RISCV && RISCV_SBI
