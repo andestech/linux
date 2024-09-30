@@ -17,6 +17,8 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes";
+			riscv,priv-major = <0x1>;
+			riscv,priv-minor = <0xa>;
 			mmu-type = "riscv,sv39";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -38,6 +40,8 @@
 			status = "okay";
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc_xandes";
+			riscv,priv-major = <0x1>;
+			riscv,priv-minor = <0xa>;
 			mmu-type = "riscv,sv39";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -53,7 +57,6 @@
 				phandle = <0x3>;
 			};
 		};
-
 	};
 
 	l2-cache@e0500000 {
@@ -152,13 +155,13 @@
 		};
 	};
 
-	slave_port_ilm:slave_port_ilm@a0000000 {
-		compatible = "andestech,slave_port_ilm";
+	local_mem_access_port_ilm:local_mem_access_port_ilm@a0000000 {
+		compatible = "andestech,local_mem_access_port_ilm";
 		reg = <0x0 0xa0000000 0x0 0x200000>;
 	};
 
-	slave_port_dlm:slave_port_dlm@a0200000 {
-		compatible = "andestech,slave_port_dlm";
+	local_mem_access_port_dlm:local_mem_access_port_dlm@a0200000 {
+		compatible = "andestech,local_mem_access_port_dlm";
 		reg = <0x0 0xa0200000 0x0 0x200000>;
 	};
 
@@ -166,7 +169,7 @@
 		compatible = "andestech,andes_remoteproc";
 		memory-region = <&vdev0buffer>, <&vdev0vring0>,
 				<&vdev0vring1>, <&andes_rsc_table>;
-		slave_ports = <&slave_port_ilm>, <&slave_port_dlm>;
+		local_mem_access_ports = <&local_mem_access_port_ilm>, <&local_mem_access_port_dlm>;
 		interrupts = <0x1e 0x4>;
 		interrupt-parent = <0x4>;
 	};
