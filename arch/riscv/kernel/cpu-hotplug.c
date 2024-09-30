@@ -15,6 +15,7 @@
 #include <asm/cpu_ops.h>
 #include <asm/numa.h>
 #include <asm/smp.h>
+#include <linux/soc/andes/smu.h>
 
 bool cpu_has_hotplug(unsigned int cpu)
 {
