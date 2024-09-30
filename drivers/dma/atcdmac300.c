@@ -315,10 +315,23 @@ static void v5_advance_work(struct v5_dma_chan *v5chan)
 				DMA_TRANS_NOERROR);
 		}
 
-		if (list_empty(&v5chan->active_list))
-			v5chan->chan_used = 0;
-		else
+		spin_lock(&v5chan->lock);
+		if (list_empty(&v5chan->active_list)) {
+			if (!list_empty(&v5chan->queue)) {
+				list_move(v5chan->queue.next,
+					  &v5chan->active_list);
+				spin_unlock(&v5chan->lock);
+				v5_dostart(v5chan,
+					   v5_first_active(v5chan));
+
+			} else {
+				v5chan->chan_used = 0;
+				spin_unlock(&v5chan->lock);
+			}
+		} else {
+			spin_unlock(&v5chan->lock);
 			v5_dostart(v5chan, v5_first_active(v5chan));
+		}
 	} else {
 		/* For cyclic mode */
 		struct dmaengine_result res;
