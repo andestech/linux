@@ -10,6 +10,7 @@
 void handle_page_fault(struct pt_regs *regs);
 void handle_break(struct pt_regs *regs);
 
+#ifdef CONFIG_ARCH_ANDES
 static __always_inline void arch_exit_to_user_mode_work(struct pt_regs *regs,
 							unsigned long ti_work)
 {
@@ -23,4 +24,5 @@ static __always_inline void arch_exit_to_user_mode_work(struct pt_regs *regs,
 	}
 }
 #define arch_exit_to_user_mode_work arch_exit_to_user_mode_work
+#endif
 #endif /* _ASM_RISCV_ENTRY_COMMON_H */
