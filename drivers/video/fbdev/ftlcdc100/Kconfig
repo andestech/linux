@@ -1,0 +1,74 @@
+config FB_FTLCDC100
+        tristate "Faraday FTLCDC100 driver"
+        depends on FB
+        select FB_CFB_FILLRECT
+        select FB_CFB_COPYAREA
+        select FB_CFB_IMAGEBLIT
+
+	choice
+		prompt "Default LCD Panel"
+		depends on FB_FTLCDC100
+		default PANEL_AUA036QN01
+		help
+		  This option select a default panel setting for the LCD controller
+
+		config PANEL_AUA036QN01
+			bool "AU 3.5 inch LCD Panel"
+
+		config PANEL_CH7013A
+			bool "Chrontel Digital PC to TV Encoder"
+			select I2C
+			select I2C_FARADAY
+			select CH7013A
+
+		config PANEL_AUA070VW04
+			bool "AU 7.0 inch LCD Panel"
+
+		config PANEL_LW500AC9601
+			bool "CHIMEI 5.0 inch LCD panel"
+
+	endchoice
+
+	# config FTLCD_OSD
+	# 	bool "Enable OSD (On Screen Display)"
+	# 	depends on FB_FTLCDC100
+	# 	default n
+	# 	---help---
+	# 	This enables access to the OSD (On Screen Display) for Faraday
+	# 	FTLCDC100 LCD control.  Disabling OSD will reduce the size of
+	# 	the kernel by approximately 6kb.
+	#
+
+	choice
+	        prompt "Default Color Mode"
+	        depends on FB_FTLCDC100
+	        default FFB_MODE_RGB
+	        help
+	          This option select default color mode
+
+		config FFB_MODE_RGB
+			bool "RGB Mode"
+		config FFB_MODE_YUV422
+			bool "YUV422 Mode"
+		config FFB_MODE_YUV420
+			bool "YUV420 Mode"
+	endchoice
+
+	choice
+	        prompt "Default BPP"
+	        depends on FB_FTLCDC100
+	        default FFB_MODE_16BPP
+	        help
+	          This option select default BPP (bits-per-pixel)
+
+		config FFB_MODE_8BPP
+			depends on FFB_MODE_RGB || FFB_MODE_YUV420
+			bool "8 bits-per-pixel"
+		config FFB_MODE_16BPP
+			depends on FFB_MODE_RGB || FFB_MODE_YUV422
+			bool "16 bits-per-pixel"
+		config FFB_MODE_24BPP
+			depends on FFB_MODE_RGB
+			bool "24 bits-per-pixel"
+	endchoice
+
