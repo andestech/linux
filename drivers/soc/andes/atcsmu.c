@@ -18,6 +18,7 @@ void __iomem *atcsmu_get_address(void)
 	struct atcsmu *smu = &atcsmu;
 	return smu->base;
 }
+EXPORT_SYMBOL(atcsmu_get_address);
 
 static int atcsmu_probe(struct platform_device *pdev)
 {

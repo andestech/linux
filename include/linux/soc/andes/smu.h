@@ -33,7 +33,6 @@ struct atcsmu {
 };
 
 extern unsigned long *andes_wake_event;
-
-void __iomem *atcsmu_get_address(void);
+extern void __iomem *atcsmu_get_address(void);
 
 #endif

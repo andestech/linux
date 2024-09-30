@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Sample demo application that showcases inter processor
+ * communication from linux userspace to a remote software
+ * context. The application generates random matrices and
+ * transmits them to the remote context over rpmsg. The
+ * remote application performs multiplication of matrices
+ * and transmits the results back to this application.
+ */
+
+#include "rpmsg_demo_ctrl.h"
+
+#define MATRIX_SIZE 6
+
+struct _matrix {
+	unsigned int size;
+	unsigned int elements[MATRIX_SIZE][MATRIX_SIZE];
+};
+
+static int charfd = -1, fd = -1;
+static struct _matrix i_matrix[2];
+static struct _matrix r_matrix;
+
+static void matrix_print(struct _matrix *m)
+{
+	int i, j;
+
+	/* Generate two random matrices */
+	printf("\r\nMaster : Linux : Printing results \r\n");
+
+	for (i = 0; i < m->size; ++i) {
+		for (j = 0; j < m->size; ++j)
+			printf(" %3d ", (unsigned int)m->elements[i][j]);
+		printf("\r\n");
+	}
+}
+
+static void generate_matrices(int num_matrices,
+				unsigned int matrix_size, void *p_data)
+{
+	int	i, j, k;
+	struct _matrix *p_matrix = p_data;
+	time_t	t;
+	unsigned long value;
+
+	srand((unsigned int) time(&t));
+
+	for (i = 0; i < num_matrices; i++) {
+		/* Initialize workload */
+		p_matrix[i].size = matrix_size;
+
+		printf("\r\nMaster : Linux : Input matrix %d \r\n", i);
+		for (j = 0; j < matrix_size; j++) {
+			printf("\r\n");
+			for (k = 0; k < matrix_size; k++) {
+
+				value = (rand() & 0x7F);
+				value = value % 10;
+				p_matrix[i].elements[j][k] = value;
+				printf(" %3d ",
+				(unsigned int)p_matrix[i].elements[j][k]);
+			}
+		}
+		printf("\r\n");
+	}
+}
+
+/*
+ * Probably an overkill to memset(.., sizeof(struct _matrix)) as
+ * the firmware looks for SHUTDOWN_MSG in the first 32 bits.
+ */
+void send_shutdown(int fd)
+{
+	memset(i_matrix, SHUTDOWN_MSG, sizeof(struct _matrix));
+	if (write(fd, i_matrix, sizeof(i_matrix)) < 0)
+		perror("write SHUTDOWN_MSG\n");
+}
+
+void matrix_mult(int ntimes)
+{
+	int i;
+
+	for (i = 0; i < ntimes; i++) {
+		generate_matrices(2, 6, i_matrix);
+
+		printf("%d: write rpmsg: %lu bytes\n", i, sizeof(i_matrix));
+		ssize_t rc = write(fd, i_matrix, sizeof(i_matrix));
+
+		if (rc < 0)
+			fprintf(stderr, "write,errno = %ld, %d\n", rc, errno);
+
+		puts("read results");
+		do {
+			rc = read(fd, &r_matrix, sizeof(r_matrix));
+		} while (rc < (int)sizeof(r_matrix));
+		matrix_print(&r_matrix);
+		printf("End of Matrix multiplication demo Round %d\n", i);
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	int ntimes = 1;
+	int opt, ret;
+	char *rpmsg_dev = RPMSG_DEV;
+	char rpmsg_char_name[16];
+	char fpath[256];
+	struct rpmsg_endpoint_info eptinfo;
+	char ept_dev_name[16];
+	char ept_dev_path[32];
+
+	while ((opt = getopt(argc, argv, "d:n:")) != -1) {
+		switch (opt) {
+		case 'd':
+			rpmsg_dev = optarg;
+			break;
+		case 'n':
+			ntimes = atoi(optarg);
+			break;
+		default:
+			printf("getopt return unsupported option: -%c\n", opt);
+			break;
+		}
+	}
+
+	printf("\r\nMatrix multiplication demo start\r\n");
+	printf("\r\nOpen rpmsg dev %s!\r\n", rpmsg_dev);
+	sprintf(fpath, "%s/devices/%s", RPMSG_BUS_SYS, rpmsg_dev);
+	if (access(fpath, F_OK)) {
+		fprintf(stderr, "Not able to access rpmsg device %s, %s\n",
+			fpath, strerror(errno));
+		return -EINVAL;
+	}
+
+	charfd = get_rpmsg_chrdev_fd(rpmsg_dev, rpmsg_char_name);
+	if (charfd < 0)
+		return charfd;
+	strcpy(eptinfo.name, "rpmsg-openamp-demo-channel");
+	eptinfo.src = 0;
+	eptinfo.dst = 0x400;
+	ret = rpmsg_create_ept(charfd, &eptinfo);
+	if (ret) {
+		fprintf(stderr, "rpmsg_create_ept %s\n", strerror(errno));
+		return -EINVAL;
+	}
+	if (!get_rpmsg_ept_dev_name(rpmsg_char_name, eptinfo.name,
+				    ept_dev_name))
+		return -EINVAL;
+	sprintf(ept_dev_path, "/dev/%s", ept_dev_name);
+
+	printf("open %s\n", ept_dev_path);
+	fd = open(ept_dev_path, O_RDWR | O_NONBLOCK);
+	if (fd < 0) {
+		perror(ept_dev_path);
+		close(charfd);
+		return -1;
+	}
+
+	printf("%s:%d matrix_mult(%d)\n", __func__, __LINE__, ntimes);
+	matrix_mult(ntimes);
+
+	/* send_shutdown(fd); */
+
+	close(fd);
+	if (charfd >= 0)
+		close(charfd);
+
+	printf("\r\nQuitting application .. \r\n");
+	printf("Matrix multiply application end \r\n");
+
+	return 0;
+}
