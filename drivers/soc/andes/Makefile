@@ -7,3 +7,4 @@ obj-y	+= dcause.o
 obj-y	+= trigger_module.o
 obj-$(CONFIG_ANDES_PPMA)	+= ppma.o
 obj-$(CONFIG_ANDES_ATCSMU)	+= atcsmu.o pm.o
+obj-$(CONFIG_ANDES_HVM)		+= hvm.o
