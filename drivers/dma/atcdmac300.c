@@ -489,7 +489,7 @@ static inline unsigned int xfer_width(struct v5_dma *v5dma,
 {
 	unsigned int width;
 
-	if (!((src | dst  | len) & 15))
+	if (!((src | dst | len) & 15))
 		width = 4;
 	else if (!((src | dst | len) & 7))
 		width = 3;
