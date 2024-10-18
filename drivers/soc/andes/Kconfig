@@ -19,4 +19,10 @@ config ANDES_ATCSMU
 	  Unit (SMU) to support light/deep sleep and
 	  hotplug utilities.
 
+config ANDES_HVM
+	tristate "Andes HVM Support"
+	depends on RISCV && ARCH_ANDES
+	help
+	  Andes High-bandwidth Vector Memory (HVM) support.
+
 endmenu
