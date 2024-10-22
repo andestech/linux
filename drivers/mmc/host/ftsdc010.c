@@ -1451,6 +1451,7 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 	mmc->ops = &ftsdc_ops;
 	mmc->ocr_avail	= MMC_VDD_32_33 | MMC_VDD_33_34;
 
+	mmc->caps2 |= MMC_CAP2_NO_SDIO;
 	if (con & SDC_WIDE_4_BUS_SUPPORT)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 	else if (con & SDC_WIDE_8_BUS_SUPPORT)
