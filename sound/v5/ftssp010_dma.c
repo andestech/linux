@@ -25,8 +25,9 @@
 #include <linux/of_platform.h>
 #include "ftssp010_dma.h"
 
-#define DMAD_DRB_POOL_SIZE    32
-#define DMAD_AHB_MAX_CHANNELS DMAC_MAX_CHANNELS
+#define FTSSP_DMA_CH		"dma0chan7"
+#define DMAD_DRB_POOL_SIZE	32
+#define DMAD_AHB_MAX_CHANNELS	DMAC_MAX_CHANNELS
 
 enum DMAD_DRQ_FLAGS {
 	DMAD_DRQ_STATE_READY = 0x00000001,	/* channel allocation status */
@@ -2235,6 +2236,13 @@ int dmad_drain_requests(dmad_chreq *ch_req, u8 shutdown)
 	return dmad_channel_drain(ch_req->controller, ch_req->drq, shutdown);
 }
 
+static bool dmad_chan_filter(struct dma_chan *chan, void *param)
+{
+	char *chan_name = (char *)param;
+
+	return strcmp(dma_chan_name(chan), chan_name) == 0;
+}
+
 int dmad_init(void)
 {
 	struct device_node *dmac = NULL;
@@ -2245,7 +2253,7 @@ int dmad_init(void)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_CYCLIC, mask);
 	dma_cap_set(DMA_SLAVE, mask);
-	chan = dma_request_channel(mask, NULL, NULL);
+	chan = dma_request_channel(mask, dmad_chan_filter, FTSSP_DMA_CH);
 	if (chan == NULL) {
 		pr_err("Failed to allocate a DMA channel for SSP.\n");
 		return -EINVAL;
