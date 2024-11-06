@@ -346,6 +346,7 @@ static void atcspi200_set_transfer_ctl(struct atcspi200_spi *spi,
 				       const struct spi_mem_op *op)
 {
 	int tc = 0;
+
 	if (op->cmd.nbytes)
 		tc |= CMD_EN(op->cmd.nbytes);
 	if (op->addr.nbytes) {
@@ -396,9 +397,6 @@ static int atcspi200_spi_setting(struct atcspi200_spi *spi,
 	if (op->addr.nbytes)
 		atcspi200_spi_write(spi, SPI_ADDR, op->addr.val);
 
-	/* Write cmd to start SPI. */
-	atcspi200_spi_write(spi, SPI_CMD, op->cmd.opcode);
-
 	return 0;
 }
 
@@ -406,6 +404,12 @@ static int atcspi200_nor_adjust_op_size(struct spi_mem *mem,
 					struct spi_mem_op *op)
 {
 	op->data.nbytes = min(op->data.nbytes, MAX_TRANSFER_LEN);
+
+	/*
+	 * DMA needs to be aligned to 4 byte
+	 */
+	if (op->data.nbytes < MAX_TRANSFER_LEN)
+		op->data.nbytes &= ~0x3;
 
 	return 0;
 }
@@ -421,8 +425,10 @@ static int atcspi200_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *o
 	struct spi_device *atcspi200_spi = mem->spi;
 	struct atcspi200_spi *spi = spi_controller_get_devdata(atcspi200_spi->controller);
 	unsigned int format_val;
+	int ctrl;
 
 	mutex_lock(&spi->mutex_lock);
+	ctrl = atcspi200_spi_read(spi, SPI_CTRL);
 	/* Check spi status. */
 	atcspi200_polling_spiactive(spi);
 	format_val = atcspi200_spi_read(spi, SPI_TRANSFMT);
@@ -447,10 +453,27 @@ static int atcspi200_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *o
 
 	/* set transfer length and data information. */
 	ret = atcspi200_spi_setting(spi, op);
+	if (!op->data.nbytes || op->data.nbytes < 0x100)
+		atcspi200_spi_write(spi, SPI_CMD, op->cmd.opcode);
 	/* Transfer data */
-	if (op->data.nbytes)
-		transfer_data(spi, spi->din, spi->dout, op->data.nbytes);
-	atcspi200_spi_stop(spi);
+	if (op->data.nbytes) {
+		if (spi->dma_ops->dma_transfer && op->data.nbytes >= 0x100) {
+			ret = spi->dma_ops->dma_setup(spi, op);
+			if (ret)
+				return ret;
+			ctrl = ctrl | ATCSPI200_CTRL_TXDMAEN | ATCSPI200_CTRL_RXDMAEN;
+			atcspi200_spi_write(spi, SPI_CTRL, ctrl);
+			atcspi200_spi_write(spi, SPI_CMD, op->cmd.opcode);
+			ret = spi->dma_ops->dma_transfer(spi, op);
+			if (ret)
+				printk("DMA transfer not finished\n");
+		} else {
+			transfer_data(spi, spi->din, spi->dout, op->data.nbytes);
+		}
+	}
+	ret = atcspi200_spi_stop(spi);
+	if (ret)
+		printk("timeout transfer not finished\n");
 	mutex_unlock(&spi->mutex_lock);
 
 	return ret;
@@ -480,11 +503,13 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 	}
 
 	spi = spi_controller_get_devdata(controller);
+	spi->controller = controller;
 	spin_lock_init(&spi->lock);
 	platform_set_drvdata(pdev, controller);
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	spi->dma_addr = (dma_addr_t)(res->start + SPI_DATA);
 	spi->regs = devm_ioremap_resource(&pdev->dev, res);
 
 	if (IS_ERR(spi->regs)) {
@@ -572,6 +597,13 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 	atcspi200_spi_setup(spi, subnode);
 	spi->mtiming = atcspi200_spi_read(spi, SPI_TIMING);
 
+	atcspi200_spi_dma_ops_setup(spi);
+	if (spi->dma_ops && spi->dma_ops->dma_init) {
+		ret = spi->dma_ops->dma_init(&pdev->dev, spi);
+		if (ret)
+			dev_warn(&pdev->dev, "DMA initialization failed, using PIO transfer\n");
+	}
+
 	ret = devm_request_irq(&pdev->dev, irq, andes_spi_irq, 0,
 			       "andes-spi", spi);
 
@@ -584,6 +616,8 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 	ret = devm_spi_register_controller(&pdev->dev, controller);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_controller failed\n");
+		if (spi->dma_ops && spi->dma_ops->dma_exit)
+			spi->dma_ops->dma_exit(spi);
 		goto put_controller;
 	}
 	dev_info(&pdev->dev, "Andes SPI atcspi200 driver.\n");

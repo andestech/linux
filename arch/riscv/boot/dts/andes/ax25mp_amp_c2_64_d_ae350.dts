@@ -299,6 +299,8 @@
 		clocks = <0x5>;
 		interrupts = <0x4 0x4>;
 		interrupt-parent = <0x4>;
+		dmas = <0x07 0>, <0x07 1>;
+		dma-names = "spi_tx", "spi_rx";
 
 		flash@0 {
 			compatible = "mx25u1635e", "jedec,spi-nor";

@@ -6,6 +6,10 @@
 #ifndef __LINUX_SOC_ANDES_ATCSPI_H
 #define __LINUX_SOC_ANDES_ATCSPI_H
 
+#include <linux/spinlock.h>
+#include <linux/spi/spi-mem.h>
+#include <linux/types.h>
+
 #define SPI_XFER_BEGIN		(1 << 0)
 #define SPI_XFER_END		(1 << 1)
 #define SPI_XFER_DATA		(1 << 2)
@@ -47,6 +51,8 @@
 #define CMD_EN(x)				((x == 0) ? 0 : (1 << 30))
 
 /* SPI Control Register */
+#define ATCSPI200_CTRL_TXDMAEN			(1 << 4)
+#define ATCSPI200_CTRL_RXDMAEN			(1 << 3)
 #define ATCSPI200_CTRL_TXFIFORST_MASK		(1 << 2)
 #define ATCSPI200_CTRL_RXFIFORST_MASK		(1 << 1)
 #define ATCSPI200_CTRL_SPIRST_MASK		(1 << 0)
@@ -98,26 +104,44 @@ struct ts_buf {
 
 static bool ts_enable;
 
-struct atcspi200_spi {
-	void __iomem	*regs;
-	struct clk	*clk;
-	size_t		trans_len;
-	size_t		data_len;
-	size_t		cmd_len;
-	u32		clk_rate;
-	u8		cmd_buf[16];
-	u8		*din;
-	u8		*dout;
-	struct ts_buf	*tx_buf;
-	struct ts_buf	*rx_buf;
-	unsigned int	addr;
-	unsigned int	max_transfer_length;
-	unsigned int	freq;
-	unsigned int	mode;
-	unsigned int	mtiming;
-	int		timeout;
-	spinlock_t	lock;
-	struct mutex	mutex_lock;
+struct atcspi200_spi;
+struct atcspi200_dma_ops {
+	int (*dma_init)(struct device *dev, struct atcspi200_spi *spi);
+	void (*dma_exit)(struct atcspi200_spi *spi);
+	int (*dma_setup)(struct atcspi200_spi *spi, struct spi_mem_op *op);
+	int (*dma_transfer)(struct atcspi200_spi *spi, struct spi_mem_op *op);
+	void (*dma_stop)(struct atcspi200_spi *spi);
 };
 
+struct atcspi200_spi {
+	struct spi_controller	*controller;
+	void __iomem		*regs;
+	struct clk		*clk;
+	size_t			trans_len;
+	size_t			data_len;
+	size_t			cmd_len;
+	u32			clk_rate;
+	u8			cmd_buf[16];
+	u32			*din;
+	u32			*dout;
+	struct ts_buf		*tx_buf;
+	struct ts_buf		*rx_buf;
+	unsigned int		addr;
+	unsigned int		max_transfer_length;
+	unsigned int		freq;
+	unsigned int		mode;
+	unsigned int		mtiming;
+	int			timeout;
+	spinlock_t		lock;
+	struct mutex		mutex_lock;
+
+	/* DMA info */
+	struct dma_chan		*txchan;
+	struct dma_chan		*rxchan;
+	dma_addr_t		dma_addr;
+	const struct atcspi200_dma_ops	*dma_ops;
+	struct completion	dma_completion;
+};
+
+void atcspi200_spi_dma_ops_setup(struct atcspi200_spi *spi);
 #endif /* !__LINUX_SOC_ANDES_ATCSPI_H */

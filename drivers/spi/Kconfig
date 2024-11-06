@@ -1209,6 +1209,14 @@ config SPI_ATCSPI200
         depends on HAS_IOMEM
         help
           This exposes the SPI controller IP from Andes.
+
+config SPI_ATCSPI200_DMA
+	tristate "Enable DMA mode"
+	depends on SPI_ATCSPI200
+	help
+	  This option enables Direct Memory Access (DMA) mode
+	  for the ATCSPI200 driver, allowing more efficient data transfers
+	  by shifting the workload from the CPU to the DMA controller.
 #
 # Add new SPI master controllers in alphabetical order above this line
 #

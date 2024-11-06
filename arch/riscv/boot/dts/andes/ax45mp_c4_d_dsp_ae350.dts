@@ -315,6 +315,8 @@
 			#size-cells = <0x00>;
 			num-cs = <0x01>;
 			clocks = <0x08>;
+			dmas = <0x07 0>, <0x07 1>;
+			dma-names = "spi_tx", "spi_rx";
 
 			flash@0 {
 				compatible = "jedec,spi-nor";
