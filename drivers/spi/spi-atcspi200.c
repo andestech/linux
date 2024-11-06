@@ -62,7 +62,7 @@ static int spi_nor_setup(struct atcspi200_spi *spi)
 	}
 
 	spi->cmd_len = 0;
-	format_val = (DATA_LENGTH(8) | ADDR_LENGTH(3));
+	format_val = (DATA_LENGTH(8) | ADDR_LENGTH(3) | DATA_MERGE_EN(1));
 	format_val |= ATCSPI200_TRANSFMT_CPHA_MASK;
 	format_val |= ATCSPI200_TRANSFMT_CPOL_MASK;
 	atcspi200_spi_write(spi, SPI_TRANSFMT, format_val);
@@ -146,28 +146,31 @@ static int atcspi200_spi_start(struct atcspi200_spi *spi, struct spi_transfer *t
 	return 0;
 }
 
-static void atcspi200_spi_tx(struct atcspi200_spi *spi, const u8 *dout)
+static void atcspi200_spi_tx(struct atcspi200_spi *spi, const u32 *dout)
 {
 	atcspi200_spi_write(spi, SPI_DATA, *dout);
 }
 
-static int atcspi200_spi_rx(struct atcspi200_spi *spi, u8 *din, unsigned int bytes)
+static int atcspi200_spi_rx(struct atcspi200_spi *spi, u32 *din, unsigned int bytes)
 {
 	u32 tmp_data = atcspi200_spi_read(spi, SPI_DATA);
 	*din = tmp_data;
 	return bytes;
 }
 
-static int transfer_data(struct atcspi200_spi *spi, u8 *rx_buf, u8 *tx_buf, int num_blks)
+static int transfer_data(struct atcspi200_spi *spi, u32 *rx_buf, u32 *tx_buf, int num_blks)
 {
-	unsigned int event;
-	u8 *dout = tx_buf;
-	u8 *din = rx_buf;
+	unsigned int event, rx_bytes;
+	u32 *dout = tx_buf;
+	u32 *din = rx_buf;
 	int timeout = spi->timeout;
 	int tx_count = 0, rx_count = 0;
-	int tc, tx_not_full, rx_num, i, transfer_bytes;
+	int format_val;
+	int tc, tx_not_full, rx_num, i, transfer_bytes, num_byte;
 
 	tc = atcspi200_spi_read(spi, SPI_TRANSCTRL);
+	format_val = atcspi200_spi_read(spi, SPI_TRANSFMT);
+	num_byte = (format_val & ATCSPI200_TRANSFMT_DATA_MERGE_MASK) ? 4 : 1;
 	if (tx_buf)
 		tx_count = ((tc >> ATCSPI200_TRANSCTRL_WRTRANCNT_OFFSET) &
 			    ATCSPI200_TRANCNT_MASK) + 1;
@@ -182,7 +185,7 @@ static int transfer_data(struct atcspi200_spi *spi, u8 *rx_buf, u8 *tx_buf, int 
 			for (i = 0; i < transfer_bytes; i++) {
 				atcspi200_spi_tx(spi, dout);
 				dout += 1;
-				tx_count--;
+				tx_count = tx_count - num_byte;
 			}
 		}
 
@@ -197,8 +200,8 @@ static int transfer_data(struct atcspi200_spi *spi, u8 *rx_buf, u8 *tx_buf, int 
 			transfer_bytes = min(CHUNK_SIZE, num_blks);
 			for (i = 0; i < transfer_bytes; i++) {
 				atcspi200_spi_rx(spi, din, transfer_bytes);
-				din = (unsigned char *)din + 1;
-				rx_count--;
+				din = din + 1;
+				rx_count = rx_count - num_byte;
 			}
 		}
 		num_blks = max(tx_count, rx_count);
@@ -261,8 +264,8 @@ static int atcspi200_spi_transfer(struct spi_device *atcspi200_spi,
 			return 0;
 
 		spi->data_len = data_len;
-		spi->dout = (u8 *)t->tx_buf;
-		spi->din = (u8 *)t->rx_buf;
+		spi->dout = (u32 *)t->tx_buf;
+		spi->din = (u32 *)t->rx_buf;
 		break;
 	case SPI_XFER_BEGIN | SPI_XFER_END:
 		spi->data_len = 0;
@@ -438,7 +441,7 @@ static int atcspi200_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *o
 			spi->din = op->data.buf.in;
 			spi->dout = 0;
 		} else {
-			spi->dout = (char *)op->data.buf.out;
+			spi->dout = op->data.buf.out;
 			spi->din = 0;
 		}
 	}
