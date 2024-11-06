@@ -199,6 +199,9 @@
 			#size-cells = <0>;
 			num-cs = <1>;
 			clocks = <&spiclk>;
+			dmas = <&dma0 0>, <&dma0 1>;
+			dma-names = "spi_tx", "spi_rx";
+
 			flash@0 {
 				compatible = "jedec,spi-nor";
 				reg = <0x00000000>;
