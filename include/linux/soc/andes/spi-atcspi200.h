@@ -16,6 +16,12 @@
 #define SPI_XFER_ONCE		(SPI_XFER_BEGIN | SPI_XFER_END)
 #define SPI_XFER_SHIFT		0
 
+#ifdef CONFIG_SPI_ATCSPI200_DATA_MERGE
+#define	DATA_MERGE_EN		1
+#else
+#define	DATA_MERGE_EN		0
+#endif
+
 #define SPI_NAME		"atcspi200"
 #define SPI_MAX_HZ		50000000
 #define MAX_TRANSFER_LEN	512
@@ -24,7 +30,8 @@
 #define NSPI_MAX_CS_NUM		1
 #define DATA_LENGTH(x)		((x - 1) << 8)
 #define ADDR_LENGTH(x)		((x - 1) << 16)
-#define DATA_MERGE_EN(x)	(x << 7)
+#define DATA_MERGE		(DATA_MERGE_EN << 7)
+#define DMA_TRANSFER_MIN	0x100
 
 /* SPI Transfer Control Register */
 #define ATCSPI200_TRANSFMT_OFFSET		24
@@ -125,8 +132,13 @@ struct atcspi200_spi {
 	size_t			cmd_len;
 	u32			clk_rate;
 	u8			cmd_buf[16];
+#ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
 	u32			*din;
 	u32			*dout;
+#else
+	u8			*din;
+	u8			*dout;
+#endif
 	struct ts_buf		*tx_buf;
 	struct ts_buf		*rx_buf;
 	unsigned int		addr;

@@ -1210,13 +1210,48 @@ config SPI_ATCSPI200
         help
           This exposes the SPI controller IP from Andes.
 
+menu "ATCSPI200 feature support"
+
+config SPI_ATCSPI200_DATA_MERGE
+	tristate "Enable ATCSPI200 data merge mode"
+	depends on SPI_ATCSPI200
+	default y
+	help
+	  This option enables data merge mode for the ATCSPI200 driver.
+	  When enabled, each write to the data register transmits four bytes,
+	  and each read retrieves four bytes as a single word.
+
 config SPI_ATCSPI200_DMA
-	tristate "Enable DMA mode"
+	tristate "Enable ATCSPI200 DMA mode"
 	depends on SPI_ATCSPI200
 	help
 	  This option enables Direct Memory Access (DMA) mode
 	  for the ATCSPI200 driver, allowing more efficient data transfers
 	  by shifting the workload from the CPU to the DMA controller.
+
+menu "ATCSPI200 DMA Options"
+
+config ATCSPI200_DMA_RX
+	bool "Enable ATCSPI200 DMA RX"
+	depends on SPI_ATCSPI200_DMA
+	default y
+	help
+	  This option enables DMA RX mode for the ATCSPI200 driver.
+	  Data is transferred from the FIFO using DMA,
+	  bypassing the CPU and reducing the CPU utilization.
+
+config ATCSPI200_DMA_TX
+	bool "Enable ATCSPI200 DMA TX"
+	depends on SPI_ATCSPI200_DMA
+	default y
+	help
+	  This option enables DMA TX mode for the ATCSPI200 driver.
+	  Data transfers to the FIFO will be handled by DMA,
+	  which reduce the CPU utilization.
+
+endmenu
+endmenu
+
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
