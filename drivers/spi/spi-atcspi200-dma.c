@@ -182,6 +182,6 @@ static const struct atcspi200_dma_ops atcspi200_dma_ops = {
 void atcspi200_spi_dma_ops_setup(struct atcspi200_spi *spi)
 {
 	if (IS_ENABLED(CONFIG_SPI_ATCSPI200_DMA) &&
-	    (IS_ENABLED(CONFIG_DMA_RX_OPTION) || IS_ENABLED(CONFIG_DMA_TX_OPTION)))
+	    (IS_ENABLED(CONFIG_ATCSPI200_DMA_RX) || IS_ENABLED(CONFIG_ATCSPI200_DMA_TX)))
 		spi->dma_ops = &atcspi200_dma_ops;
 }
