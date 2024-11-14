@@ -22,12 +22,12 @@
 #include <linux/minmax.h>
 #include <linux/soc/andes/spi-atcspi200.h>
 
-static void atcspi200_spi_write(struct atcspi200_spi *spi, int offset, u32 value)
+static inline void atcspi200_spi_write(struct atcspi200_spi *spi, int offset, u32 value)
 {
 	iowrite32(value, spi->regs + offset);
 }
 
-static u32 atcspi200_spi_read(struct atcspi200_spi *spi, int offset)
+static inline u32 atcspi200_spi_read(struct atcspi200_spi *spi, int offset)
 {
 	return ioread32(spi->regs + offset);
 }
@@ -146,17 +146,16 @@ static int atcspi200_spi_start(struct atcspi200_spi *spi, struct spi_transfer *t
 	return 0;
 }
 
-static void atcspi200_spi_tx(struct atcspi200_spi *spi, const void *dout)
+static inline void atcspi200_spi_tx(struct atcspi200_spi *spi, const void *dout)
 {
 #ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
-	u32 tmp_data = *(u32 *)dout;
+	atcspi200_spi_write(spi, SPI_DATA, *(u32 *)dout);
 #else
-	u8 tmp_data = *(u8 *)dout;
+	atcspi200_spi_write(spi, SPI_DATA, *(u8 *)dout);
 #endif
-	atcspi200_spi_write(spi, SPI_DATA, tmp_data);
 }
 
-static int atcspi200_spi_rx(struct atcspi200_spi *spi, void *din, unsigned int bytes)
+static inline int atcspi200_spi_rx(struct atcspi200_spi *spi, void *din, unsigned int bytes)
 {
 #ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
 	u32 tmp_data;
@@ -181,12 +180,11 @@ static int transfer_data(struct atcspi200_spi *spi, void *rx_buf, void *tx_buf, 
 	u8 *dout = (u8 *)tx_buf;
 	u8 *din = (u8 *)rx_buf;
 #endif
-
 	unsigned int event, rx_bytes;
 	int timeout = spi->timeout;
 	int tx_count = 0, rx_count = 0;
 	int format_val;
-	int tc, tx_not_full, rx_num, i, transfer_bytes, num_byte;
+	int tc, tx_not_full, rx_num, transfer_bytes, num_byte;
 
 	tc = atcspi200_spi_read(spi, SPI_TRANSCTRL);
 	format_val = atcspi200_spi_read(spi, SPI_TRANSFMT);
@@ -197,16 +195,14 @@ static int transfer_data(struct atcspi200_spi *spi, void *rx_buf, void *tx_buf, 
 	if (rx_buf)
 		rx_count = ((tc >> ATCSPI200_TRANSCTRL_RDTRANCNT_OFFSET) &
 			    ATCSPI200_TRANCNT_MASK) + 1;
+
 	while (num_blks && timeout--) {
 		event = atcspi200_spi_read(spi, SPI_STATUS);
 		tx_not_full = !(event & ATCSPI200_STATUS_TXFULL_OFFSET);
 		if (tx_not_full && tx_buf && tx_count) {
-			transfer_bytes = min(CHUNK_SIZE, num_blks);
-			for (i = 0; i < transfer_bytes; i++) {
-				atcspi200_spi_tx(spi, dout);
-				dout += 1;
-				tx_count = tx_count - num_byte;
-			}
+			atcspi200_spi_tx(spi, dout);
+			dout += 1;
+			tx_count = tx_count - num_byte;
 		}
 
 		/*
@@ -214,15 +210,13 @@ static int transfer_data(struct atcspi200_spi *spi, void *rx_buf, void *tx_buf, 
 		 * after tx_buf transmission is completed.
 		 * We needs to read spi_status again.
 		 */
+
 		event = atcspi200_spi_read(spi, SPI_STATUS);
 		rx_num = event & ATCSPI200_STATUS_RXNUM_LOWER_MASK;
 		if (rx_num && rx_buf && rx_count) {
-			transfer_bytes = min(CHUNK_SIZE, num_blks);
-			for (i = 0; i < transfer_bytes; i++) {
-				atcspi200_spi_rx(spi, din, transfer_bytes);
-				din = din + 1;
-				rx_count = rx_count - num_byte;
-			}
+			atcspi200_spi_rx(spi, din, transfer_bytes);
+			din = din + 1;
+			rx_count = rx_count - num_byte;
 		}
 		num_blks = max(tx_count, rx_count);
 	}
@@ -503,7 +497,9 @@ static int atcspi200_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *o
 			if (ret)
 				printk("DMA transfer not finished\n");
 		} else {
-			transfer_data(spi, spi->din, spi->dout, op->data.nbytes);
+			ret = transfer_data(spi, spi->din, spi->dout, op->data.nbytes);
+			if (ret)
+				printk("Transmission incomplete\n");
 		}
 	}
 	ret = atcspi200_spi_stop(spi);
