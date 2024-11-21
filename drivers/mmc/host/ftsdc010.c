@@ -162,9 +162,32 @@ static void dbg_dumpregs(struct ftsdc_host *host, char *prefix)
 
 #endif /* CONFIG_MMC_DEBUG */
 
-static inline bool ftsdc_dmaexist(struct ftsdc_host *host)
+/**
+ * ftsdc_use_dma_by_cmd - Check if the current command can use DMA mode
+ * @host: The FTSDC host containing the current command and DMA channel status
+ *
+ * Returns true if the command can use DMA mode, false otherwise.
+ */
+static bool ftsdc_use_dma_by_cmd(struct ftsdc_host *host)
 {
-	return (host->dma.chan != NULL);
+	struct mmc_command *cmd = host->cmd_is_stop ? host->mrq->stop : host->mrq->cmd;
+
+	/*
+	 * Determine if DMA mode should be used for the current command.
+	 * DMA mode is preferred for block transfers to optimize performance,
+	 * but it may not be used in certain situations:
+	 * 1. Only block transfer commands (CMD17, CMD18, CMD24, CMD25)
+	 *    will utilize DMA to minimize overhead for smaller commands.
+	 * 2. PIO mode is used for CMD6 to avoid potential hangup issues
+	 *    during system resume on specific FPGA implementations.
+	 */
+	if (unlikely(!host->dma.chan))
+		return false;
+
+	return (cmd->opcode == MMC_READ_SINGLE_BLOCK ||
+		cmd->opcode == MMC_READ_MULTIPLE_BLOCK ||
+		cmd->opcode == MMC_WRITE_BLOCK ||
+		cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK);
 }
 
 static inline u32 enable_imask(struct ftsdc_host *host, u32 imask)
@@ -724,13 +747,14 @@ static int ftsdc_setup_data(struct ftsdc_host *host, struct mmc_data *data)
 
 	/* enable data transfer which will be pended until cmd is send */
 	dcon |= SDC_DATA_CTRL_REG_DATA_EN;
-	if (ftsdc_dmaexist(host) &&
+	if (ftsdc_use_dma_by_cmd(host) &&
 			((data->blksz * data->blocks) & 0xf) == 0) {
 		newmask &= ~SDC_INT_MASK_REG_FIFO_OVERRUN;
 		dcon |= SDC_DATA_CTRL_REG_DMA_EN;
 		dcon |= SDC_DMA_TYPE_4;
 		host->dodma = true;
-
+	} else {
+		host->dodma = false;
 	}
 	REG_WRITE(dcon, SDC_DATA_CTRL_REG);
 	/* add to IMASK register */
@@ -1175,7 +1199,7 @@ static int ftsdc_state_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "IRQ = %d\n", host->irq);
 	seq_printf(seq, "IRQ enabled = %d\n", host->irq_enabled);
 	seq_printf(seq, "complete what = %d\n", host->complete_what);
-	seq_printf(seq, "dma support = %d\n", ftsdc_dmaexist(host));
+	seq_printf(seq, "dma support = %d\n", host->dma.chan != NULL);
 	seq_printf(seq, "use dma = %d\n", host->dodma);
 
 	return 0;
