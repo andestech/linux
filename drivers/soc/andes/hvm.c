@@ -275,14 +275,6 @@ static int dma_dev_check_dma_buf(dma_addr_t pa, unsigned int size)
 				 mem_list) {
 		if (pa >= mem_info->phy_addr &&
 		    (pa + size) <= (mem_info->phy_addr + mem_info->size)) {
-			/* If the transfer address is within the HVM range,
-			 * both the physical address and the transfer size
-			 * must be multiples of 4.
-			 */
-			if ((size & 0x3) || (pa & 0x3)) {
-				dev_err(drv_info->dev, "For HVM, the physical address and the transfer size must be multiples of 4.\n");
-				return -EINVAL;
-			}
 			return 0;
 		}
 	}
