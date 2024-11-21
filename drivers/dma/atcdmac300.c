@@ -488,19 +488,11 @@ static inline unsigned int xfer_width(struct v5_dma *v5dma,
 {
 	unsigned int width;
 
-	/*
-	 * To prevent HVM DMA transfer from getting stuck,
-	 * limit the transfer width to word transfer.
-	 */
-# if 0
 	if (!((src | dst | len) & 15))
 		width = 4;
 	else if (!((src | dst | len) & 7))
 		width = 3;
 	else if (!((src | dst | len) & 3))
-#else
-	if (!((src | dst | len) & 3))
-#endif
 		width = 2;
 	else if (!((src | dst | len) & 1))
 		width = 1;
