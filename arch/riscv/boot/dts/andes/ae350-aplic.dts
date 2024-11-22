@@ -1,0 +1,236 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "andestech,ae350";
+	model = "andestech,ax65";
+	serial-number = "7066729052";
+	aliases {
+		uart0 = &serial0;
+		spi0 = &spi;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,38400n8 debug loglevel=8 earlycon=sbi initcall_debug";
+		stdout-path = "uart0:38400n8";
+	};
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <60000000>;
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			reg = <0>;
+			status = "okay";
+			compatible = "riscv";
+			riscv,isa = "rv64imafdc_zba_zbb_zbc_zbkb_zbkc_zbkx_zbs_zicbom_zkn_zknd_zkne_zknh_zks_zksed_zksh_zkt_smaia_smepmp_smstateen_ssaia_sscofpmf_svinval_svnapot_svpbmt_xandes";
+			riscv,priv-major = <1>;
+			riscv,priv-minor = <10>;
+			riscv,cbom-block-size = <64>;
+			mmu-type = "riscv,sv48";
+			clock-frequency = <60000000>;
+			i-cache-size = <0x10000>;
+			i-cache-sets = <256>;
+			i-cache-line-size = <64>;
+			i-cache-block-size = <64>;
+			d-cache-size = <0x10000>;
+			d-cache-sets = <256>;
+			d-cache-line-size = <64>;
+			d-cache-block-size = <64>;
+			next-level-cache = <&L2>;
+			CPU0_intc: interrupt-controller {
+				#address-cells = <2>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+			};
+		};
+	};
+	L2: l2-cache@e0500000 {
+		compatible = "cache";
+		cache-level = <2>;
+		cache-size = <0x200000>;
+		reg = <0x00000000 0xe0500000 0x00000000 0x00010000>;
+		andes,inst-prefetch = <3>;
+		andes,data-prefetch = <3>;
+		// The value format is <XRAMOCTL XRAMICTL>
+		andes,tag-ram-ctl = <0 0>;
+		andes,data-ram-ctl = <0 0>;
+	};
+	memory@0 {
+		reg = <0x00000000 0x00000000 0x00000000 0x80000000>;
+		device_type = "memory";
+	};
+	soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "andestech,riscv-ae350-soc", "simple-bus";
+		ranges;
+
+		//APLIC domains forwarding interrupts as MSIs
+		aplic_m: interrupt-controller@e4400000 {
+			#address-cells = <2>;
+			compatible = "riscv,aplic";
+			msi-parent = <&imsic_mlevel>;
+			reg = <0x0 0xe4400000 0x0 0x8000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			riscv,num-sources = <31>;
+			riscv,children = <&aplic_s>;
+			riscv,delegation = <&aplic_s 1 31>;
+		};
+		aplic_s: interrupt-controller@e4408000 {
+			#address-cells = <2>;
+			compatible =  "riscv,aplic";
+			msi-parent = <&imsic_slevel>;
+			reg = <0x0 0xe4408000 0x0 0x8000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			riscv,num-sources = <31>;
+		};
+
+		// (Machine-level IMSIC files):
+		imsic_mlevel: interrupt-controller@c4000000 {
+			#address-cells = <2>;
+			compatible = "riscv,imsics";
+			interrupts-extended = <&CPU0_intc 11>;
+			reg = <0x0 0xc4000000 0x0 0x100000>;
+			interrupt-controller;
+			#interrupt-cells = <0>;
+			msi-controller;
+			#msi-cells = <0>;
+			riscv,num-ids = <63>;
+		};
+
+		//(Supervisor-level IMSIC files)
+		imsic_slevel: interrupt-controller@c4100000 {
+			#address-cells = <2>;
+			compatible = "riscv,imsics";
+			interrupts-extended = <&CPU0_intc 9>;
+			reg = <0x0 0xc4100000 0x0 0x100000>; /* Group IMSICs */
+			interrupt-controller;
+			#interrupt-cells = <0>;
+			msi-controller;
+			#msi-cells = <0>;
+			riscv,num-ids = <63>;
+			riscv,guest-index-bits = <2>; /* GEILEN=3 */
+		};
+		plmt0: plmt0@e6000000 {
+			compatible = "riscv,plmt0";
+			reg = <0x00000000 0xe6000000 0x00000000 0x00100000>;
+			interrupts-extended = < &CPU0_intc 7>;
+		};
+		spiclk: virt_100mhz {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+		};
+		timer0: timer@f0400000 {
+			compatible = "andestech,atcpit100";
+			reg = <0x00000000 0xf0400000 0x00000000 0x00001000>;
+			interrupts = <3 4>;
+			interrupt-parent = <&aplic_s>;
+			clock-frequency = <60000000>;
+		};
+		pwm: pwm@f0400000 {
+			compatible = "andestech,atcpit100-pwm";
+			reg = <0x00000000 0xf0400000 0x00000000 0x00001000>;
+			interrupts = <3 4>;
+			interrupt-parent = <&aplic_s>;
+			clock-frequency = <60000000>;
+			pwm-cells = <2>;
+		};
+		wdt: wdt@f0500000 {
+			compatible = "andestech,atcwdt200";
+			reg = <0x00000000 0xf0500000 0x00000000 0x00001000>;
+			interrupts = <3 4>;
+			interrupt-parent = <&aplic_s>;
+			clock-frequency = <60000000>;
+		};
+		serial0: serial@f0300000 {
+			compatible = "andestech,uart16550", "ns16550a";
+			reg = <0x00000000 0xf0300000 0x00000000 0x00001000>;
+			interrupts = <9 4>;
+			interrupt-parent = <&aplic_s>;
+			clock-frequency = <19660800>;
+			current-speed = <38400>;
+			reg-shift = <2>;
+			reg-offset = <32>;
+			reg-io-width = <4>;
+			no-loopback-test = <1>;
+		};
+		rtc0: rtc@f0600000 {
+			compatible = "andestech,atcrtc100";
+			reg = <0x00000000 0xf0600000 0x00000000 0x00001000>;
+			interrupts = <1 4 2 4>;
+			interrupt-parent = <&aplic_s>;
+			wakeup-source;
+		};
+		gpio: gpio@f0700000 {
+			compatible = "andestech,atcgpio100";
+			reg = <0x00000000 0xf0700000 0x00000000 0x00001000>;
+			interrupts = <7 4>;
+			interrupt-parent = <&aplic_s>;
+			wakeup-source;
+		};
+		mac0: mac@e0100000 {
+			compatible = "andestech,atmac100";
+			reg = <0x00000000 0xe0100000 0x00000000 0x00001000>;
+			interrupts = <19 4>;
+			interrupt-parent = <&aplic_s>;
+			dma-coherent;
+		};
+		smu: smu@f0100000 {
+			compatible = "andestech,atcsmu";
+			reg = <0x00000000 0xf0100000 0x00000000 0x00001000>;
+		};
+		mmc0: mmc@f0e00000 {
+			compatible = "andestech,atfsdc010g";
+			reg = <0x00000000 0xf0e00000 0x00000000 0x00001000>;
+			interrupts = <18 4>;
+			interrupt-parent = <&aplic_s>;
+			clock-freq-min-max = <400000 100000000>;
+			max-frequency = <100000000>;
+			fifo-depth = <16>;
+			dmas = <&dma0 9>;
+			dma-names = "rxtx";
+			dma-coherent;
+		};
+		dma0: dma@f0c00000 {
+			compatible = "andestech,atcdmac300g";
+			reg = <0x00000000 0xf0c00000 0x00000000 0x00001000>;
+			interrupts = <10 4>;
+			interrupt-parent = <&aplic_s>;
+			dma-channels = <8>;
+			#dma-cells = <1>;
+			dma-coherent;
+		};
+		pmu: pmu {
+			compatible = "riscv,andes-pmu";
+			device_type = "pmu";
+		};
+		spi: spi@f0b00000 {
+			compatible = "andestech,atcspi200";
+			reg = <0x00000000 0xf0b00000 0x00000000 0x00001000>;
+			interrupts = <4 4>;
+			interrupt-parent = <&aplic_s>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			num-cs = <1>;
+			clocks = <&spiclk>;
+			flash@0 {
+				compatible = "jedec,spi-nor";
+				reg = <0x00000000>;
+				spi-max-frequency = <50000000>;
+				spi-cpol;
+				spi-cpha;
+			};
+		};
+		es100: es100@f0900000 {
+			compatible = "andestech,es100";
+			reg = <0x00000000 0xf0900000 0x00000000 0x00001000>;
+		};
+	};
+};
+
