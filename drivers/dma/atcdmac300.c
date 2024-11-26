@@ -175,6 +175,12 @@ static void v5_desc_put_nolock(struct v5_dma_chan *v5chan, struct v5_desc *desc)
 
 static void v5_desc_put(struct v5_dma_chan *v5chan, struct v5_desc *desc)
 {
+	if (desc == NULL) {
+		dev_err(chan2dev(&v5chan->chan_common),
+			"A NULL descriptor was found.\n");
+		return;
+	}
+
 	spin_lock_bh(&v5chan->lock);
 	v5_desc_put_nolock(v5chan, desc);
 	spin_unlock_bh(&v5chan->lock);
@@ -528,8 +534,10 @@ v5_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 	struct v5_dma	*v5dma = to_v5_dma(chan->device);
 
 	desc = v5_desc_get(v5chan);
-	if (!desc)
+	if (!desc) {
+		dev_err(chan2dev(chan), "Insufficient DMA descriptors available\n");
 		goto err_desc_get;
+	}
 
 	if (v5dma->io_regs) {
 		dst |= IOCP_MASK;
@@ -559,7 +567,6 @@ v5_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 	return &desc->txd;
 
 err_desc_get:
-	v5_desc_put(v5chan, desc);
 	return NULL;
 }
 
@@ -584,11 +591,10 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct v5_desc		*prev = NULL;
 	u32			ctrl;
 	dma_addr_t		reg;
-	unsigned int		reg_width;
-	unsigned int		src_reg_width;
 	unsigned int		i;
 	struct scatterlist	*sg;
 	size_t			total_len = 0;
+	unsigned int		addr_width;
 
 	dev_vdbg(chan2dev(chan), "sg_len:%d d:%s f:0x%lx\n",
 		 sg_len,
@@ -598,46 +604,55 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		dev_dbg(chan2dev(chan), "v5_prep_device_sg: sg length is zero!\n");
 		return NULL;
 	}
-	ctrl = v5_channel_readl(v5chan, CH_CTL_OFF);
-	ctrl &= ~(SRCWIDTH_MASK|SRCADDRCTRL_MASK|DSTWIDTH_MASK|
-		DSTADDRCTRL_MASK|SRC_HS|DST_HS|SRCREQSEL_MASK|DSTREQSEL_MASK);
-	ctrl =   SBSIZE(sconfig->src_maxburst);
-	src_reg_width = convert_buswidth(sconfig->src_addr_width);
-	ctrl |=  SRC_WIDTH(src_reg_width);
-	reg_width = convert_buswidth(sconfig->dst_addr_width);
-	ctrl |=  DST_WIDTH(reg_width);
 
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
-		ctrl |=  DST_HS;
-		ctrl |=  (SRC_ADDR_MODE_INCR | DST_ADDR_MODE_FIXED);
-		ctrl |=  ((v5chan->req_num << DSTREQSEL) & DSTREQSEL_MASK);
 		reg = sconfig->dst_addr;
+		addr_width = convert_buswidth(sconfig->dst_addr_width);
+		ctrl = SBSIZE(sconfig->dst_maxburst);
+		ctrl |= DST_HS;
+		ctrl |= (SRC_ADDR_MODE_INCR | DST_ADDR_MODE_FIXED);
+		ctrl |= ((v5chan->req_num << DSTREQSEL) & DSTREQSEL_MASK);
+		ctrl |= SRC_WIDTH(addr_width) | DST_WIDTH(addr_width);
+
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct v5_desc	*desc;
 			u32		len;
 			dma_addr_t		mem;
 
-			desc = v5_desc_get(v5chan);
-			if (!desc)
-				goto err_desc_get;
-
 			mem = sg_dma_address(sg);
-
 			if (v5dma->io_regs)
 				mem |= IOCP_MASK;
 
 			len = sg_dma_len(sg);
 			if (unlikely(!len)) {
-				dev_dbg(chan2dev(chan),
+				dev_err(chan2dev(chan),
 					"sg(%d) data length is zero\n", i);
 				goto err;
 			}
-			if (unlikely(mem & 3 || len & 3)) {
-				dev_dbg(chan2dev(chan),
-				"sg(%d) data length is not aligned\n", i);
-				goto err_desc_get;
+
+			/*
+			 * Since the memory address varies for each
+			 * scatter-gather operation, it is necessary to
+			 * validate each address. If the transfer width
+			 * of a scatter-gather operation does not match
+			 * the addr_width specified in dma_slave_config,
+			 * an error should be returned to prevent a DMA
+			 * failure caused by incorrect parameters.
+			 */
+			if (unlikely(addr_width > xfer_width(v5dma, mem, reg, len))) {
+				dev_err(chan2dev(chan),
+					"Transfer width mismatch with addr_width in dma_slave_config. sg:%d mem:0x%pa len:0x%x dir:%d\n",
+					i,
+					&mem,
+					len,
+					direction);
+				goto err;
 			}
+
+			desc = v5_desc_get(v5chan);
+			if (!desc)
+				goto err_desc_get;
 			desc->lli.srcAddrl = lower_32_bits(mem);
 			desc->lli.dstAddrl = lower_32_bits(reg);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
@@ -645,7 +660,7 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lli.dstAddrh = upper_32_bits(reg);
 #endif
 			desc->lli.ctrl = ctrl;
-			desc->lli.tranSize = (len >> src_reg_width);
+			desc->lli.tranSize = (len >> addr_width);
 			v5_desc_chain(&first, &prev, desc);
 			total_len += len;
 			desc->num_sg = sg_len;
@@ -653,34 +668,42 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		break;
 
 	case DMA_DEV_TO_MEM:
-		ctrl |=  SRC_HS;
-		ctrl |=  (SRC_ADDR_MODE_FIXED | DST_ADDR_MODE_INCR);
-		ctrl |=  ((v5chan->req_num << SRCREQSEL) & SRCREQSEL_MASK);
 		reg = sconfig->src_addr;
+		addr_width = convert_buswidth(sconfig->src_addr_width);
+		ctrl = SBSIZE(sconfig->src_maxburst);
+		ctrl |= SRC_HS;
+		ctrl |= (SRC_ADDR_MODE_FIXED | DST_ADDR_MODE_INCR);
+		ctrl |= ((v5chan->req_num << SRCREQSEL) & SRCREQSEL_MASK);
+		ctrl |= SRC_WIDTH(addr_width) | DST_WIDTH(addr_width);
+
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct v5_desc	*desc;
 			u32		len;
 			phys_addr_t	mem;
 
-			desc = v5_desc_get(v5chan);
-			if (!desc)
-				goto err_desc_get;
 			mem = sg_dma_address(sg);
-
 			if (v5dma->io_regs)
 				mem |= IOCP_MASK;
 
 			len = sg_dma_len(sg);
 			if (unlikely(!len)) {
-				dev_dbg(chan2dev(chan),
+				dev_err(chan2dev(chan),
 					"sg(%d) data length is zero\n", i);
 				goto err;
 			}
-			if (unlikely(mem & 3 || len & 3)) {
-				dev_dbg(chan2dev(chan),
-				"sg(%d) data length is not aligned\n", i);
+			if (addr_width > xfer_width(v5dma, mem, reg, len)) {
+				dev_err(chan2dev(chan),
+					"Transfer width mismatch with addr_width in dma_slave_config. sg:%d mem:0x%pa len:0x%x dir:%d\n",
+					i,
+					&mem,
+					len,
+					direction);
 				goto err;
 			}
+
+			desc = v5_desc_get(v5chan);
+			if (!desc)
+				goto err_desc_get;
 			desc->lli.srcAddrl = lower_32_bits(reg);
 			desc->lli.dstAddrl = lower_32_bits(mem);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
@@ -688,14 +711,16 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lli.dstAddrh = upper_32_bits(mem);
 #endif
 			desc->lli.ctrl = ctrl;
-			desc->lli.tranSize = (len >> src_reg_width);
+			desc->lli.tranSize = (len >> addr_width);
 			v5_desc_chain(&first, &prev, desc);
 			total_len += len;
 			desc->num_sg = sg_len;
 		}
 		break;
 	default:
-		return NULL;
+		dev_err(chan2dev(chan), "Invalid transfer direction %d\n",
+			direction);
+		goto err;
 	}
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
@@ -708,9 +733,10 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	return &first->txd;
 
 err_desc_get:
-	dev_err(chan2dev(chan), "not enough descriptors available\n");
+	dev_err(chan2dev(chan), "Insufficient DMA descriptors available\n");
 err:
-	v5_desc_put(v5chan, first);
+	if (first != NULL)
+		v5_desc_put(v5chan, first);
 	return NULL;
 }
 
@@ -726,41 +752,26 @@ v5_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	struct v5_desc *prev = NULL;
 	u32 ctrl;
 	dma_addr_t reg;
-	unsigned int reg_width;
 	unsigned int i;
 	size_t total_len = 0;
 	struct v5_dma *v5dma = to_v5_dma(chan->device);
 	int period_index;
-	u32 src_maxburst;
-
-	src_maxburst = DMAC_CSR_SIZE_1;
-	convert_burst(&src_maxburst);
-	sconfig->src_maxburst = src_maxburst;
-
-	ctrl = v5_channel_readl(v5chan, CH_CTL_OFF);
-	ctrl &= ~(SRCWIDTH_MASK | SRCADDRCTRL_MASK | DSTWIDTH_MASK |
-		  DSTADDRCTRL_MASK | SRC_HS | DST_HS | SRCREQSEL_MASK |
-		  DSTREQSEL_MASK | INTABTMASK | INTERRMASK | INTTCMASK);
-	ctrl =   SBSIZE(sconfig->src_maxburst);
-	reg_width = WIDTH_4;
-	ctrl |=  SRC_WIDTH(reg_width);
-	ctrl |=  DST_WIDTH(convert_buswidth(sconfig->dst_addr_width));
+	unsigned int		addr_width;
 
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
+		reg = sconfig->dst_addr;
+		addr_width = convert_buswidth(sconfig->dst_addr_width);
+		ctrl = SBSIZE(sconfig->dst_maxburst);
 		ctrl |= DST_HS;
 		ctrl |= (SRC_ADDR_MODE_INCR | DST_ADDR_MODE_FIXED);
 		ctrl |= ((v5chan->req_num << DSTREQSEL) & DSTREQSEL_MASK);
-		reg = sconfig->dst_addr;
+		ctrl |= SRC_WIDTH(addr_width) | DST_WIDTH(addr_width);
 
 		for (period_index = 0; period_index < buf_len; period_index += period_len) {
 			struct v5_desc *desc;
 			u32 len;
 			dma_addr_t mem;
-
-			desc = v5_desc_get(v5chan);
-			if (!desc)
-				goto err_desc_get;
 
 			mem = buf_addr + period_index;
 
@@ -770,20 +781,35 @@ v5_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 				len = buf_len - period_index;
 
 			if (unlikely(!len)) {
-				dev_dbg(chan2dev(chan),
+				dev_err(chan2dev(chan),
 					"sg(%d) data length is zero\n", i);
 				goto err;
 			}
 
-			if (unlikely(mem & 3 || len & 3)) {
-				dev_dbg(chan2dev(chan),
-					"sg(%d) data length is not aligned\n", i);
-				goto err_desc_get;
+			/*
+			 * Since the memory address varies for each cyclic
+			 * buffer, it is necessary to validate each address.
+			 * If the transfer width supported by a cyclic buffer
+			 * does not match the addr_width specified in
+			 * dma_slave_config, an error should be returned to
+			 * prevent a DMA failure caused by incorrect parameters.
+			 */
+			if (addr_width > xfer_width(v5dma, mem, reg, len)) {
+				dev_err(chan2dev(chan),
+					"Transfer width mismatch with addr_width in dma_slave_config. sg:%d mem:0x%pa len:0x%x dir:%d\n",
+					i,
+					&mem,
+					len,
+					direction);
+				goto err;
 			}
 
 			if (v5dma->io_regs)
 				mem |= IOCP_MASK;
 
+			desc = v5_desc_get(v5chan);
+			if (!desc)
+				goto err_desc_get;
 			desc->lli.srcAddrl = lower_32_bits(mem);
 			desc->lli.dstAddrl = lower_32_bits(reg);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
@@ -791,7 +817,7 @@ v5_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 			desc->lli.dstAddrh = upper_32_bits(reg);
 #endif
 			desc->lli.ctrl = ctrl;
-			desc->lli.tranSize = (len >> reg_width);
+			desc->lli.tranSize = (len >> addr_width);
 
 			desc->cyclic = true;
 			desc->num_sg = (buf_len + period_len - 1) / period_len;
@@ -803,21 +829,19 @@ v5_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		break;
 
 	case DMA_DEV_TO_MEM:
+		reg = sconfig->src_addr;
+		addr_width = convert_buswidth(sconfig->src_addr_width);
+		ctrl = SBSIZE(sconfig->src_maxburst);
 		ctrl |= SRC_HS;
 		ctrl |= (SRC_ADDR_MODE_FIXED | DST_ADDR_MODE_INCR);
 		ctrl |= ((v5chan->req_num << SRCREQSEL) & SRCREQSEL_MASK);
-		reg = sconfig->src_addr;
-
+		ctrl |= SRC_WIDTH(addr_width) | DST_WIDTH(addr_width);
 
 		for (period_index = 0; period_index < buf_len;
 		     period_index += period_len) {
 			struct v5_desc *desc;
 			u32 len;
 			phys_addr_t mem;
-
-			desc = v5_desc_get(v5chan);
-			if (!desc)
-				goto err_desc_get;
 
 			mem = buf_addr + period_index;
 
@@ -830,17 +854,23 @@ v5_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 				len = buf_len - period_index;
 
 			if (unlikely(!len)) {
-				dev_dbg(chan2dev(chan),
+				dev_err(chan2dev(chan),
 					"sg(%d) data length is zero\n", i);
 				goto err;
 			}
-
-			if (unlikely(mem & 3 || len & 3)) {
-				dev_dbg(chan2dev(chan),
-					"sg(%d) data length is not aligned\n", i);
+			if (addr_width > xfer_width(v5dma, mem, reg, len)) {
+				dev_err(chan2dev(chan),
+					"Transfer width mismatch with addr_width in dma_slave_config. sg:%d mem:0x%pa len:0x%x dir:%d\n",
+					i,
+					&mem,
+					len,
+					direction);
 				goto err;
 			}
 
+			desc = v5_desc_get(v5chan);
+			if (!desc)
+				goto err_desc_get;
 			desc->lli.srcAddrl = lower_32_bits(reg);
 			desc->lli.dstAddrl = lower_32_bits(mem);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
@@ -848,7 +878,7 @@ v5_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 			desc->lli.dstAddrh = upper_32_bits(mem);
 #endif
 			desc->lli.ctrl = ctrl;
-			desc->lli.tranSize = (len >> reg_width);
+			desc->lli.tranSize = (len >> addr_width);
 
 			desc->cyclic = true;
 			desc->num_sg = (buf_len + period_len - 1) / period_len;
@@ -859,7 +889,9 @@ v5_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		}
 		break;
 	default:
-		return NULL;
+		dev_err(chan2dev(chan), "Invalid transfer direction %d\n",
+			direction);
+		goto err;
 	}
 
 	first->txd.flags = flags;
@@ -867,10 +899,10 @@ v5_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	return &first->txd;
 
 err_desc_get:
-	dev_err(chan2dev(chan), "Not enough descriptors available\n");
+	dev_err(chan2dev(chan), "Insufficient DMA descriptors available\n");
 err:
-	v5_desc_put(v5chan, first);
-
+	if (first != NULL)
+		v5_desc_put(v5chan, first);
 
 	return NULL;
 }
@@ -884,6 +916,19 @@ static int v5_config(struct dma_chan *chan,
 	/* Check if this chan is configured for device transfers */
 	if (!chan->private)
 		return -EINVAL;
+
+	/*
+	 * The src_addr_width and dst_addr_width are recommended to be set to
+	 * the same value to avoid a failed DMA operation when performing DMA
+	 * between a device and memory. If they differ, an error is returned.
+	 */
+	if (unlikely(sconfig->src_addr_width != sconfig->dst_addr_width)) {
+		dev_err(chan2dev(chan),
+			"The src_addr_width and dst_addr_width should be set to same value. src:%d dst:%d\n",
+			sconfig->src_addr_width,
+			sconfig->dst_addr_width);
+		return -EINVAL;
+	}
 
 	memcpy(&v5chan->dma_sconfig, sconfig, sizeof(*sconfig));
 	convert_burst(&v5chan->dma_sconfig.src_maxburst);
