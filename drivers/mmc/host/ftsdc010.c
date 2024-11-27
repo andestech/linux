@@ -460,8 +460,11 @@ static void ftsdc_dma_complete(void *arg,
 	struct ftsdc_host *host = arg;
 	struct mmc_data *data = host->mrq->data;
 
-	host->dma_finish = true;
 	data->error = result->result;
+	if (data->error == DMA_TRANS_NOERROR)
+		host->dma_finish = true;
+	else
+		host->dma_finish = false;
 	host->buf_active = XFER_NONE;
 	host->complete_what = COMPLETION_FINALIZE;
 	ftsdc_dma_cleanup(host);
@@ -469,46 +472,50 @@ static void ftsdc_dma_complete(void *arg,
 	tasklet_schedule(&host->pio_tasklet);
 }
 
-static u32 ftsdc_prepare_data_dma(struct ftsdc_host *host,
+static int ftsdc_prepare_data_dma(struct ftsdc_host *host,
 	struct mmc_data *data)
 {
 	struct dma_chan			*chan;
 	struct dma_async_tx_descriptor	*desc;
+	struct dmaengine_result		dma_result;
 	enum dma_transfer_direction	trans_dir;
 	unsigned int			sglen;
 
 	chan = host->dma.chan;
-	if (!chan)
-		return -ENODEV;
-
 	if (data->flags & MMC_DATA_READ) {
 		host->dma_conf.direction = trans_dir = DMA_DEV_TO_MEM;
-		host->dma_conf.src_addr = host->mem->start +
-					  SDC_DATA_WINDOW_REG;
+		host->dma_conf.src_addr = host->mem->start
+					  + SDC_DATA_WINDOW_REG;
 	} else {
 		host->dma_conf.direction = trans_dir = DMA_MEM_TO_DEV;
-		host->dma_conf.dst_addr = host->mem->start +
-					  SDC_DATA_WINDOW_REG;
+		host->dma_conf.dst_addr = host->mem->start
+					  + SDC_DATA_WINDOW_REG;
 	}
 	sglen = dma_map_sg(chan->device->dev, data->sg,
-			data->sg_len, mmc_get_dma_dir(data));
-	dmaengine_slave_config(chan, &host->dma_conf);
-	desc = dmaengine_prep_slave_sg(chan,
-			data->sg, sglen, trans_dir,
-			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+			   data->sg_len, mmc_get_dma_dir(data));
+	if (sglen == 0)
+		goto dma_err;
+
+	if (dmaengine_slave_config(chan, &host->dma_conf) != 0)
+		goto dma_err;
+
+	desc = dmaengine_prep_slave_sg(chan, data->sg, sglen, trans_dir,
+				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
-		goto unmap_exit;
+		goto dma_err;
+
 	host->dma.data_desc = desc;
 	desc->callback_result = ftsdc_dma_complete;
 	desc->callback_param = host;
 
 	return 0;
 
-unmap_exit:
-	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len,
-		     mmc_get_dma_dir(data));
+dma_err:
+	host->mrq->cmd->error = -EINVAL;
+	dma_result.result = DMA_TRANS_ABORTED;
+	ftsdc_dma_complete(host, &dma_result);
 
-	return -ENOMEM;
+	return host->mrq->cmd->error;
 }
 
 
@@ -533,8 +540,8 @@ static void ftsdc_work(struct work_struct *work)
 	ftsdc_enable_irq(host, false);
 	if (host->dodma) {
 		get_data_buffer(host);
-		ftsdc_prepare_data_dma(host, data);
-		ftsdc_submit_data_dma(host);
+		if (ftsdc_prepare_data_dma(host, data) == 0)
+			ftsdc_submit_data_dma(host);
 	} else {
 		if (host->buf_active == XFER_WRITE)
 			do_pio_write(host);
