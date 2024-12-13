@@ -23,7 +23,7 @@
 
 #include <asm/errata_list.h>
 #include <asm/sbi.h>
-#include <asm/hwcap.h>
+#include <asm/cpufeature.h>
 
 #define ALT_SBI_PMU_OVERFLOW(__ovl)					\
 asm volatile(ALTERNATIVE_2(						\
