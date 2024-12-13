@@ -145,20 +145,46 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 	for_each_cpu(cpu, cpus) {
 		struct riscv_isainfo *isainfo = &hart_isa[cpu];
 
-		if (riscv_isa_extension_available(isainfo->isa, ZBA))
-			pair->value |= RISCV_HWPROBE_EXT_ZBA;
-		else
-			missing |= RISCV_HWPROBE_EXT_ZBA;
+#define EXT_KEY(ext)									\
+	do {										\
+		if (__riscv_isa_extension_available(isainfo->isa, RISCV_ISA_EXT_##ext))	\
+			pair->value |= RISCV_HWPROBE_EXT_##ext;				\
+		else									\
+			missing |= RISCV_HWPROBE_EXT_##ext;				\
+	} while (false)
 
-		if (riscv_isa_extension_available(isainfo->isa, ZBB))
-			pair->value |= RISCV_HWPROBE_EXT_ZBB;
-		else
-			missing |= RISCV_HWPROBE_EXT_ZBB;
+		/*
+		 * Only use EXT_KEY() for extensions which can be exposed to userspace,
+		 * regardless of the kernel's configuration, as no other checks, besides
+		 * presence in the hart_isa bitmap, are made.
+		 */
+		EXT_KEY(ZBA);
+		EXT_KEY(ZBB);
+		EXT_KEY(ZBS);
 
-		if (riscv_isa_extension_available(isainfo->isa, ZBS))
-			pair->value |= RISCV_HWPROBE_EXT_ZBS;
-		else
-			missing |= RISCV_HWPROBE_EXT_ZBS;
+		EXT_KEY(ZBKB);
+		EXT_KEY(ZBKC);
+		EXT_KEY(ZBKX);
+		EXT_KEY(ZKND);
+		EXT_KEY(ZKNE);
+		EXT_KEY(ZKNH);
+		EXT_KEY(ZKSED);
+		EXT_KEY(ZKSH);
+		EXT_KEY(ZKT);
+
+		if (has_vector()) {
+			EXT_KEY(ZVBB);
+			EXT_KEY(ZVBC);
+			EXT_KEY(ZVKB);
+			EXT_KEY(ZVKG);
+			EXT_KEY(ZVKNED);
+			EXT_KEY(ZVKNHA);
+			EXT_KEY(ZVKNHB);
+			EXT_KEY(ZVKSED);
+			EXT_KEY(ZVKSH);
+			EXT_KEY(ZVKT);
+		}
+#undef EXT_KEY
 	}
 
 	/* Now turn off reporting features if any CPU is missing it. */
