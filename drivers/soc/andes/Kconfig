@@ -25,4 +25,10 @@ config ANDES_HVM
 	help
 	  Andes High-bandwidth Vector Memory (HVM) support.
 
+config ANDES_HW_TRACE
+	tristate "Andes Hardware Trace Support"
+	depends on RISCV && ARCH_ANDES
+	help
+	  Andes Hardware Trace support.
+
 endmenu

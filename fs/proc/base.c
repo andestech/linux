@@ -102,6 +102,7 @@
 #include <trace/events/oom.h>
 #include "internal.h"
 #include "fd.h"
+#include <linux/soc/andes/trigger_module.h>
 
 #include "../../lib/kstrtox.h"
 
@@ -3297,6 +3298,74 @@ static int proc_stack_depth(struct seq_file *m, struct pid_namespace *ns,
 }
 #endif /* CONFIG_STACKLEAK_METRICS */
 
+#ifdef CONFIG_ANDES_HW_TRACE
+static ssize_t proc_hw_trace_read(struct file *file, char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct task_struct *task = get_proc_task(file_inode(file));
+	char buffer[PROC_NUMBUF];
+	unsigned long hw_trace = 0;
+	size_t len;
+
+	if (!task)
+		return -ESRCH;
+
+	hw_trace = task->andes_hw_trace;
+
+	len = snprintf(buffer, sizeof(buffer), "hw_trace=%ld\n", hw_trace);
+	return simple_read_from_buffer(buf, count, ppos, buffer, len);
+}
+
+static ssize_t proc_hw_trace_write(struct file *file, const char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	char buffer[PROC_NUMBUF];
+	int hw_trace;
+	struct task_struct *task, *thread_task;
+	int err;
+
+	memset(buffer, 0, sizeof(buffer));
+	if (count > sizeof(buffer) - 1)
+		count = sizeof(buffer) - 1;
+	if (copy_from_user(buffer, buf, count)) {
+		err = -EFAULT;
+		goto out;
+	}
+
+	err = kstrtoint(strstrip(buffer), 0, &hw_trace);
+	if (err) {
+		err = -EFAULT;
+		goto out;
+	}
+
+	task = get_proc_task(file_inode(file));
+	if (!task) {
+		err = -ESRCH;
+		goto out;
+	}
+
+	/* Set $scontext to specific task */
+	task->andes_hw_trace = hw_trace;
+
+	/* Update $scontext value to all threads */
+	rcu_read_lock();
+	thread_task = task = task->group_leader;
+	while_each_thread(task, thread_task) {
+		thread_task->andes_hw_trace = hw_trace;
+	}
+	rcu_read_unlock();
+
+out:
+	return err < 0 ? err : count;
+}
+
+static const struct file_operations hw_trace_operations = {
+	.read	= proc_hw_trace_read,
+	.write	= proc_hw_trace_write,
+	.llseek	= generic_file_llseek,
+};
+#endif /* CONFIG_ANDES_HW_TRACE */
+
 /*
  * Thread groups
  */
@@ -3416,6 +3485,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_KSM
 	ONE("ksm_merging_pages",  S_IRUSR, proc_pid_ksm_merging_pages),
 	ONE("ksm_stat",  S_IRUSR, proc_pid_ksm_stat),
+#endif
+#ifdef CONFIG_ANDES_HW_TRACE
+	REG("hw_trace_enable", S_IRUGO|S_IWUGO, hw_trace_operations),
 #endif
 };
 

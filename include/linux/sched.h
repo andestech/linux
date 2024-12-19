@@ -1606,6 +1606,16 @@ struct task_struct {
 	 */
 	randomized_struct_fields_end
 
+#ifdef CONFIG_ANDES_HW_TRACE
+	/*
+	 * Andes hardware trace supports logging user-space program instructions.
+	 * Users can modify this variable via /proc/<pid>/hw_trace_enable.
+	 * Through an SBI call, users can set the PID to scontext,
+	 * enabling Andes TRACE to log instructions for the program.
+	 */
+	unsigned long andes_hw_trace;
+#endif
+
 	/* CPU-specific state of this task: */
 	struct thread_struct		thread;
 

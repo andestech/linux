@@ -16,6 +16,7 @@
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 #include <asm/switch_to.h>
+#include <linux/soc/andes/trigger_module.h>
 
 #ifdef CONFIG_MMU
 
@@ -333,6 +334,12 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	cpu = smp_processor_id();
 
 	set_mm(prev, next, cpu);
+
+#ifdef CONFIG_ANDES_HW_TRACE
+	/* reset scontext */
+	if (task && (andes_get_scontext() != task->andes_hw_trace))
+		andes_set_scontext(task->andes_hw_trace);
+#endif
 
 	flush_icache_deferred(next, cpu, task);
 }
