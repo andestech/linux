@@ -26,3 +26,13 @@ void user_disable_single_step(struct task_struct *child)
 	    test_tsk_thread_flag(child, TIF_SINGLESTEP))
 		clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
+
+unsigned long andes_get_scontext(void)
+{
+	return csr_read(CSR_SCONTEXT);
+}
+
+void andes_set_scontext(unsigned long val)
+{
+	csr_write(CSR_SCONTEXT, val);
+}
