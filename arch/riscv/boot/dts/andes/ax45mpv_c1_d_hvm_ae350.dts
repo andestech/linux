@@ -11,8 +11,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,38400n8 debug loglevel=7 earlycon=sbi";
-		stdout-path = "uart0:38400n8";
+		bootargs = "console=ttyS0,115200n8 debug loglevel=7 earlycon=sbi";
+		stdout-path = "uart0:115200n8";
 	};
 	cpus {
 		#address-cells = <1>;
@@ -134,7 +134,7 @@
 			interrupts = <9 4>;
 			interrupt-parent = <&plic0>;
 			clock-frequency = <19660800>;
-			current-speed = <38400>;
+			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-offset = <32>;
 			reg-io-width = <4>;
