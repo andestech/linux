@@ -46,6 +46,12 @@ else
 	KBUILD_LDFLAGS += -melf32lriscv
 endif
 
+ifeq ($(CONFIG_ARCH_ANDES),y)
+	KBUILD_CFLAGS += -Wa,-mno-btb-align
+	KBUILD_AFLAGS += -Wa,-mno-btb-align
+	KBUILD_LDFLAGS += --mno-relax-align --mno-relax-call --mno-target-aligned --mno-avoid-btb-miss
+endif
+
 ifndef CONFIG_RISCV_USE_LINKER_RELAXATION
 	KBUILD_CFLAGS += -mno-relax
 	KBUILD_AFLAGS += -mno-relax
