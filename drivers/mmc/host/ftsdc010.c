@@ -1387,7 +1387,7 @@ nodata:
 	return pdata;
 }
 
-static int __init ftsdc_probe(struct platform_device *pdev)
+static int ftsdc_probe(struct platform_device *pdev)
 {
 	int (*read_fixup)(void __iomem *addr, unsigned int val,
 		unsigned int shift_bits);
@@ -1612,9 +1612,10 @@ static struct platform_driver ftsdc_driver = {
 	.shutdown	= ftsdc_shutdown,
 	.suspend	= ftsdc_suspend,
 	.resume		= ftsdc_resume,
+	.probe		= ftsdc_probe,
 };
 
-module_platform_driver_probe(ftsdc_driver, ftsdc_probe);
+module_platform_driver(ftsdc_driver);
 MODULE_DESCRIPTION("Andes MMC/SD Card driver");
 MODULE_AUTHOR("Rick Chen <rick@andestech.com>");
 MODULE_LICENSE("GPL v2");

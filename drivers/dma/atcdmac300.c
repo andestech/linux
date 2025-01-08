@@ -1203,7 +1203,7 @@ static void v5_dma_off(struct v5_dma *v5dma)
 		cpu_relax();
 }
 
-static int __init v5_dma_probe(struct platform_device *pdev)
+static int v5_dma_probe(struct platform_device *pdev)
 {
 	struct resource		*io;
 	struct v5_dma		*v5dma;
@@ -1409,6 +1409,7 @@ static void v5_dma_shutdown(struct platform_device *pdev)
 }
 
 static struct platform_driver v5_dma_driver = {
+	.probe		= v5_dma_probe,
 	.remove		= v5_dma_remove,
 	.shutdown	= v5_dma_shutdown,
 	.id_table	= v5dma_devtypes,
@@ -1418,18 +1419,8 @@ static struct platform_driver v5_dma_driver = {
 	},
 };
 
-static int __init v5_dma_init(void)
-{
-	return platform_driver_probe(&v5_dma_driver, v5_dma_probe);
-}
+module_platform_driver(v5_dma_driver);
 
-subsys_initcall(v5_dma_init);
-
-static void __exit v5_dma_exit(void)
-{
-	platform_driver_unregister(&v5_dma_driver);
-}
-module_exit(v5_dma_exit);
 MODULE_DESCRIPTION("Andes DMA Controller driver");
 MODULE_AUTHOR("Rick Chen <rick@andestech.com>");
 MODULE_LICENSE("GPL");

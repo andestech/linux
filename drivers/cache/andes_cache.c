@@ -332,4 +332,4 @@ static int __init andes_cache_init(void)
 
 	return 0;
 }
-early_initcall(andes_cache_init);
+late_initcall(andes_cache_init);
