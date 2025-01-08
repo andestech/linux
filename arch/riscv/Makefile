@@ -43,6 +43,12 @@ else
 	KBUILD_LDFLAGS += -melf32lriscv
 endif
 
+ifeq ($(CONFIG_ARCH_ANDES),y)
+	KBUILD_CFLAGS += -Wa,-mno-btb-align
+	KBUILD_AFLAGS += -Wa,-mno-btb-align
+	KBUILD_LDFLAGS += --mno-relax-align --mno-relax-call --mno-target-aligned --mno-avoid-btb-miss
+endif
+
 ifeq ($(CONFIG_LD_IS_LLD),y)
 ifeq ($(call test-lt, $(CONFIG_LLD_VERSION), 150000),y)
 	KBUILD_CFLAGS += -mno-relax
