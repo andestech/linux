@@ -28,8 +28,10 @@
 #define CHUNK_SIZE		1
 #define SPI_TIMEOUT		0x100000
 #define NSPI_MAX_CS_NUM		1
-#define DATA_LENGTH(x)		((x - 1) << 8)
-#define ADDR_LENGTH(x)		((x - 1) << 16)
+#define DATA_BIT		0x8
+#define DATA_LENGTH(x)		((x - 1) << ATCSPI200_TRANSFMT_DATA_LEN_OFFSET)
+#define ADDR_BIT		0x3
+#define ADDR_LENGTH(x)		((x - 1) << ATCSPI200_TRANSFMT_ADDR_LEN_OFFSET)
 #define DATA_MERGE		(DATA_MERGE_EN << 7)
 #define DMA_TRANSFER_MIN	0x100
 
@@ -112,14 +114,12 @@ struct ts_buf {
 	__be16 data;
 } __packed;
 
-static bool ts_enable;
-
 struct atcspi200_spi;
 struct atcspi200_dma_ops {
 	int (*dma_init)(struct device *dev, struct atcspi200_spi *spi);
 	void (*dma_exit)(struct atcspi200_spi *spi);
-	int (*dma_setup)(struct atcspi200_spi *spi, struct spi_mem_op *op);
-	int (*dma_transfer)(struct atcspi200_spi *spi, struct spi_mem_op *op);
+	int (*dma_setup)(struct atcspi200_spi *spi, const struct spi_mem_op *op);
+	int (*dma_transfer)(struct atcspi200_spi *spi, const struct spi_mem_op *op);
 	void (*dma_stop)(struct atcspi200_spi *spi);
 };
 
@@ -132,13 +132,8 @@ struct atcspi200_spi {
 	size_t			cmd_len;
 	u32			clk_rate;
 	u8			cmd_buf[16];
-#ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
-	u32			*din;
-	u32			*dout;
-#else
-	u8			*din;
-	u8			*dout;
-#endif
+	void			*din;
+	const void		*dout;
 	struct ts_buf		*tx_buf;
 	struct ts_buf		*rx_buf;
 	unsigned int		addr;
@@ -149,6 +144,7 @@ struct atcspi200_spi {
 	int			timeout;
 	spinlock_t		lock;
 	struct mutex		mutex_lock;
+	bool			data_merge;
 
 	/* DMA info */
 	struct dma_chan		*txchan;
@@ -158,5 +154,10 @@ struct atcspi200_spi {
 	struct completion	dma_completion;
 };
 
+#ifdef CONFIG_SPI_ATCSPI200_DMA
 void atcspi200_spi_dma_ops_setup(struct atcspi200_spi *spi);
+#else
+inline void atcspi200_spi_dma_ops_setup(struct atcspi200_spi *spi) {}
+#endif
+
 #endif /* !__LINUX_SOC_ANDES_ATCSPI_H */
