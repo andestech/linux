@@ -64,13 +64,13 @@ static inline int spi_dma_config_rx(struct atcspi200_spi *spi)
 	rxconf.src_addr = spi->dma_addr;
 	rxconf.dst_maxburst = 2;
 	rxconf.src_maxburst = 2;
-#ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
-	rxconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-#else
-	rxconf.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-#endif
+	if (spi->data_merge) {
+		rxconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	} else {
+		rxconf.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+		rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	}
 
 	return dmaengine_slave_config(spi->rxchan, &rxconf);
 }
@@ -83,13 +83,13 @@ static inline int spi_dma_config_tx(struct atcspi200_spi *spi)
 	txconf.dst_addr = spi->dma_addr;
 	txconf.dst_maxburst = 2;
 	txconf.src_maxburst = 2;
-#ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
-	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	txconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-#else
-	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	txconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-#endif
+	if (spi->data_merge) {
+		txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		txconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	} else {
+		txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+		txconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	}
 
 	return dmaengine_slave_config(spi->txchan, &txconf);
 }

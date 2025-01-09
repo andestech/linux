@@ -22,6 +22,8 @@
 #include <linux/minmax.h>
 #include <linux/soc/andes/spi-atcspi200.h>
 
+static bool ts_enable;
+
 static inline void atcspi200_spi_write(struct atcspi200_spi *spi, int offset, u32 value)
 {
 	iowrite32(value, spi->regs + offset);
@@ -60,9 +62,13 @@ static int spi_nor_setup(struct atcspi200_spi *spi)
 		if (!spi->timeout)
 			return -EINVAL;
 	}
-
 	spi->cmd_len = 0;
-	format_val = (DATA_LENGTH(8) | ADDR_LENGTH(3) | DATA_MERGE);
+
+	format_val =  DATA_LENGTH(DATA_BIT) | ADDR_LENGTH(ADDR_BIT);
+	spi->data_merge =
+		IS_ENABLED(CONFIG_SPI_ATCSPI200_DATA_MERGE) && (DATA_BIT == 8);
+	if (spi->data_merge)
+		format_val |= ATCSPI200_TRANSFMT_DATA_MERGE_MASK;
 	format_val |= ATCSPI200_TRANSFMT_CPHA_MASK;
 	format_val |= ATCSPI200_TRANSFMT_CPOL_MASK;
 	atcspi200_spi_write(spi, SPI_TRANSFMT, format_val);
@@ -148,39 +154,24 @@ static int atcspi200_spi_start(struct atcspi200_spi *spi, struct spi_transfer *t
 
 static inline void atcspi200_spi_tx(struct atcspi200_spi *spi, const void *dout)
 {
-#ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
-	atcspi200_spi_write(spi, SPI_DATA, *(u32 *)dout);
-#else
-	atcspi200_spi_write(spi, SPI_DATA, *(u8 *)dout);
-#endif
+	if (spi->data_merge)
+		atcspi200_spi_write(spi, SPI_DATA, *(u32 *)dout);
+	else
+		atcspi200_spi_write(spi, SPI_DATA, *(u8 *)dout);
 }
 
 static inline int atcspi200_spi_rx(struct atcspi200_spi *spi, void *din, unsigned int bytes)
 {
-#ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
-	u32 tmp_data;
-
-	tmp_data = atcspi200_spi_read(spi, SPI_DATA);
-	*(u32 *)din = tmp_data;
-#else
-	u8 tmp_data;
-
-	tmp_data = atcspi200_spi_read(spi, SPI_DATA);
-	*(u8 *)din = tmp_data;
-#endif
+	if (spi->data_merge)
+		*(u32 *)din = atcspi200_spi_read(spi, SPI_DATA);
+	else
+		*(u8 *)din = atcspi200_spi_read(spi, SPI_DATA);
 	return bytes;
 }
 
-static int transfer_data(struct atcspi200_spi *spi, void *rx_buf, void *tx_buf, int num_blks)
+static int transfer_data(struct atcspi200_spi *spi, void *rx_buf, const void *tx_buf, int num_blks)
 {
-#ifdef	CONFIG_SPI_ATCSPI200_DATA_MERGE
-	u32 *dout = (u32 *)tx_buf;
-	u32 *din = (u32 *)rx_buf;
-#else
-	u8 *dout = (u8 *)tx_buf;
-	u8 *din = (u8 *)rx_buf;
-#endif
-	unsigned int event, rx_bytes;
+	unsigned int event;
 	int timeout = spi->timeout;
 	int tx_count = 0, rx_count = 0;
 	int format_val;
@@ -200,8 +191,8 @@ static int transfer_data(struct atcspi200_spi *spi, void *rx_buf, void *tx_buf, 
 		event = atcspi200_spi_read(spi, SPI_STATUS);
 		tx_not_full = !(event & ATCSPI200_STATUS_TXFULL_OFFSET);
 		if (tx_not_full && tx_buf && tx_count) {
-			atcspi200_spi_tx(spi, dout);
-			dout += 1;
+			atcspi200_spi_tx(spi, tx_buf);
+			tx_buf = (u8 *)tx_buf + num_byte;
 			tx_count = tx_count - num_byte;
 		}
 
@@ -214,16 +205,16 @@ static int transfer_data(struct atcspi200_spi *spi, void *rx_buf, void *tx_buf, 
 		event = atcspi200_spi_read(spi, SPI_STATUS);
 		rx_num = event & ATCSPI200_STATUS_RXNUM_LOWER_MASK;
 		if (rx_num && rx_buf && rx_count) {
-			atcspi200_spi_rx(spi, din, transfer_bytes);
-			din = din + 1;
+			atcspi200_spi_rx(spi, rx_buf, transfer_bytes);
+			rx_buf = (u8 *)rx_buf + num_byte;
 			rx_count = rx_count - num_byte;
 		}
 		num_blks = max(tx_count, rx_count);
 	}
 
 	spi->data_len -= spi->trans_len;
-	spi->din = din;
-	spi->dout = dout;
+	spi->din = rx_buf;
+	spi->dout = tx_buf;
 	return 0;
 
 }
@@ -452,6 +443,16 @@ static int atcspi200_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *o
 	format_val = atcspi200_spi_read(spi, SPI_TRANSFMT);
 
 	if (op->data.nbytes) {
+		if (IS_ENABLED(CONFIG_SPI_ATCSPI200_DATA_MERGE)) {
+			if ((DATA_BIT == 8) && !(op->data.nbytes % 4)) {
+				format_val |= ATCSPI200_TRANSFMT_DATA_MERGE_MASK;
+				spi->data_merge = true;
+			} else {
+				format_val &= ~ATCSPI200_TRANSFMT_DATA_MERGE_MASK;
+				spi->data_merge = false;
+			}
+			atcspi200_spi_write(spi, SPI_TRANSFMT, format_val);
+		}
 		if (op->data.dir == SPI_MEM_DATA_IN) {
 			spi->din = op->data.buf.in;
 			spi->dout = 0;
