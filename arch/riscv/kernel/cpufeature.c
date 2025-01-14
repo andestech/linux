@@ -718,6 +718,17 @@ unsigned long riscv_get_elf_hwcap(void)
 
 void check_unaligned_access(int cpu)
 {
+	/*
+	 * Currently all Andes CPUs support unaligned access, so directly
+	 * set the value to RISCV_HWPROBE_MISALIGNED_FAST and skip the test
+	 */
+	if (IS_ENABLED(CONFIG_ANDES_EFFICIENT_MISALIGNED_ACCESS)) {
+		per_cpu(misaligned_access_speed, cpu) = RISCV_HWPROBE_MISALIGNED_FAST;
+		pr_info("cpu%d: CONFIG_ANDES_EFFICIENT_MISALIGNED_ACCESS is set, unaligned accesses are fast\n",
+			cpu);
+		return;
+	}
+
 	u64 start_cycles, end_cycles;
 	u64 word_cycles;
 	u64 byte_cycles;

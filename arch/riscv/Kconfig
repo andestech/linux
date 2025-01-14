@@ -658,6 +658,18 @@ config ANDES_DSP
 	help
 	  Say N here if you want to disable Andes DSP support.
 
+config ANDES_EFFICIENT_MISALIGNED_ACCESS
+	bool "Andes efficient mis-aligned access support"
+	depends on RISCV && ARCH_ANDES
+	help
+	  Skip the test of measuring mis-aligned access speed on each CPU when
+	  system boot-up, which speed up the system boot time. The per-core
+	  variable to record the mis-aligned access performance (i.e.,
+	  misaligned_access_speed) is set to RISCV_HWPROBE_MISALIGNED_FAST.
+	  Currently all Andes CPUs support mis-aligned memory access, which
+	  can also be validated be checking the MSA bit of mmisc_ctl CSR.
+	  Say N here if you want to keep the test when system boot.
+
 config FPU
 	bool "FPU support"
 	default y
