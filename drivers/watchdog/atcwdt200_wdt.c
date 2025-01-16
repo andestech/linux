@@ -1,317 +1,455 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Andes Technology Corporation.
+ * Driver for Andes ATCWDT200 watchdog timer.
+ *
+ * Copyright (C) 2025 Andes Technology Corporation
  */
+
 #include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/delay.h>
-#include <linux/uaccess.h>
-#include <linux/reboot.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/reboot.h>
-#include <linux/uaccess.h>
-#include <linux/cpumask.h>
-#include <linux/processor.h>
-#include <linux/soc/andes/smu.h>
+#include <linux/regmap.h>
+#include <linux/minmax.h>
+#include <linux/moduleparam.h>
 
-#define DRIVER_NAME	"atcwdt200"
-
-#define DEBUG(str, ...)				\
-do {						\
-	if (debug)				\
-		pr_info(str, ##__VA_ARGS__);	\
-} while (0)
+#define DRV_NAME	"atcwdt200"
 
 /* ID and Revision Register */
-#define IDREV		(*(volatile unsigned int *)(wdt_base + 0x00))
+#define WDT_IDREV	0x00
 #define ID_OFF		12
-#define ID_MSK		(0xfffff << ID_OFF)
+#define ID_MSK		GENMASK(31, 12)
 #define ID		(0x03002 << ID_OFF)
 
 /* Control Register */
-#define CTRL		(*(volatile unsigned int *)(wdt_base + 0x10))
+#define REG_WDT_CFG	0x10
 #define RST_TIME_OFF	8
-#define RST_TIME_MSK	(0x3 << RST_TIME_OFF)
-#define RST_CLK_128	(0 << RST_TIME_OFF)
-#define RST_CLK_256	(1 << RST_TIME_OFF)
-#define RST_CLK_512	(2 << RST_TIME_OFF)
-#define RST_CLK_1024	(3 << RST_TIME_OFF)
+#define RST_TIME_MSK	GENMASK(10, 8)
 #define INT_TIME_OFF	4
-#define INT_TIME_MSK	(0xf << INT_TIME_OFF)
-#define INT_CLK_64	(0 << INT_TIME_OFF)
-#define INT_CLK_256	(1 << INT_TIME_OFF)
-#define INT_CLK_1024	(2 << INT_TIME_OFF)
-#define INT_CLK_2048	(3 << INT_TIME_OFF)
-#define INT_CLK_4096	(4 << INT_TIME_OFF)
-#define INT_CLK_8192	(5 << INT_TIME_OFF)
-#define INT_CLK_16384	(6 << INT_TIME_OFF)
-#define INT_CLK_32768	(7 << INT_TIME_OFF)
+#define INT_TIME_MSK	GENMASK(7, 4)
 #define RST_EN		(1 << 3)
 #define INT_EN		(1 << 2)
 #define CLK_PCLK	(1 << 1)
 #define WDT_EN		(1 << 0)
 
 /* Restart Register */
-#define RESTART		(*(volatile unsigned int *)(wdt_base + 0x14))
-#define RESTART_MAGIC	0xcafe
+#define REG_WDT_RST	0x14
+#define WDT_RST_MAGIC	0xCAFE
 
 /* Write Enable Register */
-#define WREN		(*(volatile unsigned int *)(wdt_base + 0x18))
-#define WP_MAGIC	0x5aa5
+#define REG_WDT_WE	0x18
+#define WDT_WP_MAGIC	0x5AA5
 
 /* Status Register */
-#define STATUS		(*(volatile unsigned int *)(wdt_base + 0x1c))
+#define REG_WDT_STA	0x1C
 #define INT_EXPIRED	(1 << 0)
 
-#define TIMER_MARGIN	60	/* (secs) Default is 1 minute */
+/* The default timeout value in seconds */
+#define WDT_TIMEOUT	16
 
-static int expect_close;
-static int debug;
-static int timeout = TIMER_MARGIN;  /* in seconds */
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
-static int wdt_panic;
-module_param(wdt_panic, int, 0);
-MODULE_PARM_DESC(wdt_panic,
-	"Watchdog action, set to 1 to panic, 0 to reboot (default=0)");
-
-module_param(debug, int, 0);
-module_param(timeout, int, 0);
-static u32 wdt_freq;
-static void __iomem *wdt_base;
-
-/* enable the WDT */
-void wdt_start(void)
-{
-#ifdef CONFIG_WATCHDOG_DEBUG
-	WREN = WP_MAGIC;
-	CTRL = (INT_CLK_32768 | INT_EN | WDT_EN);
-#else
-	WREN = WP_MAGIC;
-	CTRL = (INT_CLK_32768 | INT_EN | RST_CLK_128 | RST_EN | WDT_EN);
-#endif
-}
-
-int wdt_get_timeout(void)
-{
-	int time = (CTRL & INT_TIME_MSK) >> INT_TIME_OFF;
-
-	if (time > 7)
-		return (time - 7) * 2;
-	else
-		return 1;
-}
-
-/* set reset vector and enable WDT */
-static int wdtdog_open(struct inode *inode, struct file *file)
-{
-	int cpu_nums = num_online_cpus();
-	void __iomem *smu_base = atcsmu_get_address();
-
-	for (int i = 0; i < cpu_nums; i++) {
-		writel((u32)FLASH_BASE, smu_base + SMU_HART_RESET_VEC_LO(i));
-		writel((u64)FLASH_BASE >> 32,
-		       smu_base + SMU_HART_RESET_VEC_HI(i));
-	}
-
-	for (int i = 0; i < cpu_nums; i++) {
-		u32 lo = readl(smu_base + SMU_HART_RESET_VEC_LO(i));
-		u32 hi = readl(smu_base + SMU_HART_RESET_VEC_HI(i));
-
-		pr_info("hart%d reset vector (lo32) set to 0x%08x\n", i, lo);
-		pr_info("hart%d reset vector (hi32) set to 0x%08x\n", i, hi);
-	}
-
-	wdt_start();
-	DEBUG("Activating WDT..\n");
-	return 0;
-}
+/* Define the array size for each timer type */
+#define TMR_SZ_RST	8
+#define TMR_SZ_INT_16	8
+#define TMR_SZ_INT_32	16
 
 /*
- * disable WDT, NOWAY_OUT MEANS NEED MAGIC NUMBER
- * OR just disable it if NOWAY_OUT not set
+ * The conditional block modifies the REG_WDT_CFG register:
+ * - If WATCHDOG_DEBUG == 1, only the WDT_EN bit is set, enabling the
+ *                           watchdog timer.
+ * - If WATCHDOG_DEBUG == 0, both RST_EN and WDT_EN bits are set, enabling
+ *                           the watchdog timer and the reset mechanism.
  */
-static int wdtdog_release(struct inode *inode, struct file *file)
+#define WATCHDOG_DEBUG	0
+
+enum timer_type {
+	RST_TIMER,
+	INT_TIMER_16,
+	INT_TIMER_32,
+};
+
+static u32 timeout = WDT_TIMEOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
+
+module_param(timeout, uint, 0);
+MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (default="
+		 __MODULE_STRING(WDT_TIMEOUT) ")");
+
+module_param(nowayout, bool, 0);
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+
+struct atcwdt_drv {
+	struct watchdog_device	wdt_dev;
+	struct regmap		*regmap;
+	spinlock_t		lock;
+	u32			clk_freq;
+	u8			clk_src;
+	u8			int_timer_type;
+};
+
+static const struct regmap_config atcwdt_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = REG_WDT_STA,
+	.cache_type = REGCACHE_NONE,
+};
+
+static const struct watchdog_info atcwdt_info = {
+	.identity = DRV_NAME,
+	.options = WDIOF_SETTIMEOUT
+		   | WDIOF_KEEPALIVEPING
+		   | WDIOF_MAGICCLOSE,
+};
+
+/**
+ * atcwdt_get_index - Get the interval value for the specified timer type
+ * @index: The index of the interval in the array
+ * @timer_type: The type of timer, which can be RST_TIMER, INT_TIMER_16, or INT_TIMER_32.
+ *
+ * This function retrieves the interval value based on the timer type and
+ * ensures the index stays within the valid range for the given timer type.
+ * For RST_TIMER:
+    - The maximum array size is 8 (index range: 0-7).
+ * For INT_TIMER_16:
+ *  - The maximum array size is 8 (index range: 0-7).
+ * For INT_TIMER_32:
+ *  - The maximum array size is 16 (index range: 0-15).
+ *
+ * If the index exceeds the maximum array size, the function will return
+ * the last element of the respective array.
+ */
+static inline u8 atcwdt_get_index(u8 index, enum timer_type timer_type)
 {
-#ifndef CONFIG_WATCHDOG_NOWAYOUT
-	/*
-	 * Shut off the timer.
-	 * Lock it in if it's a module and we defined ...NOWAYOUT
-	 */
-	if (expect_close) {
-		WREN = WP_MAGIC;
-		CTRL = 0;
-		DEBUG("Deactivating WDT..\n");
+	const u8 rst_timer_interval[TMR_SZ_RST] = {7, 8, 9, 10, 11, 12, 13, 14};
+	const u8 int_timer_interval[TMR_SZ_INT_32] = {
+		6, 8, 10, 11, 12, 13, 14, 15, 17, 19, 21, 23, 25, 27, 29, 31};
+	u8 array_index;
+
+	if (timer_type == RST_TIMER) {
+		array_index = min(index, TMR_SZ_RST - 1);
+		return rst_timer_interval[array_index];
 	}
-#endif
-	expect_close = 0;
+
+	if (timer_type == INT_TIMER_32)
+		array_index = min(index, TMR_SZ_INT_32 - 1);
+	else
+		array_index = min(index, TMR_SZ_INT_16 - 1);
+
+	return int_timer_interval[array_index];
+}
+
+/**
+ * atcwdt_get_clock_period - Calculate the closest clock period based on a given tick count
+ * @tick: The target tick count to match
+ * @timer_type: The type of timer, which can be RST_TIMER, INT_TIMER_16, or INT_TIMER_32.
+ * @index: Pointer to store the index of the selected parameter
+ *
+ * This function calculates the closest clock period to the given tick count
+ * by iterating through the timer parameters and selecting the one that
+ * minimizes the difference between the target tick count and the calculated
+ * clock period. The function determines the index of the closest parameter
+ * and returns the difference between the target tick count and the selected
+ * clock period.
+ *
+ * Return: The difference between the target tick count and the selected
+ * clock period.
+ */
+static s64 atcwdt_get_clock_period(s64 tick,
+				   enum timer_type timer_type,
+				   u8 *index)
+{
+	s64 result;
+	u8 size;
+	s8 i;
+
+	if (timer_type == RST_TIMER)
+		size = TMR_SZ_RST;
+	else if (timer_type == INT_TIMER_32)
+		size = TMR_SZ_INT_32;
+	else
+		size = TMR_SZ_INT_16;
+
+	*index = size - 1;
+	for (i = 0; i < size; i++) {
+		result = tick - (1LL << atcwdt_get_index(i, timer_type));
+
+		if (result <= 1) {
+			*index = i;
+			break;
+		}
+	}
+
+	return result;
+}
+
+/**
+ * atcwdt_get_timeout_params - Calculate optimal parameters for Watchdog Timer
+ * @drv_data: Pointer to the Watchdog driver data structure
+ * @timeout: Desired timeout value (in seconds)
+ * @int_timer_params: Pointer to store the calculated interrupt timer parameter index
+ * @rst_timer_params: Pointer to store the calculated reset timer parameter index
+ *
+ * This function calculates the optimal parameter combination for the
+ * interrupt timer and reset timer of the Watchdog Timer to achieve a
+ * timeout value closest to, but not less than the specified timeout.
+ *
+ * Algorithm:
+ * 1. The parameters for both the interrupt timer and reset timer are
+ *    predefined as a series of options represented as powers of 2.
+ * 2. The function first determines the interrupt timer's parameter index
+ *    that provides a time closest to and not exceeding the desired timeout.
+ * 3. Based on the selected interrupt timer, it calculates the required
+ *    reset timer parameter to ensure the total timeout matches the target.
+ *
+ * Return: The calculated parameter indices are stored in the provided pointers.
+ */
+void atcwdt_get_timeout_params(struct atcwdt_drv *drv_data,
+			       u32 timeout,
+			       u8 *int_timer_params,
+			       u8 *rst_timer_params)
+{
+	s64 rest_time_ms;
+	s64 result;
+	u8 above;
+	u8 below;
+	u8 rst_index;
+	u8 int_index;
+
+	result = atcwdt_get_clock_period((s64)timeout * drv_data->clk_freq,
+					 drv_data->int_timer_type,
+					 &above);
+	if (result == 0 || above == 0) {
+		*int_timer_params = above;
+		*rst_timer_params = 0;
+		return;
+	}
+	below = above - 1;
+
+	int_index = atcwdt_get_index(below, drv_data->int_timer_type);
+	rest_time_ms = timeout * 1000LL
+		       - ((1000LL << int_index) / drv_data->clk_freq);
+
+	result = atcwdt_get_clock_period(rest_time_ms * drv_data->clk_freq,
+					 RST_TIMER,
+					 &rst_index);
+
+	if (result > 1) {
+		*int_timer_params = above;
+		*rst_timer_params = 0;
+	} else {
+		*int_timer_params = below;
+		*rst_timer_params = rst_index;
+	}
+}
+
+static s32 atcwdt_ping(struct watchdog_device *wdt_dev)
+{
+	struct atcwdt_drv *drv_data = watchdog_get_drvdata(wdt_dev);
+
+	spin_lock(&drv_data->lock);
+	regmap_write(drv_data->regmap, REG_WDT_WE, WDT_WP_MAGIC);
+	regmap_write(drv_data->regmap, REG_WDT_RST, WDT_RST_MAGIC);
+	regmap_update_bits(drv_data->regmap, REG_WDT_STA, INT_EXPIRED,
+			   INT_EXPIRED);
+	spin_unlock(&drv_data->lock);
+
 	return 0;
 }
 
-/* clean the WDT */
-static ssize_t wdtdog_write(struct file *file, const char *data, size_t len, loff_t *ppos)
+static s32 atcwdt_set_timeout(struct watchdog_device *wdt_dev, u32 timeout)
 {
-	if (!len)
-		return 0;
+	struct atcwdt_drv *drv_data = watchdog_get_drvdata(wdt_dev);
+	u8  rst_val;
+	u8  int_val;
 
-	if (!nowayout) {
-		size_t i;
+	wdt_dev->timeout = timeout;
+	atcwdt_get_timeout_params(drv_data, timeout, &int_val, &rst_val);
 
-		for (i = 0; i < len; i++) {
-			char c;
+	spin_lock(&drv_data->lock);
+	regmap_write(drv_data->regmap, REG_WDT_WE, WDT_WP_MAGIC);
+	regmap_update_bits(drv_data->regmap, REG_WDT_CFG,
+			   RST_TIME_MSK | INT_TIME_MSK | CLK_PCLK,
+			   ((rst_val << RST_TIME_OFF) & RST_TIME_MSK)
+			   | ((int_val << INT_TIME_OFF) & INT_TIME_MSK)
+			   | (drv_data->clk_src & CLK_PCLK));
+	spin_unlock(&drv_data->lock);
+	atcwdt_ping(wdt_dev);
 
-			if (get_user(c, data + i))
-				return -EFAULT;
-			if (c == 'V') {
-				expect_close = 42;
-				break;
-			}
-		}
-	}
-	WREN = WP_MAGIC;
-	RESTART = RESTART_MAGIC;
-	STATUS |= INT_EXPIRED;
-	return len;
+	return 0;
 }
 
-static long wdtdog_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static s32 atcwdt_start(struct watchdog_device *wdt_dev)
 {
-	static struct watchdog_info ident = {
-		.identity = "FTWDT010 watchdog",
-	};
+	struct atcwdt_drv *drv_data = watchdog_get_drvdata(wdt_dev);
 
-	void __user *argp = (void __user *)arg;
-	int __user *p = argp;
-	int new_options, retval = -EINVAL;
+	atcwdt_set_timeout(wdt_dev, wdt_dev->timeout);
 
-	switch (cmd) {
-	case WDIOC_GETSUPPORT:
-		return copy_to_user(argp, &ident, sizeof(ident));
+	spin_lock(&drv_data->lock);
+	regmap_write(drv_data->regmap, REG_WDT_WE, WDT_WP_MAGIC);
+#if WATCHDOG_DEBUG
+	regmap_update_bits(drv_data->regmap, REG_WDT_CFG, RST_EN | WDT_EN,
+			   WDT_EN);
+#else
+	regmap_update_bits(drv_data->regmap, REG_WDT_CFG, RST_EN | WDT_EN,
+			   RST_EN | WDT_EN);
+#endif
+	spin_unlock(&drv_data->lock);
 
-	case WDIOC_GETSTATUS:
-	case WDIOC_GETBOOTSTATUS:
-		return put_user(0, p);
+	return 0;
+}
 
-	case WDIOC_SETOPTIONS:
-		if (get_user(new_options, p))
-			return -EFAULT;
+static s32 atcwdt_stop(struct watchdog_device *wdt_dev)
+{
+	struct atcwdt_drv *drv_data = watchdog_get_drvdata(wdt_dev);
 
-		if (new_options & WDIOS_DISABLECARD) {
-			WREN = WP_MAGIC;
-			CTRL &= ~WDT_EN;
-			retval = 0;
-		}
+	spin_lock(&drv_data->lock);
+	regmap_write(drv_data->regmap, REG_WDT_WE, WDT_WP_MAGIC);
+	regmap_update_bits(drv_data->regmap, REG_WDT_CFG, RST_EN | WDT_EN, 0);
+	spin_unlock(&drv_data->lock);
 
-		if (new_options & WDIOS_ENABLECARD) {
-			wdt_start();
-			retval = 0;
-		}
-		return retval;
+	return 0;
+}
 
-	case WDIOC_GETTIMEOUT:
-		timeout = wdt_get_timeout();
-		return put_user(timeout, p);
+static const struct watchdog_ops atcwdt_ops = {
+	.owner = THIS_MODULE,
+	.start = atcwdt_start,
+	.stop = atcwdt_stop,
+	.ping = atcwdt_ping,
+	.set_timeout = atcwdt_set_timeout,
+};
 
-	case WDIOC_KEEPALIVE:
-		WREN = WP_MAGIC;
-		RESTART = RESTART_MAGIC;
-		STATUS |= INT_EXPIRED;
-		return 0;
+static s32 atcwdt_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct atcwdt_drv *drv_data;
+	void __iomem *reg_base;
+	u32 dtb_value;
+	s32 ret;
+	u8 rst_index;
+	u8 int_index;
 
+	drv_data = devm_kzalloc(dev, sizeof(struct atcwdt_drv), GFP_KERNEL);
+	if (!drv_data)
+		return -ENOMEM;
+	platform_set_drvdata(pdev, drv_data);
+
+	spin_lock_init(&drv_data->lock);
+
+	reg_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reg_base)) {
+		dev_err(dev, "Failed to ioremap I/O resource\n");
+		return PTR_ERR(reg_base);
+	}
+
+	drv_data->regmap = devm_regmap_init_mmio(dev, reg_base,
+						 &atcwdt_regmap_config);
+	if (IS_ERR(drv_data->regmap)) {
+		dev_err(dev, "Failed to create regmap for I/O\n");
+		return PTR_ERR(drv_data->regmap);
+	}
+
+	ret = device_property_read_u32(dev, "clock-source", &dtb_value);
+	if (ret || dtb_value == 0)
+		drv_data->clk_src = 0;
+	else
+		drv_data->clk_src = CLK_PCLK;
+
+	ret = device_property_read_u32(dev, "int-timer-bits", &dtb_value);
+	if (ret) {
+		dev_err(dev, "No int-timer-bits is specified in DTB, set to be 16 by default\n");
+		dtb_value = 16;
+	}
+	switch (dtb_value) {
+	case 16:
+		drv_data->int_timer_type = INT_TIMER_16;
+		break;
+	case 32:
+		drv_data->int_timer_type = INT_TIMER_32;
+		break;
 	default:
-		return -ENOIOCTLCMD;
+		dev_err(dev, "Invalid value of int-timer-bits in the DTB\n");
+		return -EINVAL;
 	}
+
+	ret = device_property_read_u32(dev, "clock-frequency",
+				       &drv_data->clk_freq);
+	if (ret) {
+		dev_err(dev, "No clock-frequency property in DTB\n");
+		return ret;
+	}
+
+	drv_data->wdt_dev.parent = dev;
+	drv_data->wdt_dev.info = &atcwdt_info;
+	drv_data->wdt_dev.ops = &atcwdt_ops;
+	drv_data->wdt_dev.timeout = WDT_TIMEOUT;
+	drv_data->wdt_dev.min_timeout = 1;
+
+	/*
+	 * If the first parameter exceeds the array size for the specified
+	 * timer_type, atcwdt_get_index returns the last element of the array.
+	 * Passing 0xFF as the first parameter retrieves the maximum time
+	 * interval for the timer.
+	 */
+	int_index = atcwdt_get_index(0xFF, drv_data->int_timer_type);
+	rst_index = atcwdt_get_index(0xFF, RST_TIMER);
+	drv_data->wdt_dev.max_timeout = ((1U << rst_index) + (1U << int_index))
+					/ drv_data->clk_freq;
+
+	watchdog_set_nowayout(&drv_data->wdt_dev, nowayout);
+	watchdog_set_drvdata(&drv_data->wdt_dev, drv_data);
+	watchdog_init_timeout(&drv_data->wdt_dev, timeout, dev);
+
+	dev_dbg(dev, "initialized. timeout=%d sec nowayout=%d\n",
+		drv_data->wdt_dev.timeout, nowayout);
+
+	ret = devm_watchdog_register_device(dev, &drv_data->wdt_dev);
+
+	return ret;
 }
 
-static const struct file_operations wdtdog_fops = {
-	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
-	.write		= wdtdog_write,
-	.unlocked_ioctl	= wdtdog_ioctl,
-	.open		= wdtdog_open,
-	.release	= wdtdog_release,
-};
+static s32 atcwdt_suspend(struct device *dev)
+{
+	struct atcwdt_drv *drv_data = dev_get_drvdata(dev);
 
-static struct miscdevice atcwdt200_dog_miscdev = {
-	WATCHDOG_MINOR,
-	"watchdog",
-	&wdtdog_fops
-};
+	if (watchdog_active(&drv_data->wdt_dev))
+		atcwdt_stop(&drv_data->wdt_dev);
 
-#ifdef CONFIG_OF
-static const struct of_device_id atcwdt200_dog_match[] = {
+	return 0;
+}
+
+static s32 atcwdt_resume(struct device *dev)
+{
+	struct atcwdt_drv *drv_data = dev_get_drvdata(dev);
+
+	if (watchdog_active(&drv_data->wdt_dev)) {
+		atcwdt_start(&drv_data->wdt_dev);
+		atcwdt_ping(&drv_data->wdt_dev);
+	}
+
+	return 0;
+}
+
+static const struct of_device_id atcwdt_match[] = {
 	{ .compatible = "andestech,atcwdt200" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, atcwdt200_dog_match);
-#endif
+MODULE_DEVICE_TABLE(of, atcwdt_match);
 
-static int atcwdt200_dog_probe(struct platform_device *pdev)
-{
-	int (*read_fixup)(void __iomem *addr, unsigned int val,
-		unsigned int shift_bits);
-	int ret;
-	struct resource *res;
-	struct device_node *node;
+static DEFINE_SIMPLE_DEV_PM_OPS(atcwdt_pm_ops, atcwdt_suspend, atcwdt_resume);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(wdt_base))
-		return PTR_ERR(wdt_base);
-
-	/* check ID and Revision register */
-	read_fixup = symbol_get(readl_fixup);
-	ret = read_fixup(wdt_base, 0x03002, 12);
-	symbol_put(readl_fixup);
-	if (!ret) {
-		dev_err(&pdev->dev,
-			"fail to read ID and Revision reg,\
-			bitmap not support atcwdt200.\n");
-		return -ENOENT;
-	}
-
-	if ((IDREV & ID_MSK) != ID)
-		return -ENOENT;
-
-	node = of_find_matching_node(NULL, atcwdt200_dog_match);
-	if (of_property_read_u32(node, "clock-frequency", &wdt_freq))
-		panic("Can't read clock-frequency");
-
-	ret = misc_register(&atcwdt200_dog_miscdev);
-	if (ret)
-		return ret;
-
-	dev_info(&pdev->dev, "ATCWDT200 watchdog timer driver.\n");
-
-	DEBUG("ATCWDT200 watchdog timer: timer timeout %d sec\n", timeout);
-	return 0;
-}
-
-static int atcwdt200_dog_remove(struct platform_device *pdev)
-{
-	misc_deregister(&atcwdt200_dog_miscdev);
-	return 0;
-}
-
-static struct platform_driver atcwdt200_dog_driver = {
-	.probe		= atcwdt200_dog_probe,
-	.remove		= atcwdt200_dog_remove,
+static struct platform_driver atcwdt_driver = {
+	.probe		= atcwdt_probe,
 	.driver		= {
-		.name	= DRIVER_NAME,
+		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(atcwdt200_dog_match),
+		.of_match_table = atcwdt_match,
 	},
 };
 
-module_platform_driver(atcwdt200_dog_driver);
-MODULE_DESCRIPTION("Andestech watchdog driver");
-MODULE_AUTHOR("Andestech");
+module_platform_driver(atcwdt_driver);
+
+MODULE_DESCRIPTION("Andes ATCWDT200 driver");
+MODULE_AUTHOR("cl634@andestech.com");
 MODULE_LICENSE("GPL");
