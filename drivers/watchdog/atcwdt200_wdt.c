@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/minmax.h>
 #include <linux/moduleparam.h>
+#include <linux/math64.h>
 
 #define DRV_NAME	"atcwdt200"
 
@@ -229,7 +230,7 @@ void atcwdt_get_timeout_params(struct atcwdt_drv *drv_data,
 
 	int_index = atcwdt_get_index(below, drv_data->int_timer_type);
 	rest_time_ms = timeout * 1000LL
-		       - ((1000LL << int_index) / drv_data->clk_freq);
+		       - div64_s64(1000LL << int_index, drv_data->clk_freq);
 
 	result = atcwdt_get_clock_period(rest_time_ms * drv_data->clk_freq,
 					 RST_TIMER,
