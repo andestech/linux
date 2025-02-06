@@ -64,9 +64,10 @@
 #define WATCHDOG_DEBUG	0
 
 enum timer_type {
-	RST_TIMER,
-	INT_TIMER_16,
-	INT_TIMER_32,
+	TMR_RST,
+	TMR_INT_16,
+	TMR_INT_32,
+	TMR_UNKNOWN,
 };
 
 static u32 timeout = WDT_TIMEOUT;
@@ -107,15 +108,15 @@ static const struct watchdog_info atcwdt_info = {
 /**
  * atcwdt_get_index - Get the interval value for the specified timer type
  * @index: The index of the interval in the array
- * @timer_type: The type of timer, which can be RST_TIMER, INT_TIMER_16, or INT_TIMER_32.
+ * @timer_type: The type of timer, which can be TMR_RST, TMR_INT_16, or TMR_INT_32.
  *
  * This function retrieves the interval value based on the timer type and
  * ensures the index stays within the valid range for the given timer type.
- * For RST_TIMER:
+ * For TMR_RST:
     - The maximum array size is 8 (index range: 0-7).
- * For INT_TIMER_16:
+ * For TMR_INT_16:
  *  - The maximum array size is 8 (index range: 0-7).
- * For INT_TIMER_32:
+ * For TMR_INT_32:
  *  - The maximum array size is 16 (index range: 0-15).
  *
  * If the index exceeds the maximum array size, the function will return
@@ -128,12 +129,12 @@ static inline u8 atcwdt_get_index(u8 index, enum timer_type timer_type)
 		6, 8, 10, 11, 12, 13, 14, 15, 17, 19, 21, 23, 25, 27, 29, 31};
 	u8 array_index;
 
-	if (timer_type == RST_TIMER) {
+	if (timer_type == TMR_RST) {
 		array_index = min(index, TMR_SZ_RST - 1);
 		return rst_timer_interval[array_index];
 	}
 
-	if (timer_type == INT_TIMER_32)
+	if (timer_type == TMR_INT_32)
 		array_index = min(index, TMR_SZ_INT_32 - 1);
 	else
 		array_index = min(index, TMR_SZ_INT_16 - 1);
@@ -144,7 +145,7 @@ static inline u8 atcwdt_get_index(u8 index, enum timer_type timer_type)
 /**
  * atcwdt_get_clock_period - Calculate the closest clock period based on a given tick count
  * @tick: The target tick count to match
- * @timer_type: The type of timer, which can be RST_TIMER, INT_TIMER_16, or INT_TIMER_32.
+ * @timer_type: The type of timer, which can be TMR_RST, TMR_INT_16, or TMR_INT_32.
  * @index: Pointer to store the index of the selected parameter
  *
  * This function calculates the closest clock period to the given tick count
@@ -165,9 +166,9 @@ static s64 atcwdt_get_clock_period(s64 tick,
 	u8 size;
 	s8 i;
 
-	if (timer_type == RST_TIMER)
+	if (timer_type == TMR_RST)
 		size = TMR_SZ_RST;
-	else if (timer_type == INT_TIMER_32)
+	else if (timer_type == TMR_INT_32)
 		size = TMR_SZ_INT_32;
 	else
 		size = TMR_SZ_INT_16;
@@ -233,7 +234,7 @@ void atcwdt_get_timeout_params(struct atcwdt_drv *drv_data,
 		       - div64_s64(1000LL << int_index, drv_data->clk_freq);
 
 	result = atcwdt_get_clock_period(rest_time_ms * drv_data->clk_freq,
-					 RST_TIMER,
+					 TMR_RST,
 					 &rst_index);
 
 	if (result > 1) {
@@ -243,6 +244,55 @@ void atcwdt_get_timeout_params(struct atcwdt_drv *drv_data,
 		*int_timer_params = below;
 		*rst_timer_params = rst_index;
 	}
+}
+
+/**
+ * atcwdt_get_int_timer_type - Get the supported interrupt timer type.
+ * @drv_data: Pointer to the watchdog driver data structure.
+ *
+ * This function tests the writable bits in the IntTime field of the control
+ * register to determine the interrupt timer type supported by the hardware.
+ *
+ * Note: This function must only be called when the ATCWDT200 watchdog is
+ * disabled. If the watchdog is enabled, this function returns TMR_UNKNOWN.
+ *
+ * Returns: The interrupt timer type supported by the hardware.
+ */
+static enum timer_type atcwdt_get_int_timer_type(struct atcwdt_drv *drv_data)
+{
+	u32 val;
+	enum timer_type int_timer_type;
+
+	spin_lock(&drv_data->lock);
+	regmap_read(drv_data->regmap, REG_WDT_CFG, &val);
+	if (val & WDT_EN) {
+		spin_unlock(&drv_data->lock);
+		return TMR_UNKNOWN;
+	}
+
+	/*
+	 * Configures the IntTime field with the maximum mask value
+	 * (INT_TIME_MSK), reads its value from the control register to
+	 * identify the maximum writable bits.
+	 */
+	regmap_write(drv_data->regmap, REG_WDT_WE, WDT_WP_MAGIC);
+	regmap_write(drv_data->regmap, REG_WDT_CFG, INT_TIME_MSK);
+	regmap_read(drv_data->regmap, REG_WDT_CFG, &val);
+	spin_unlock(&drv_data->lock);
+
+	val = (val & INT_TIME_MSK) >> INT_TIME_OFF;
+	switch (val) {
+	case 7:
+		int_timer_type = TMR_INT_16;
+		break;
+	case 15:
+		int_timer_type = TMR_INT_32;
+		break;
+	default:
+		int_timer_type = TMR_UNKNOWN;
+	}
+
+	return int_timer_type;
 }
 
 static s32 atcwdt_ping(struct watchdog_device *wdt_dev)
@@ -357,21 +407,10 @@ static s32 atcwdt_probe(struct platform_device *pdev)
 	else
 		drv_data->clk_src = CLK_PCLK;
 
-	ret = device_property_read_u32(dev, "int-timer-bits", &dtb_value);
-	if (ret) {
-		dev_err(dev, "No int-timer-bits is specified in DTB, set to be 16 by default\n");
-		dtb_value = 16;
-	}
-	switch (dtb_value) {
-	case 16:
-		drv_data->int_timer_type = INT_TIMER_16;
-		break;
-	case 32:
-		drv_data->int_timer_type = INT_TIMER_32;
-		break;
-	default:
-		dev_err(dev, "Invalid value of int-timer-bits in the DTB\n");
-		return -EINVAL;
+	drv_data->int_timer_type = atcwdt_get_int_timer_type(drv_data);
+	if (drv_data->int_timer_type == TMR_UNKNOWN) {
+		dev_err(dev, "Failed to detect interrupt timer type\n");
+		return -ENODEV;
 	}
 
 	ret = device_property_read_u32(dev, "clock-frequency",
@@ -394,7 +433,7 @@ static s32 atcwdt_probe(struct platform_device *pdev)
 	 * interval for the timer.
 	 */
 	int_index = atcwdt_get_index(0xFF, drv_data->int_timer_type);
-	rst_index = atcwdt_get_index(0xFF, RST_TIMER);
+	rst_index = atcwdt_get_index(0xFF, TMR_RST);
 	drv_data->wdt_dev.max_timeout = ((1U << rst_index) + (1U << int_index))
 					/ drv_data->clk_freq;
 
