@@ -124,6 +124,7 @@ struct thread_struct {
 	struct __riscv_v_ext_state vstate;
 	struct __riscv_v_ext_state kernel_vstate;
 	struct __riscv_andesdsp_ext_state andesdsp_state;
+	struct __riscv_amm_ext_state amm_state;
 };
 
 /* Whitelist the fstate from the task_struct for hardened usercopy */
