@@ -1387,7 +1387,7 @@ nodata:
 	return pdata;
 }
 
-static int __init ftsdc_probe(struct platform_device *pdev)
+static int ftsdc_probe(struct platform_device *pdev)
 {
 	int (*read_fixup)(void __iomem *addr, unsigned int val,
 		unsigned int shift_bits);
@@ -1424,7 +1424,7 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 	ret = -ENOMEM;
 	mmc = mmc_alloc_host(sizeof(struct ftsdc_host), &pdev->dev);
 	if (!mmc)
-		goto probe_out;
+		goto probe_free_mem_region;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -1448,7 +1448,7 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 	host->base = (void __iomem *) ioremap(mem->start, mem_size);
 	if (IS_ERR(host->base)) {
 		ret = PTR_ERR(host->base);
-		goto probe_free_mem_region;
+		goto probe_free_host;
 	}
 
 	/* Check revision register */
@@ -1461,7 +1461,7 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"bitmap revision mismatch(ftsdc)\n");
 		ret = -ENXIO;
-		goto probe_free_mem_region;
+		goto probe_free_host;
 	}
 
 	host->irq = irq;
@@ -1470,7 +1470,7 @@ static int __init ftsdc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request mci interrupt.\n");
 		ret = -ENOENT;
-		goto probe_free_mem_region;
+		goto probe_free_host;
 	}
 	host->irq_enabled = true;
 	/* enable card change interruption */
@@ -1520,14 +1520,14 @@ static int __init ftsdc_probe(struct platform_device *pdev)
  probe_free_irq:
 	free_irq(host->irq, host);
 
- probe_free_mem_region:
-	release_mem_region(host->mem->start, resource_size(host->mem));
-	destroy_workqueue(mywq);
-
  probe_free_host:
 	if (!IS_ERR(host->dma.chan))
 		dma_release_channel(host->dma.chan);
 	mmc_free_host(mmc);
+
+ probe_free_mem_region:
+	release_mem_region(host->mem->start, resource_size(host->mem));
+	destroy_workqueue(mywq);
 
  probe_out:
 	return ret;
@@ -1612,9 +1612,10 @@ static struct platform_driver ftsdc_driver = {
 	.shutdown	= ftsdc_shutdown,
 	.suspend	= ftsdc_suspend,
 	.resume		= ftsdc_resume,
+	.probe		= ftsdc_probe,
 };
 
-module_platform_driver_probe(ftsdc_driver, ftsdc_probe);
+module_platform_driver(ftsdc_driver);
 MODULE_DESCRIPTION("Andes MMC/SD Card driver");
 MODULE_AUTHOR("Rick Chen <rick@andestech.com>");
 MODULE_LICENSE("GPL v2");
