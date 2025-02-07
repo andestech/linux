@@ -8,6 +8,7 @@
 
 #define RISCV_ISA_VENDOR_EXT_XANDESPMU		0
 #define RISCV_ISA_VENDOR_EXT_XANDESDSP		1
+#define RISCV_ISA_VENDOR_EXT_XANDESVMM		2
 
 /*
  * Extension keys should be strictly less than max.

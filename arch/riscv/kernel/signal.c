@@ -182,6 +182,41 @@ save_andesdsp_state(struct pt_regs *regs,
 #define restore_andesdsp_state(task, regs) (0)
 #endif /* CONFIG_ANDES_DSP */
 
+#ifdef CONFIG_AMM
+static long
+restore_amm_state(struct pt_regs *regs,
+		  struct __riscv_amm_ext_state *sc_amm_regs)
+{
+	long err;
+
+	err = __copy_from_user(&current->thread.amm_state.uzobctl,
+			       &sc_amm_regs->uzobctl,
+			       sizeof(unsigned long));
+	if (unlikely(err))
+		return err;
+	amm_state_restore(current);
+	return 0;
+}
+
+static long
+save_amm_state(struct pt_regs *regs,
+	       struct __riscv_amm_ext_state *sc_amm_regs)
+{
+	long err;
+
+	amm_state_save(current);
+	err = __copy_to_user(&sc_amm_regs->uzobctl,
+			     &current->thread.amm_state.uzobctl,
+			     sizeof(unsigned long));
+	if (unlikely(err))
+		return err;
+	return 0;
+}
+#else
+#define save_amm_state(task, regs) (0)
+#define restore_amm_state(task, regs) (0)
+#endif /* CONFIG_AMM */
+
 static long restore_sigcontext(struct pt_regs *regs,
 	struct sigcontext __user *sc)
 {
@@ -238,6 +273,12 @@ static long restore_sigcontext(struct pt_regs *regs,
 
 	if (has_andesdsp()) {
 		err = restore_andesdsp_state(regs, &sc->sc_andesdsp_regs);
+		if (unlikely(err))
+			return err;
+	}
+
+	if (has_amm()) {
+		err = restore_amm_state(regs, &sc->sc_amm_regs);
 		if (unlikely(err))
 			return err;
 	}
@@ -325,6 +366,9 @@ static long setup_sigcontext(struct rt_sigframe __user *frame,
 	/* Save the ANDES_DSP state. */
 	if (has_andesdsp())
 		err |= save_andesdsp_state(regs, &sc->sc_andesdsp_regs);
+	/* Save the AMM state. */
+	if (has_amm())
+		err |= save_amm_state(regs, &sc->sc_amm_regs);
 	/* Write zero to fp-reserved space and check it on restore_sigcontext */
 	err |= __put_user(0, &sc->sc_extdesc.reserved);
 	/* And put END __riscv_ctx_hdr at the end. */

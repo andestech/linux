@@ -762,6 +762,14 @@ config ANDES_DSP
 	help
 	  Say N here if you want to disable Andes DSP support.
 
+config AMM
+	bool "Andes Vector Matrix Multiplication extension (AMM) support"
+	default y
+	help
+	  Provide specialized vector instructions to accelerate
+	  large matrix operations.
+	  Say N here if you want to disable AMM extension support.
+
 config FPU
 	bool "FPU support"
 	default y

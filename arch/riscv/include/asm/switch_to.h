@@ -103,6 +103,35 @@ static __always_inline bool has_andesdsp(void) { return false; }
 #define __switch_to_andesdsp(__prev, __next) do { } while (0)
 #endif /* CONFIG_ANDES_DSP */
 
+#ifdef CONFIG_AMM
+static inline void amm_state_save(struct task_struct *task)
+{
+	task->thread.amm_state.uzobctl = csr_read(CSR_UZOBCTL);
+}
+
+static inline void amm_state_restore(struct task_struct *task)
+{
+	csr_write(CSR_UZOBCTL, task->thread.amm_state.uzobctl);
+}
+
+static inline void __switch_to_amm(struct task_struct *prev,
+				   struct task_struct *next)
+{
+	amm_state_save(prev);
+	amm_state_restore(next);
+}
+
+static __always_inline bool has_amm(void)
+{
+	return riscv_has_vendor_extension_likely(ANDES_VENDOR_ID, RISCV_ISA_VENDOR_EXT_XANDESVMM);
+}
+#else
+static __always_inline bool has_amm(void) { return false; }
+#define amm_state_save(task) do { } while (0)
+#define amm_state_restore(task) do { } while (0)
+#define __switch_to_amm(__prev, __next) do { } while (0)
+#endif /* CONFIG_AMM */
+
 extern struct task_struct *__switch_to(struct task_struct *,
 				       struct task_struct *);
 
@@ -134,7 +163,9 @@ do {							\
 		__switch_to_fpu(__prev, __next);	\
 	if (has_andesdsp())				\
 		__switch_to_andesdsp(__prev, __next);	\
-	if (has_vector())					\
+	if (has_amm())					\
+		__switch_to_amm(__prev, __next);	\
+	if (has_vector())				\
 		__switch_to_vector(__prev, __next);	\
 	if (switch_to_should_flush_icache(__next))	\
 		local_flush_icache_all();		\

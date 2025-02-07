@@ -31,6 +31,7 @@
 /* User mode control registers */
 #define CSR_UITB			0x800
 #define CSR_UCODE			0x801
+#define CSR_UZOBCTL			0x808 /* AMM : Zero Overhead Boundary Control Register */
 #define CSR_UDCAUSE			0x809
 #define CCTL_REG_UCCTLBEGINADDR_NUM	0x80b
 #define CCTL_REG_UCCTLCOMMAND_NUM	0x80c

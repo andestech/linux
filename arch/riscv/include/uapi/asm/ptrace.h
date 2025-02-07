@@ -60,6 +60,10 @@ struct __riscv_andesdsp_ext_state {
 	unsigned long ucode;
 };
 
+struct __riscv_amm_ext_state {
+	unsigned long uzobctl;
+};
+
 struct __riscv_f_ext_state {
 	__u32 f[32];
 	__u32 fcsr;

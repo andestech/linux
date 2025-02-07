@@ -20,6 +20,8 @@
 #include <asm/ptrace.h>
 #include <asm/bug.h>
 
+#include <linux/soc/andes/extension.h>
+
 static bool riscv_v_implicit_uacc = IS_ENABLED(CONFIG_RISCV_ISA_V_DEFAULT_ENABLE);
 static struct kmem_cache *riscv_v_user_cachep;
 #ifdef CONFIG_RISCV_ISA_V_PREEMPTIVE
@@ -94,6 +96,10 @@ static bool insn_is_vector(u32 insn_buf)
 		if ((csr >= CSR_VSTART && csr <= CSR_VCSR) ||
 		    (csr >= CSR_VL && csr <= CSR_VLENB))
 			return true;
+#ifdef CONFIG_AMM
+	case AMM_OPCODE:
+		return true;
+#endif
 	}
 
 	return false;

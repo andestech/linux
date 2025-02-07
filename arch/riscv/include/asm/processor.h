@@ -114,6 +114,7 @@ struct thread_struct {
 	unsigned int prev_cpu;
 #endif
 	struct __riscv_andesdsp_ext_state andesdsp_state;
+	struct __riscv_amm_ext_state amm_state;
 };
 
 /* Whitelist the fstate from the task_struct for hardened usercopy */

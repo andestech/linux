@@ -11,6 +11,7 @@
 static const struct riscv_isa_ext_data riscv_isa_vendor_ext_andes[] = {
 	__RISCV_ISA_EXT_DATA(xandespmu, RISCV_ISA_VENDOR_EXT_XANDESPMU),
 	__RISCV_ISA_EXT_DATA(xandesdsp, RISCV_ISA_VENDOR_EXT_XANDESDSP),
+	__RISCV_ISA_EXT_DATA(xandesvmm, RISCV_ISA_VENDOR_EXT_XANDESVMM),
 };
 
 struct riscv_isa_vendor_ext_data_list riscv_isa_vendor_ext_list_andes = {
