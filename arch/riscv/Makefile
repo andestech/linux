@@ -240,6 +240,10 @@ PHONY += ae350_rv64_smp_defconfig
 ae350_rv64_smp_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config smp.config sv39.config
 
+PHONY += ae350_rv64_smp_rproc_defconfig
+ae350_rv64_smp_rproc_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config smp.config sv39.config rproc.config
+
 PHONY += ae350_rv64_up_sv48_defconfig
 ae350_rv64_up_sv48_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile andes_defconfig andes-support.config 64-bit.config sv48.config

@@ -152,6 +152,59 @@
 			reg = <0x00 0x100000 0x00 0x100000>;
 			reusable;
 		};
+		andes_spbase:andes_spbase@3f000000 {
+			no-map;
+			reg = <0x0 0x3f000000 0x0 0x800000>;
+			alignment = <0x1000>;
+		};
+		andes_spbuf1:andes_spbuf1@3f800000 {
+			no-map;
+			reg = <0x0 0x3f800000 0x0 0x7e4000>;
+		};
+		vdev0buffer:vdev0buffer@3ffe4000 {
+			no-map;
+			reg = <0x0 0x3ffe4000 0x0 0x4000>;
+			alignment = <0x100>;
+		};
+		andes_spbuf2:andes_spbuf2@3ffe8000 {
+			no-map;
+			reg = <0x0 0x3ffe8000 0x0 0x8000>;
+		};
+		/* RX vring from AX45MP, TX ring(slave processor view) */
+		vdev0vring0:vdev0vring0@3fff0000 {
+			no-map;
+			reg = <0x0 0x3fff0000 0x0 0x4000>;
+			alignment = <0x100>;
+		};
+		/* TX vring from AX45MP, RX ring(slave processor view) */
+		vdev0vring1:vdev0vring1@3fff4000 {
+			no-map;
+			reg = <0x0 0x3fff4000 0x0 0x4000>;
+			alignment = <0x100>;
+		};
+		andes_rsc_table:andes_rsc_table@3fff8000 {
+			no-map;
+			reg = <0x0 0x3fff8000 0x0 0x4000>;
+			alignment = <0x400>;
+		};
+		andes_swmbox:andes_swmbox@3fffc000 {
+			no-map;
+			reg = <0x0 0x3fffc000 0x0 0x4000>;
+			alignment = <0x1000>;
+		};
+	};
+
+	andes_remoteproc_smp {
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		compatible = "andestech,andes_remoteproc_smp";
+		memory-region = <&andes_spbase>, <&andes_spbuf1>, <&vdev0buffer>,
+				<&andes_spbuf2>, <&vdev0vring0>, <&vdev0vring1>,
+				<&andes_rsc_table>;
+		mp_hartid = <0x1>;
+		sp_hartid = <0x3>;
+		rmem_base = <0x0 0x3f000000>;
+		rmem_size = <0x0 0x01000000>;
 	};
 
 	soc {
