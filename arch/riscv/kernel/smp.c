@@ -25,6 +25,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu_ops.h>
+#include <linux/soc/andes/remoteproc.h>
 
 enum ipi_message_type {
 	IPI_RESCHEDULE,
@@ -140,6 +141,10 @@ static irqreturn_t handle_IPI(int irq, void *data)
 		pr_warn("CPU%d: unhandled IPI%d\n", smp_processor_id(), ipi);
 		break;
 	}
+#ifdef CONFIG_ANDES_REMOTEPROC_SMP
+	if (rproc_check.check)
+		rproc_check.check(rproc_check.info);
+#endif
 
 	return IRQ_HANDLED;
 }

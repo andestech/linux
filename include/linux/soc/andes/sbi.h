@@ -36,9 +36,9 @@ enum sbi_ext_andes_fid {
 
 	SBI_EXT_ANDES_DCACHE_EN,
 
-	/* CPU idle (ATCSMU) */
-	SBI_EXT_ANDES_SUSPEND_MODE_SET,
-	SBI_EXT_ANDES_SUSPEND_MODE_ENTER,
+	/* OpenAMP */
+	SBI_EXT_ANDES_RPROC_EN,
+	SBI_EXT_ANDES_RPROC_SEND_IPI,
 };
 
 /* Programmable physical memory attributes (PPMA) */
