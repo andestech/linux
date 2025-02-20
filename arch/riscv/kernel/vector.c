@@ -96,6 +96,7 @@ static bool insn_is_vector(u32 insn_buf)
 		if ((csr >= CSR_VSTART && csr <= CSR_VCSR) ||
 		    (csr >= CSR_VL && csr <= CSR_VLENB))
 			return true;
+		fallthrough;
 #ifdef CONFIG_AMM
 	case AMM_OPCODE:
 		return true;
