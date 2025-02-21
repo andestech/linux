@@ -737,6 +737,12 @@ static int faradayfb_probe(struct platform_device *pdev)
 		goto err_exit;
 	}
 
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set dma mask\n");
+		goto err_exit;
+	}
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev, "Failed to get irq\n");
