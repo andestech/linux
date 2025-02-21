@@ -45,7 +45,10 @@ static int __init faradayfb_map_video_memory(struct fb_info *info)
 
 	/* The extra PAGE size is used for the palette. */
 	fbi->map_size = PAGE_ALIGN(info->fix.smem_len) + PAGE_SIZE;
-	fbi->map_cpu = dma_alloc_coherent(dev, fbi->map_size, &fbi->map_dma, GFP_DMA);
+	fbi->map_cpu = dma_alloc_coherent(dev,
+					  fbi->map_size,
+					  &fbi->map_dma,
+					  GFP_KERNEL);
 
 	if (fbi->map_cpu) {
 
