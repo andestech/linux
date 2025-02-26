@@ -283,6 +283,13 @@ static int __init andes_cache_init(void)
 		return ret;
 	}
 
+	/*
+	 * If there is no IOCP and Zicbom on the Andes CPU,
+	 * riscv_cbom_block_size must be 1.
+	 */
+	if (riscv_cbom_block_size != 1)
+		return 0;
+
 	riscv_noncoherent_register_cache_ops(&andes_cmo_ops);
 
 	np = of_find_matching_node(NULL, andes_cache_ids);
@@ -292,16 +299,6 @@ static int __init andes_cache_init(void)
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
 		return ret;
-
-	/*
-	 * If IOCP is present on the Andes ANDES core riscv_cbom_block_size
-	 * will be 0 for sure, so we can definitely rely on it. If
-	 * riscv_cbom_block_size = 0 we don't need to handle CMO using SW any
-	 * more so we just return success here and only if its being set we
-	 * continue further in the probe path.
-	 */
-	if (!riscv_cbom_block_size)
-		return 0;
 
 	andes_priv.l2c_base = ioremap(res.start, resource_size(&res));
 	if (!andes_priv.l2c_base)
