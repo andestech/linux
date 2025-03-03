@@ -610,6 +610,7 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 		num_cs = NSPI_MAX_CS_NUM;
 	}
 
+	mutex_init(&spi->mutex_lock);
 	/* Define our controller */
 	controller->bus_num = pdev->id;
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_RX_QUAD | SPI_TX_QUAD;
