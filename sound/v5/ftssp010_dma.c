@@ -2342,12 +2342,3 @@ int dmad_release(void)
 
 	return 0;
 }
-
-subsys_initcall(dmad_init);
-
-static void __exit dmad_exit(void)
-{
-	dmad_release();
-}
-
-module_exit(dmad_exit);
