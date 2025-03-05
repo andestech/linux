@@ -410,44 +410,40 @@ typedef struct dmad_drb {
 
 } dmad_drb;
 
-/******************************************************************************
- * DMAD Driver Interface
- ******************************************************************************/
-extern int dmad_channel_alloc(dmad_chreq *ch_req);
-extern int dmad_channel_free(dmad_chreq *ch_req);
-extern int dmad_channel_enable(const dmad_chreq *ch_req, u8 enable);
-extern u32 dmad_max_size_per_drb(dmad_chreq *ch_req);
-extern u32 dmad_bytes_to_cycles(dmad_chreq *ch_req, u32 byte_size);
+/* DMAD Driver Interface */
+int dmad_init(void);
+int dmad_release(void);
+int dmad_channel_alloc(dmad_chreq *ch_req);
+int dmad_channel_free(dmad_chreq *ch_req);
+int dmad_channel_enable(const dmad_chreq *ch_req, u8 enable);
+u32 dmad_max_size_per_drb(dmad_chreq *ch_req);
+u32 dmad_bytes_to_cycles(dmad_chreq *ch_req, u32 byte_size);
+int dmad_kickoff_requests(dmad_chreq *ch_req);
+int dmad_drain_requests(dmad_chreq *ch_req, u8 shutdown);
 
-extern int dmad_kickoff_requests(dmad_chreq *ch_req);
-extern int dmad_drain_requests(dmad_chreq *ch_req, u8 shutdown);
+/* For performance reasons, these two functions are platform specific. */
+int dmad_probe_irq_source_ahb(void);
 
-/* for performance reason, these two functions are platform-specific */
-extern int dmad_probe_irq_source_ahb(void);
-/* note: hw_ptr here is phyical address of dma source or destination */
-extern dma_addr_t dmad_probe_hw_ptr_src(dmad_chreq *ch_req);
-extern dma_addr_t dmad_probe_hw_ptr_dst(dmad_chreq *ch_req);
+/* Note: hw_ptr here is phyical address of dma source or destination. */
+dma_addr_t dmad_probe_hw_ptr_src(dmad_chreq *ch_req);
+dma_addr_t dmad_probe_hw_ptr_dst(dmad_chreq *ch_req);
 
-/*****************************************************************************
- * routines only valid in discrete (non-ring) mode
- */
-extern int dmad_config_channel_dir(dmad_chreq *ch_req, u8 dir, dmad_drb *drb);
-extern int dmad_alloc_drb(dmad_chreq *ch_req, dmad_drb **drb);
-extern int dmad_free_drb(dmad_chreq *ch_req, dmad_drb *drb);
-extern int dmad_submit_request(dmad_chreq *ch_req,
-			       dmad_drb *drb, u8 keep_fired);
-extern int dmad_withdraw_request(dmad_chreq *ch_req, dmad_drb *drb);
-/****************************************************************************/
+/* Routines are only valid in discrete (non-ring) mode */
+int dmad_config_channel_dir(dmad_chreq *ch_req, u8 dir, dmad_drb *drb);
+int dmad_alloc_drb(dmad_chreq *ch_req, dmad_drb **drb);
+int dmad_free_drb(dmad_chreq *ch_req, dmad_drb *drb);
+int dmad_submit_request(dmad_chreq *ch_req, dmad_drb *drb, u8 keep_fired);
+int dmad_withdraw_request(dmad_chreq *ch_req, dmad_drb *drb);
 
-/*****************************************************************************
- * routines only valid in ring mode
- * note: sw_ptr and hw_ptr are values offset from the ring buffer base
- *       unit of sw_ptr is data-width
- *       unit of hw_ptr returned is byte
+/*
+ * Routines are only valid in ring mode
+ * Note: sw_ptr and hw_ptr are values offset from the ring buffer base
+ *       - Unit of sw_ptr is data width
+ *       - Unit of hw_ptr returned is byte
  */
 int dmad_update_ring(dmad_chreq *ch_req);
-int dmad_update_ring_sw_ptr(dmad_chreq *ch_req,
-				   dma_addr_t sw_ptr, u8 keep_fired);
+int dmad_update_ring_sw_ptr(dmad_chreq *ch_req, dma_addr_t sw_ptr,
+			    u8 keep_fired);
 dma_addr_t dmad_probe_ring_hw_ptr(dmad_chreq *ch_req);
 
-#endif  /* __NDS_DMAD_ATF_INC__ */
+#endif
