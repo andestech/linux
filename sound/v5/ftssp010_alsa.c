@@ -1433,11 +1433,16 @@ static int atf_ac97_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	ret = dmad_init();
+	if (ret)
+		return ret;
+
 	return ftssp_alsa_init(pdev);
 }
 
 static void atf_ac97_remove(struct platform_device *pdev)
 {
+	dmad_release();
 	return ftssp_alsa_i2c_i2s_exit();
 }
 
