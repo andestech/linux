@@ -39,6 +39,7 @@ struct andes_rproc_pdata {
 	int num_local_mem_access_ports;
 	u64 mp_local_mem_access_port[2];
 	u64 sp_local_mem[2];
+	u64 local_mem_size[2];
 	int irq;
 	void __iomem *mbox_msg;
 	void __iomem *atcsmu_base;
@@ -242,6 +243,7 @@ static int andes_parse_local_mem_access_ports(struct rproc *rproc)
 
 			local->mp_local_mem_access_port[i] = rsc.start;
 			local->sp_local_mem[i] = size & rsc.start;
+			local->local_mem_size[i] = size;
 			rproc_add_carveout(rproc, mem);
 		}
 	}
@@ -325,8 +327,9 @@ int andes_rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw
 		}
 
 		for (j = 0; j < local->num_local_mem_access_ports; j++) {
-			if (da == local->sp_local_mem[j])
-				da = local->mp_local_mem_access_port[j];
+			if (da >= local->sp_local_mem[j] &&
+			    da < (local->sp_local_mem[j] + local->local_mem_size[j]))
+				da |= local->mp_local_mem_access_port[j];
 		}
 
 		/* grab the kernel address for this device address */
