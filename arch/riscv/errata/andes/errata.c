@@ -24,6 +24,8 @@
 #define ANDES_AX45MP_MARCHID		0x8000000000008a45UL
 #define ANDES_AX45MP_MIMPID		0x500UL
 
+DEFINE_STATIC_KEY_FALSE(andes_legacy_mmu_key);
+
 phys_addr_t andes_pfn_msb;
 EXPORT_SYMBOL(andes_pfn_msb);
 
@@ -83,6 +85,8 @@ static bool errata_legacy_mmu_check_func(unsigned int stage,
 {
 	/* legacy MMU only exists in 2X-series CPU.*/
 	andes_legacy_mmu = (((arch_id & 0xF0) >> 4) == 0x2) ? true : false;
+	if (andes_legacy_mmu && ((arch_id & 0xF) == 0x5))
+		static_branch_enable(&andes_legacy_mmu_key);
 	return andes_legacy_mmu;
 }
 

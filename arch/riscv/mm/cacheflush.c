@@ -6,6 +6,7 @@
 #include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/prctl.h>
+#include <linux/soc/andes/andes.h>
 #include <asm/acpi.h>
 #include <asm/cacheflush.h>
 
@@ -89,7 +90,10 @@ void flush_icache_pte(struct mm_struct *mm, pte_t pte)
 	struct folio *folio = page_folio(pte_page(pte));
 
 	if (!test_bit(PG_dcache_clean, &folio->flags)) {
-		flush_icache_mm(mm, false);
+		if (static_branch_unlikely(&andes_legacy_mmu_key))
+			flush_icache_all();
+		else
+			flush_icache_mm(mm, false);
 		set_bit(PG_dcache_clean, &folio->flags);
 	}
 }
