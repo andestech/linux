@@ -6,6 +6,8 @@
 #ifndef __ANDES_ANDES_H
 #define __ANDES_ANDES_H
 
+DECLARE_STATIC_KEY_FALSE(andes_legacy_mmu_key);
+
 extern bool andes_legacy_mmu;
 extern phys_addr_t andes_pfn_msb;
 
