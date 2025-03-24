@@ -32,7 +32,6 @@
 #define PWM_WRITEL(val, offset)	writel((val), ap->base + (offset))
 
 struct atcpit_pwmc {
-	struct pwm_chip chip;
 	void __iomem *base;
 	struct clk *clk;
 	u64 rate[2];
@@ -43,7 +42,7 @@ struct atcpit_pwmc {
 
 static inline struct atcpit_pwmc *to_atcpit_pwmc(struct pwm_chip *chip)
 {
-	return container_of(chip, struct atcpit_pwmc, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static void atcpit_pwmc_disable(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -182,22 +181,20 @@ static const struct pwm_ops atcpit_pwm_ops = {
 
 static int atcpit_pwmc_probe(struct platform_device *pdev)
 {
+	struct pwm_chip *chip;
 	struct atcpit_pwmc *ap;
-	struct resource *res;
 	int ret = 0;
 
-	ap = devm_kzalloc(&pdev->dev, sizeof(*ap), GFP_KERNEL);
+	chip = devm_pwmchip_alloc(&pdev->dev, 2, sizeof(*ap));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
-	if (ap == NULL)
-		return -ENOMEM;
-
+	ap = to_atcpit_pwmc(chip);
 	platform_set_drvdata(pdev, ap);
-	ap->chip.dev = pdev->dev;
-	ap->chip.ops = &atcpit_pwm_ops;
-	ap->chip.id = -1;
-	ap->chip.npwm = 2;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ap->base = devm_ioremap_resource(&pdev->dev, res);
+
+	chip->ops = &atcpit_pwm_ops;
+
+	ap->base = devm_platform_ioremap_resource(pdev, 0);
 
 	if (IS_ERR(ap->base))
 		return PTR_ERR(ap->base);
@@ -211,7 +208,7 @@ static int atcpit_pwmc_probe(struct platform_device *pdev)
 		return PTR_ERR(ap->clk);
 	}
 
-	ret = pwmchip_add(&ap->chip);
+	ret = devm_pwmchip_add(&pdev->dev, chip);
 	if (ret < 0)
 		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
 
@@ -220,9 +217,9 @@ static int atcpit_pwmc_probe(struct platform_device *pdev)
 
 static void atcpit_pwmc_remove(struct platform_device *pdev)
 {
-	struct atcpit_pwmc *ap = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = platform_get_drvdata(pdev);
 
-	pwmchip_remove(&ap->chip);
+	pwmchip_remove(chip);
 
 	dev_dbg(&pdev->dev, "driver removed\n");
 }
