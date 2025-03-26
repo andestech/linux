@@ -611,20 +611,28 @@ static const struct relocation_handlers reloc_handlers[] = {
 				    .accumulate_handler = apply_uleb128_accumulation },
 	/* 62-191 reserved for future standard use */
 	/* 192-255 nonstandard ABI extensions  */
+
+	/* Andes relocation starts from 200 and above */
+	[R_RISCV_NO_RVC_REGION_BEGIN]	= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_NO_RVC_REGION_END]	= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_ALIGN_BTB]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_10_PCREL]		= { .reloc_handler = apply_r_riscv_10_pcrel_rela },
+	[R_RISCV_DATA]			= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_LALO_HI20]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_LALO_LO12_I]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_RELAX_ENTRY]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_LGP18S0]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_LGP17S1]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_LGP17S2]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_LGP17S3]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_SGP18S0]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_SGP17S1]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_SGP17S2]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_SGP17S3]		= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_RELAX_REGION_BEGIN]	= { .reloc_handler = apply_r_riscv_ignore_rela },
+	[R_RISCV_RELAX_REGION_END]	= { .reloc_handler = apply_r_riscv_ignore_rela },
 };
 
-static int (*reloc_handlers_rela_nds(unsigned int type)) (struct module *me,
-							  void *location,
-							  Elf_Addr v)
-{
-	if (type == R_RISCV_10_PCREL)
-		return apply_r_riscv_10_pcrel_rela;
-	else if (type >= R_RISCV_NO_RVC_REGION_BEGIN &&
-		 type <= R_RISCV_RELAX_REGION_END)
-		return apply_r_riscv_ignore_rela;
-	else
-		return NULL;
-}
 
 static void
 process_accumulated_relocations(struct module *me,
@@ -843,7 +851,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		if (type < ARRAY_SIZE(reloc_handlers))
 			handler = reloc_handlers[type].reloc_handler;
 		else
-			handler = reloc_handlers_rela_nds(type);
+			handler = NULL;
 
 		if (!handler) {
 			pr_err("%s: Unknown relocation type %u\n",
