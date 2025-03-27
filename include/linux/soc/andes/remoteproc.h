@@ -11,10 +11,12 @@
 
 #define SP_BASE_HI			0x0
 #define SP_BASE_LO			0x3f000000
+#define OPENSBI_RESET_ADD		0x0
 #define MBOX_MSG			0x3fffc000
 #define MBOX_MSG_SIZE			0x4
 #define MBOX_SET_MSG			-1
 #define MBOX_SP_RUN			0
+#define MBOX_MP_STOP			0x2
 
 #define MBOX_OFF			(offsetof(struct swmsg_box, sp_mbox))
 #define SBI_OFF				(offsetof(struct swmsg_box, opensbi_mbox))
