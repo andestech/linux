@@ -113,9 +113,14 @@ static int andes_rproc_stop(struct rproc *rproc)
 
 	msg = readl(local->mbox_msg + MBOX_OFF);
 	if (msg == MBOX_SP_RUN) {
-		writel(MBOX_SET_MSG, local->mbox_msg + MBOX_OFF);
+		writel(MBOX_MP_STOP, local->mbox_msg + MBOX_OFF);
 		andes_rproc_kick(rproc, 1);
 	}
+
+	/* Set the reset vector of the SP to the OpenSBI entry point. */
+	sbi_plicsw_rproc_send_ipi(local->sp_hartid);
+	writel(OPENSBI_RESET_ADD, smu_base + SMU_HART_RESET_VEC_LO(local->sp_hartid));
+	writel(PCS_RESET, smu_base + PCSm_CTL_OFF(local->sp_hartid));
 
 	return 0;
 }
