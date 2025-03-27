@@ -1372,38 +1372,6 @@ err_kfree:
 	return err;
 }
 
-static int v5_dma_remove(struct platform_device *pdev)
-{
-	struct v5_dma		*v5dma = platform_get_drvdata(pdev);
-	struct dma_chan		*chan, *_chan;
-	struct resource		*io;
-
-	v5_dma_off(v5dma);
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
-	dma_async_device_unregister(&v5dma->dma_common);
-	dma_pool_destroy(v5dma->dma_desc_pool);
-	free_irq(platform_get_irq(pdev, 0), v5dma);
-
-	list_for_each_entry_safe(chan, _chan, &v5dma->dma_common.channels,
-			device_node) {
-		struct v5_dma_chan	*v5chan = to_v5_dma_chan(chan);
-
-		/* Disable interrupts */
-		v5_disable_chan_irq(v5dma, chan->chan_id);
-		tasklet_kill(&v5chan->tasklet);
-		list_del(&chan->device_node);
-	}
-
-	iounmap(v5dma->regs);
-	v5dma->regs = NULL;
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(io->start, resource_size(io));
-	kfree(v5dma);
-
-	return 0;
-}
-
 static void v5_dma_shutdown(struct platform_device *pdev)
 {
 	v5_dma_off(platform_get_drvdata(pdev));
@@ -1411,7 +1379,6 @@ static void v5_dma_shutdown(struct platform_device *pdev)
 
 static struct platform_driver v5_dma_driver = {
 	.probe		= v5_dma_probe,
-	.remove		= v5_dma_remove,
 	.shutdown	= v5_dma_shutdown,
 	.id_table	= v5dma_devtypes,
 	.driver = {
