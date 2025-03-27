@@ -94,13 +94,15 @@ config APPLE_ADMAC
 	  Enable support for Audio DMA Controller found on Apple Silicon SoCs.
 
 config ATCDMAC300
-	tristate "Andes generic DMA support"
+	bool "Andes generic DMA support"
 	depends on ARCH_ANDES
 	select DMA_ENGINE
 	select DMATEST
 	help
-	  Support the Andes ATCDMAC300 controller for dmaengine.
-	  It has the capability for DMA_SLAVE and DMA_MEMCPY.
+	  Enable support for the Andes ATCDMAC300 DMA controller.
+	  Select Y if your platform includes an ATCDMAC300 device that
+	  requires DMA engine support. This driver supports DMA_SLAVE,
+	  DMA_MEMCPY, and DMA_CYCLIC transfer modes.
 
 config AT_HDMAC
 	tristate "Atmel AHB DMA support"
