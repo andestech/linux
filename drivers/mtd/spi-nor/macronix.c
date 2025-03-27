@@ -36,8 +36,16 @@ static int mx25u1635_late_init(struct spi_nor *nor)
 	return 0;
 }
 
+static int mx25u1635_nor_init(struct spi_nor *nor)
+{
+	nor->params->quad_enable = spi_nor_sr1_bit6_quad_enable;
+
+	return 0;
+}
+
 static const struct spi_nor_fixups mx25u1635_fixups = {
 	.late_init = mx25u1635_late_init,
+	.post_sfdp = mx25u1635_nor_init,
 };
 
 static const struct spi_nor_fixups mx25l25635_fixups = {
