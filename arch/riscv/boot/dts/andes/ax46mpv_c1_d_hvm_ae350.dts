@@ -23,7 +23,12 @@
 			reg = <0>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcv_sscofpmf_svpbmt_zicbom_xandes_xandespmu_xandesvmm";
+                       riscv,isa = "rv64imafdcv";
+                       riscv,isa-base = "rv64i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm", "sscofpmf", "svpbmt",
+					      "zicbom", "xandespmu", "xandesvmm";
 			riscv,cbom-block-size = <64>;
 			mmu-type = "riscv,sv48";
 			clock-frequency = <60000000>;

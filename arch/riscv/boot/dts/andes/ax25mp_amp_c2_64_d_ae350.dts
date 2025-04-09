@@ -16,7 +16,11 @@
 			reg = <0x0>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdc_xandes";
+                       riscv,isa = "rv64imafdc";
+                       riscv,isa-base = "rv64i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm";
 			riscv,priv-major = <0x1>;
 			riscv,priv-minor = <0xa>;
 			mmu-type = "riscv,sv39";
@@ -39,7 +43,11 @@
 			reg = <0x1>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdc_xandes";
+                       riscv,isa = "rv64imafdc";
+                       riscv,isa-base = "rv64i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm";
 			riscv,priv-major = <0x1>;
 			riscv,priv-minor = <0xa>;
 			mmu-type = "riscv,sv39";

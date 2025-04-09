@@ -27,7 +27,16 @@
 			reg = <0x00>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdc_zba_zbb_zbc_zbkb_zbkc_zbkx_zbs_zicbom_zkn_zknd_zkne_zknh_zks_zksed_zksh_zkt_smepmp_sscofpmf_svinval_svnapot_svpbmt_xandes";
+                       riscv,isa = "rv64imafdc";
+                       riscv,isa-base = "rv64i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+					      "zba", "zbb", "zbc", "zbkb",
+					      "zbkc", "zbkx", "zbs", "zicbom",
+					      "zkn", "zknd", "zkne", "zknh",
+					      "zks", "zksed", "zksh", "zkt",
+					      "smepmp", "sscofpmf", "svinval",
+					      "svnapot", "svpbmt", "zicntr",
+					      "zicsr", "zifencei", "zihpm";
 			riscv,cbom-block-size = <0x40>;
 			mmu-type = "riscv,sv48";
 			clock-frequency = <0x3938700>;
@@ -54,7 +63,16 @@
 			reg = <0x01>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdc_zba_zbb_zbc_zbkb_zbkc_zbkx_zbs_zicbom_zkn_zknd_zkne_zknh_zks_zksed_zksh_zkt_smepmp_sscofpmf_svinval_svnapot_svpbmt_xandes";
+                       riscv,isa = "rv64imafdc";
+                       riscv,isa-base = "rv64i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+					      "zba", "zbb", "zbc", "zbkb",
+					      "zbkc", "zbkx", "zbs", "zicbom",
+					      "zkn", "zknd", "zkne", "zknh",
+					      "zks", "zksed", "zksh", "zkt",
+					      "smepmp", "sscofpmf", "svinval",
+					      "svnapot", "svpbmt", "zicntr",
+					      "zicsr", "zifencei", "zihpm";
 			riscv,cbom-block-size = <0x40>;
 			mmu-type = "riscv,sv48";
 			clock-frequency = <0x3938700>;

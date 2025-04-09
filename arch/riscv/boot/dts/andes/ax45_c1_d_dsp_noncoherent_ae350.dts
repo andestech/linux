@@ -26,7 +26,11 @@
 			reg = <0x00>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdc_xandes_xandesdsp_xandespmu";
+                       riscv,isa = "rv64imafdc";
+                       riscv,isa-base = "rv64i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm", "xandesdsp", "xandespmu";
 			mmu-type = "riscv,sv48";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;

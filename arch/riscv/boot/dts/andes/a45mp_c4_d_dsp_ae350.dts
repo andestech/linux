@@ -26,7 +26,11 @@
 			reg = <0x00>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv32imafdc_xandes_xandesdsp_xandespmu";
+                       riscv,isa = "rv32imafdc";
+                       riscv,isa-base = "rv32i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm", "xandesdsp", "xandespmu";
 			mmu-type = "riscv,sv32";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -52,7 +56,11 @@
 			reg = <0x01>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv32imafdc_xandes_xandesdsp_xandespmu";
+                       riscv,isa = "rv32imafdc";
+                       riscv,isa-base = "rv32i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm", "xandesdsp", "xandespmu";
 			mmu-type = "riscv,sv32";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -78,7 +86,11 @@
 			reg = <0x02>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv32imafdc_xandes_xandesdsp_xandespmu";
+                       riscv,isa = "rv32imafdc";
+                       riscv,isa-base = "rv32i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm", "xandesdsp", "xandespmu";
 			mmu-type = "riscv,sv32";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;
@@ -104,7 +116,11 @@
 			reg = <0x03>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv32imafdc_xandes_xandesdsp_xandespmu";
+                       riscv,isa = "rv32imafdc";
+                       riscv,isa-base = "rv32i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm", "xandesdsp", "xandespmu";
 			mmu-type = "riscv,sv32";
 			clock-frequency = <0x3938700>;
 			i-cache-size = <0x8000>;

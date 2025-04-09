@@ -23,7 +23,11 @@
 			reg = <0>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcv_xandes_xandesdsp_xandespmu";
+                       riscv,isa = "rv64imafdcv";
+                       riscv,isa-base = "rv64i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm", "xandesdsp", "xandespmu";
 			riscv,priv-major = <1>;
 			riscv,priv-minor = <10>;
 			mmu-type = "riscv,sv48";
@@ -48,7 +52,11 @@
 			reg = <1>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcv_xandes_xandesdsp_xandespmu";
+                       riscv,isa = "rv64imafdcv";
+                       riscv,isa-base = "rv64i";
+                       riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "v",
+                                              "zicntr", "zicsr", "zifencei",
+                                              "zihpm", "xandesdsp", "xandespmu";
 			riscv,priv-major = <1>;
 			riscv,priv-minor = <10>;
 			mmu-type = "riscv,sv48";
