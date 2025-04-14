@@ -21,7 +21,7 @@
 
 #define ANDES_L2C_REG_C0_CMD_OFFSET		0x40
 #define ANDES_L2C_REG_C0_ACC_OFFSET		0x48
-#define ANDES_L2C_REG_STATUS_OFFSET		0x80
+#define ANDES_L2C_REG_C0_STATUS_OFFSET		0x80
 
 /* D-cache operation */
 #define ANDES_CCTL_L1D_VA_INVAL			0 /* Invalidate an L1 cache entry */
@@ -37,9 +37,6 @@
 #define ANDES_CCTL_L2_PA_INVAL			0x8 /* Invalidate an L2 cache entry */
 #define ANDES_CCTL_L2_PA_WB			0x9 /* Write-back an L2 cache entry */
 
-#define ANDES_L2C_REG_PER_CORE_OFFSET		0x10
-#define ANDES_CCTL_L2_STATUS_PER_CORE_OFFSET	4
-
 #define ANDES_L2C_REG_CN_CMD_OFFSET(n)	\
 	(ANDES_L2C_REG_C0_CMD_OFFSET + ((n) * ANDES_L2C_REG_PER_CORE_OFFSET))
 #define ANDES_L2C_REG_CN_ACC_OFFSET(n)	\
@@ -49,6 +46,10 @@
 
 #define ANDES_CCTL_REG_UCCTLBEGINADDR_NUM	0x80b
 #define ANDES_CCTL_REG_UCCTLCOMMAND_NUM		0x80c
+
+static u32 ANDES_L2C_REG_PER_CORE_OFFSET;
+static u32 ANDES_CCTL_L2_STATUS_PER_CORE_OFFSET;
+static u32 ANDES_L2C_REG_STATUS_OFFSET;
 
 struct andes_priv {
 	void __iomem *l2c_base;
@@ -113,9 +114,10 @@ static irqreturn_t l2c_irq(int irq, void *dev_id)
 }
 
 /* L2 Cache operations */
-static inline uint32_t andes_cpu_l2c_get_cctl_status(void)
+static inline uint32_t andes_cpu_l2c_get_cctl_status(int mhartid)
 {
-	return readl_relaxed(andes_priv.l2c_base + ANDES_L2C_REG_STATUS_OFFSET);
+	return readl_relaxed(andes_priv.l2c_base + ANDES_L2C_REG_C0_STATUS_OFFSET +
+			     mhartid * ANDES_L2C_REG_STATUS_OFFSET);
 }
 
 static void cpu_l2c_cctl(phys_addr_t pa, void __iomem *base,
@@ -136,7 +138,7 @@ static void cpu_l2c_cctl(phys_addr_t pa, void __iomem *base,
 #endif /* !CONFIG_64BIT */
 
 	writel_relaxed(ops, base + ANDES_L2C_REG_CN_CMD_OFFSET(mhartid));
-	while ((andes_cpu_l2c_get_cctl_status() &
+	while ((andes_cpu_l2c_get_cctl_status(mhartid) &
 		ANDES_CCTL_L2_STATUS_CN_MASK(mhartid)) !=
 		ANDES_CCTL_L2_STATUS_IDLE)
 		;
@@ -262,6 +264,7 @@ static int __init andes_cache_init(void)
 	struct resource res;
 	int ret, error;
 	u32 irq;
+	u32 l2c_cfg;
 
 	/*
 	 * Initialize l2c_base and cache_line_size to provide
@@ -303,6 +306,18 @@ static int __init andes_cache_init(void)
 	andes_priv.l2c_base = ioremap(res.start, resource_size(&res));
 	if (!andes_priv.l2c_base)
 		return -ENOMEM;
+	l2c_cfg = *(u32 *)andes_priv.l2c_base;
+
+	/* Default to offset of V0 memory map */
+	ANDES_L2C_REG_PER_CORE_OFFSET = 0x10;
+	ANDES_CCTL_L2_STATUS_PER_CORE_OFFSET = 0x4;
+	ANDES_L2C_REG_STATUS_OFFSET = 0;
+
+	if (l2c_cfg & L2C_CFG_MAP_MASK) {
+		ANDES_L2C_REG_PER_CORE_OFFSET = 0x1000;
+		ANDES_CCTL_L2_STATUS_PER_CORE_OFFSET = 0;
+		ANDES_L2C_REG_STATUS_OFFSET = 0x1000;
+	}
 
 	ret = andes_get_l2_line_size(np);
 	if (ret) {
