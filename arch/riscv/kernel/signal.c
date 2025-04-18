@@ -234,6 +234,18 @@ static long restore_sigcontext(struct pt_regs *regs,
 			return err;
 	}
 
+	if (has_andesdsp()) {
+		err = restore_andesdsp_state(regs, &sc->sc_andesdsp_regs);
+		if (unlikely(err))
+			return err;
+	}
+
+	if (has_amm()) {
+		err = restore_amm_state(regs, &sc->sc_amm_regs);
+		if (unlikely(err))
+			return err;
+	}
+
 	/* Check the reserved word before extensions parsing */
 	err = __get_user(rsvd, &sc->sc_extdesc.reserved);
 	if (unlikely(err))
@@ -268,18 +280,6 @@ static long restore_sigcontext(struct pt_regs *regs,
 			return -EINVAL;
 		}
 		sc_ext_ptr = (void __user *)head + size;
-	}
-
-	if (has_andesdsp()) {
-		err = restore_andesdsp_state(regs, &sc->sc_andesdsp_regs);
-		if (unlikely(err))
-			return err;
-	}
-
-	if (has_amm()) {
-		err = restore_amm_state(regs, &sc->sc_amm_regs);
-		if (unlikely(err))
-			return err;
 	}
 
 	return err;
