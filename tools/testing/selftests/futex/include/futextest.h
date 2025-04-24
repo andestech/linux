@@ -67,6 +67,11 @@ typedef volatile u_int32_t futex_t;
  * These argument descriptions are the defaults for all
  * like-named arguments in the following wrappers except where noted below.
  */
+
+#if !defined(SYS_futex) && defined(SYS_futex_time64)
+#define SYS_futex SYS_futex_time64
+#endif
+
 #define futex(uaddr, op, val, timeout, uaddr2, val3, opflags) \
 	syscall(SYS_futex, uaddr, op | opflags, val, timeout, uaddr2, val3)
 
