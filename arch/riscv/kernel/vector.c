@@ -91,16 +91,15 @@ static bool insn_is_vector(u32 insn_buf)
 			return true;
 
 		break;
+#ifdef CONFIG_AMM
+	case AMM_OPCODE:
+		return true;
+#endif
 	case RVG_OPCODE_SYSTEM:
 		csr = RVG_EXTRACT_SYSTEM_CSR(insn_buf);
 		if ((csr >= CSR_VSTART && csr <= CSR_VCSR) ||
 		    (csr >= CSR_VL && csr <= CSR_VLENB))
 			return true;
-		fallthrough;
-#ifdef CONFIG_AMM
-	case AMM_OPCODE:
-		return true;
-#endif
 	}
 
 	return false;
