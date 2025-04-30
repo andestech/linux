@@ -374,11 +374,6 @@ static void v5_enable_chan_irq(struct v5_dma *v5dma, int chan_id)
 	v5_setup_irq(v5dma, chan_id, 1);
 }
 
-static void v5_disable_chan_irq(struct v5_dma *v5dma, int chan_id)
-{
-	v5_setup_irq(v5dma, chan_id, 0);
-}
-
 /**
  * v5_chan_is_enabled - test if given channel is enabled
  * @v5chan: channel we want to test status

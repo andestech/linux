@@ -15,6 +15,7 @@
 #include <linux/of_dma.h>
 #include <linux/of_address.h>
 #include <linux/dma-map-ops.h>
+#include <linux/bitfield.h>
 #include "dmaengine.h"
 #include "atcdmac300.h"
 
@@ -593,7 +594,10 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	unsigned int		i;
 	struct scatterlist	*sg;
 	size_t			total_len = 0;
-	unsigned int		addr_width;
+	unsigned short		burst_bytes;
+	unsigned short		burst_size;
+	unsigned char		src_width;
+	unsigned char		dst_width;
 
 	dev_vdbg(chan2dev(chan), "sg_len:%d d:%s f:0x%lx\n",
 		 sg_len,
@@ -607,17 +611,14 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
 		reg = sconfig->dst_addr;
-		addr_width = convert_buswidth(sconfig->dst_addr_width);
-		ctrl = SBSIZE(sconfig->dst_maxburst);
-		ctrl |= DST_HS;
-		ctrl |= (SRC_ADDR_MODE_INCR | DST_ADDR_MODE_FIXED);
-		ctrl |= ((v5chan->req_num << DSTREQSEL) & DSTREQSEL_MASK);
-		ctrl |= SRC_WIDTH(addr_width) | DST_WIDTH(addr_width);
+		dst_width = convert_buswidth(sconfig->dst_addr_width);
+		burst_bytes = sconfig->dst_addr_width *
+			      (1 << sconfig->dst_maxburst);
 
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct v5_desc	*desc;
 			u32		len;
-			dma_addr_t		mem;
+			dma_addr_t	mem;
 
 			mem = sg_dma_address(sg);
 			if (v5dma->io_regs)
@@ -630,24 +631,19 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				goto err;
 			}
 
-			/*
-			 * Since the memory address varies for each
-			 * scatter-gather operation, it is necessary to
-			 * validate each address. If the transfer width
-			 * of a scatter-gather operation does not match
-			 * the addr_width specified in dma_slave_config,
-			 * an error should be returned to prevent a DMA
-			 * failure caused by incorrect parameters.
-			 */
-			if (unlikely(addr_width > xfer_width(v5dma, mem, reg, len))) {
-				dev_err(chan2dev(chan),
-					"Transfer width mismatch with addr_width in dma_slave_config. sg:%d mem:0x%pa len:0x%x dir:%d\n",
-					i,
-					&mem,
-					len,
-					direction);
-				goto err;
+			src_width = xfer_width(v5dma, mem, reg, len);
+			if (burst_bytes < (1 << src_width)) {
+				burst_size = burst_bytes;
+				src_width = 0;
+			} else {
+				burst_size = burst_bytes / (1 << src_width);
 			}
+			ctrl = SBSIZE(ilog2(burst_size)) |
+			       SRC_WIDTH(src_width) |
+			       DST_WIDTH(dst_width) |
+			       DST_HS |
+			       (SRC_ADDR_MODE_INCR | DST_ADDR_MODE_FIXED) |
+			       FIELD_PREP(DSTREQSEL_MASK, v5chan->req_num);
 
 			desc = v5_desc_get(v5chan);
 			if (!desc)
@@ -659,7 +655,7 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lli.dstAddrh = upper_32_bits(reg);
 #endif
 			desc->lli.ctrl = ctrl;
-			desc->lli.tranSize = (len >> addr_width);
+			desc->lli.tranSize = (len >> src_width);
 			v5_desc_chain(&first, &prev, desc);
 			total_len += len;
 			desc->num_sg = sg_len;
@@ -668,12 +664,9 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	case DMA_DEV_TO_MEM:
 		reg = sconfig->src_addr;
-		addr_width = convert_buswidth(sconfig->src_addr_width);
-		ctrl = SBSIZE(sconfig->src_maxburst);
-		ctrl |= SRC_HS;
-		ctrl |= (SRC_ADDR_MODE_FIXED | DST_ADDR_MODE_INCR);
-		ctrl |= ((v5chan->req_num << SRCREQSEL) & SRCREQSEL_MASK);
-		ctrl |= SRC_WIDTH(addr_width) | DST_WIDTH(addr_width);
+		src_width = convert_buswidth(sconfig->src_addr_width);
+		burst_bytes = sconfig->src_addr_width *
+			      (1 << sconfig->src_maxburst);
 
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct v5_desc	*desc;
@@ -690,15 +683,15 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 					"sg(%d) data length is zero\n", i);
 				goto err;
 			}
-			if (addr_width > xfer_width(v5dma, mem, reg, len)) {
-				dev_err(chan2dev(chan),
-					"Transfer width mismatch with addr_width in dma_slave_config. sg:%d mem:0x%pa len:0x%x dir:%d\n",
-					i,
-					&mem,
-					len,
-					direction);
-				goto err;
-			}
+
+			dst_width = xfer_width(v5dma, mem, reg, len);
+			burst_size = burst_bytes / sconfig->src_addr_width;
+			ctrl = SBSIZE(ilog2(burst_size)) |
+			       SRC_WIDTH(src_width) |
+			       DST_WIDTH(dst_width) |
+			       SRC_HS |
+			       (SRC_ADDR_MODE_FIXED | DST_ADDR_MODE_INCR) |
+			       FIELD_PREP(SRCREQSEL_MASK, v5chan->req_num);
 
 			desc = v5_desc_get(v5chan);
 			if (!desc)
@@ -710,7 +703,7 @@ v5_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lli.dstAddrh = upper_32_bits(mem);
 #endif
 			desc->lli.ctrl = ctrl;
-			desc->lli.tranSize = (len >> addr_width);
+			desc->lli.tranSize = (len >> src_width);
 			v5_desc_chain(&first, &prev, desc);
 			total_len += len;
 			desc->num_sg = sg_len;
@@ -916,18 +909,12 @@ static int v5_config(struct dma_chan *chan,
 	if (!chan->private)
 		return -EINVAL;
 
-	/*
-	 * The src_addr_width and dst_addr_width are recommended to be set to
-	 * the same value to avoid a failed DMA operation when performing DMA
-	 * between a device and memory. If they differ, an error is returned.
-	 */
-	if (unlikely(sconfig->src_addr_width != sconfig->dst_addr_width)) {
-		dev_err(chan2dev(chan),
-			"The src_addr_width and dst_addr_width should be set to same value. src:%d dst:%d\n",
-			sconfig->src_addr_width,
-			sconfig->dst_addr_width);
+	/* Must be powers of two according to ATCDMAC300 spec */
+	if (!is_power_of_2(sconfig->src_maxburst) ||
+	    !is_power_of_2(sconfig->dst_maxburst) ||
+	    !is_power_of_2(sconfig->src_addr_width) ||
+	    !is_power_of_2(sconfig->dst_addr_width))
 		return -EINVAL;
-	}
 
 	memcpy(&v5chan->dma_sconfig, sconfig, sizeof(*sconfig));
 	convert_burst(&v5chan->dma_sconfig.src_maxburst);
