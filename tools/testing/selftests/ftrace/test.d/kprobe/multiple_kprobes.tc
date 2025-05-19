@@ -15,6 +15,11 @@ N=0
 echo "Setup up kprobes on first available 256 text symbols"
 grep -i " t " /proc/kallsyms | cut -f3 -d" " | grep -v .*\\..* | \
 while read i; do
+  if [ "${i}" == "handle_break" ] ||
+     [ "${i}" == "riscv_v_context_nesting_start" ] ||
+     [ "${i}" == "riscv_v_context_nesting_end" ]; then
+    continue
+  fi
   echo p ${i}+${OFFS} >> kprobe_events && N=$((N+1)) ||:
   test $N -eq 256 && break
 done
