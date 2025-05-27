@@ -8,6 +8,7 @@
 #include <asm/csr.h>		/* For CSR_* macros */
 #include <asm/asm-offsets.h>	/* For offsets on pt_regs */
 #include <linux/linkage.h>	/* For SYM_* macros */
+#include <linux/soc/andes/csr.h>/* For CSR_SDCAUSE */
 
 .section ".text"
 SYM_CODE_START(riscv_crash_save_regs)
@@ -47,10 +48,16 @@ SYM_CODE_START(riscv_crash_save_regs)
 	auipc t2, 0x0
 	csrr t3, CSR_TVAL
 	csrr t4, CSR_CAUSE
+#ifdef CONFIG_ARCH_ANDES
+	csrr t5, CSR_SDCAUSE
+#endif
 
 	REG_S t1, PT_STATUS(a0)
 	REG_S t2, PT_EPC(a0)
 	REG_S t3, PT_BADADDR(a0)
 	REG_S t4, PT_CAUSE(a0)
+#ifdef CONFIG_ARCH_ANDES
+	REG_S t5, PT_SDCAUSE(a0)
+#endif
 	ret
 SYM_CODE_END(riscv_crash_save_regs)
