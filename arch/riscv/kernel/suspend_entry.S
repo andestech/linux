@@ -11,6 +11,7 @@
 #include <asm/assembler.h>
 #include <asm/csr.h>
 #include <asm/xip_fixup.h>
+#include <linux/soc/andes/csr.h>
 
 	.text
 	.altmacro
@@ -51,6 +52,10 @@ SYM_FUNC_START(__cpu_suspend_enter)
 	REG_S	t0, (SUSPEND_CONTEXT_REGS + PT_BADADDR)(a0)
 	csrr	t0, CSR_CAUSE
 	REG_S	t0, (SUSPEND_CONTEXT_REGS + PT_CAUSE)(a0)
+#ifdef CONFIG_ARCH_ANDES
+	csrr	t0, CSR_SDCAUSE
+	REG_S	t0, (SUSPEND_CONTEXT_REGS + PT_SDCAUSE)(a0)
+#endif
 
 	/* Return non-zero value */
 	li	a0, 1

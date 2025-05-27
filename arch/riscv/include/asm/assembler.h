@@ -15,6 +15,7 @@
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/csr.h>
+#include <linux/soc/andes/csr.h>
 
 /*
  * suspend_restore_csrs - restore CSRs
@@ -28,6 +29,10 @@
 		csrw	CSR_TVAL, t0
 		REG_L	t0, (SUSPEND_CONTEXT_REGS + PT_CAUSE)(a0)
 		csrw	CSR_CAUSE, t0
+#ifdef CONFIG_ARCH_ANDES
+		REG_L	t0, (SUSPEND_CONTEXT_REGS + PT_SDCAUSE)(a0)
+		csrw	CSR_SDCAUSE, t0
+#endif
 	.endm
 
 /*
