@@ -7,8 +7,9 @@
 #define __ANDES_ANDES_H
 
 DECLARE_STATIC_KEY_FALSE(andes_legacy_mmu_key);
+DECLARE_STATIC_KEY_FALSE(andes_ppma);
 
-extern bool andes_legacy_mmu;
+DECLARE_STATIC_KEY_FALSE(andes_pfn_msb_key);
 extern phys_addr_t andes_pfn_msb;
 
 #endif /* !__ANDES_ANDES_H */

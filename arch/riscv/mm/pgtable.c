@@ -75,11 +75,8 @@ int pud_set_huge(pud_t *pud, phys_addr_t phys, pgprot_t prot)
 {
 
 #ifdef CONFIG_ARCH_ANDES
-	/*
-	 * When PPMA is on and activated: andes_pfn_msb == 0
-	 *                     Otherwise: andes_pfn_msb != 0
-	 */
-	if (andes_pfn_msb && (pgprot_val(prot) & _PAGE_ANDES25_NOCACHE))
+	if (static_branch_unlikely(&andes_pfn_msb_key) &&
+	    (pgprot_val(prot) & _PAGE_ANDES25_NOCACHE))
 		phys |= (andes_pfn_msb << (_PAGE_PFN_SHIFT + 2));
 #endif /* CONFIG_ARCH_ANDES */
 
@@ -123,11 +120,8 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t phys, pgprot_t prot)
 {
 
 #ifdef CONFIG_ARCH_ANDES
-	/*
-	 * When PPMA is on and activated: andes_pfn_msb == 0
-	 *                     Otherwise: andes_pfn_msb != 0
-	 */
-	if (andes_pfn_msb && (pgprot_val(prot) & _PAGE_ANDES25_NOCACHE))
+	if (static_branch_unlikely(&andes_pfn_msb_key) &&
+	    (pgprot_val(prot) & _PAGE_ANDES25_NOCACHE))
 		phys |= (andes_pfn_msb << (_PAGE_PFN_SHIFT + 2));
 #endif /* CONFIG_ARCH_ANDES */
 
