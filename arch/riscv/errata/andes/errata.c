@@ -23,15 +23,12 @@
 #define ANDES_AX45MP_MARCHID		0x8000000000008a45UL
 #define ANDES_AX45MP_MIMPID		0x500UL
 
-DEFINE_STATIC_KEY_FALSE(andes_legacy_mmu_key);
+DEFINE_STATIC_KEY_FALSE(andes_legacy_mmu);
 DEFINE_STATIC_KEY_FALSE(andes_ppma);
 
 DEFINE_STATIC_KEY_FALSE(andes_pfn_msb_key);
 phys_addr_t andes_pfn_msb;
 EXPORT_SYMBOL(andes_pfn_msb);
-
-bool andes_legacy_mmu;
-EXPORT_SYMBOL(andes_legacy_mmu);
 
 struct errata_info_t {
 	char name[32];
@@ -80,15 +77,35 @@ static bool errata_probe_iocp(unsigned int stage,
 	return done;
 }
 
+/*
+ * For Andes 2X-series CPUs sfence.vma, in addition to its original function,
+ * also writes back L1D to the next level of storage.
+
+ * The Andes 2X-series CPUs MMU only reads PTEs from L2C or memory (no L2C).
+ * This type of MMU is called Legacy MMU in Andes.
+ *
+ * When a new PTE is generated, it's stored in the L1D of the currently
+ * executing hart, other harts don't have a valid entry for that PTE.
+ * If the hart that later executes sfence.vma doesn't have the new PTE
+ * in its L1D, then L2C also won't have new PTE.
+ *
+ * Since the Legacy MMU only reads PTEs from L2C or main memory (if no L2C),
+ * and the new PTE doesn't exist there, Kernel will issue a BUG.
+ */
 static bool errata_legacy_mmu_check_func(unsigned int stage,
 					 unsigned long arch_id,
 					 unsigned long impid)
 {
-	/* legacy MMU only exists in 2X-series CPU.*/
-	andes_legacy_mmu = (((arch_id & 0xF0) >> 4) == 0x2) ? true : false;
-	if (andes_legacy_mmu && ((arch_id & 0xF) == 0x5))
-		static_branch_enable(&andes_legacy_mmu_key);
-	return andes_legacy_mmu;
+	bool legacy = false;
+
+	/* Legacy MMU only exists in Andes 2X-series CPU.*/
+	if (((arch_id & 0xF0) >> 4) == 0x2) {
+		legacy = true;
+		if (IS_ENABLED(CONFIG_SMP))
+			static_branch_enable(&andes_legacy_mmu);
+	}
+
+	return legacy;
 }
 
 static bool errata_support_uncache(unsigned int stage,

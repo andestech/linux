@@ -6,7 +6,7 @@
 #ifndef __ANDES_ANDES_H
 #define __ANDES_ANDES_H
 
-DECLARE_STATIC_KEY_FALSE(andes_legacy_mmu_key);
+DECLARE_STATIC_KEY_FALSE(andes_legacy_mmu);
 DECLARE_STATIC_KEY_FALSE(andes_ppma);
 
 DECLARE_STATIC_KEY_FALSE(andes_pfn_msb_key);
