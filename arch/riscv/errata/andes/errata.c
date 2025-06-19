@@ -24,7 +24,9 @@
 #define ANDES_AX45MP_MIMPID		0x500UL
 
 DEFINE_STATIC_KEY_FALSE(andes_legacy_mmu_key);
+DEFINE_STATIC_KEY_FALSE(andes_ppma);
 
+DEFINE_STATIC_KEY_FALSE(andes_pfn_msb_key);
 phys_addr_t andes_pfn_msb;
 EXPORT_SYMBOL(andes_pfn_msb);
 
@@ -93,32 +95,36 @@ static bool errata_support_uncache(unsigned int stage,
 				   unsigned long arch_id,
 				   unsigned long impid)
 {
-	/*
-	 * Check RISCV_ALTERNATIVES_EARLY_BOOT stage ensures
-	 * andes_pfn_msb is modified only once during kernel bootup.
-	 */
-	if (stage != RISCV_ALTERNATIVES_EARLY_BOOT)
+	if (!IS_ENABLED(CONFIG_ERRATA_ANDES_CMO))
 		return false;
 
-	andes_pfn_msb = 0;
+	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT ||
+	    stage == RISCV_ALTERNATIVES_MODULE)
+		return false;
 
-	if (!IS_ENABLED(CONFIG_ERRATA_ANDES_CMO))
-		return 0;
+	if (!riscv_isa_extension_available(NULL, ZICBOM)) {
+		/* Set this just to make core cbo code happy */
+		riscv_cbom_block_size = 1;
+		riscv_noncoherent_supported();
+	}
 
-	if (riscv_isa_extension_available(NULL, SVPBMT))
+	if (riscv_isa_extension_available(NULL, SVPBMT)) {
+		andes_pfn_msb = 0;
 		return true;
+	}
 
-	/* Set this just to make core cbo code happy */
-	riscv_cbom_block_size = 1;
-	riscv_noncoherent_supported();
-
-	if (andes_probe_ppma())
+	if (andes_probe_ppma()) {
+		andes_pfn_msb = 0;
+		static_branch_enable(&andes_ppma);
 		return true;
+	}
 
-	csr_write(satp, SATP_PPN);
-	andes_pfn_msb = (csr_read(satp) + 1) >> 1;
+	if ((andes_pfn_msb << (_PAGE_PFN_SHIFT + 2)) & BIT_ULL(32)) {
+		static_branch_enable(&andes_pfn_msb_key);
+		return true;
+	}
 
-	return true;
+	return false;
 }
 
 static struct errata_info_t errata_list[ERRATA_ANDES_NUMBER] = {
@@ -158,10 +164,12 @@ void __init_or_module andes_errata_patch_func(struct alt_entry *begin, struct al
 	u32 tmp = 0;
 
 	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
-		if (IS_ENABLED(CONFIG_ARCH_R9A07G043))
+		if (IS_ENABLED(CONFIG_ARCH_R9A07G043) &&
+		    IS_ENABLED(CONFIG_64BIT))
 			errata_probe_iocp(stage, archid, impid);
-		else
-			errata_support_uncache(stage, archid, impid);
+
+		csr_write(satp, SATP_PPN);
+		andes_pfn_msb = (csr_read(satp) + 1) >> 1;
 		return;
 	}
 

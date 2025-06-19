@@ -177,6 +177,7 @@ extern struct pt_alloc_ops pt_ops __initdata;
  * We use pte.RSW: 0x2 to indicate noncacheable
  * pages
  */
+#include <linux/soc/andes/andes.h>
 extern phys_addr_t andes_pfn_msb;
 #define _PAGE_ANDES25_NOCACHE      (2 << 8) /* pte.RSW: 0x2 */
 #endif /* CONFIG_ARCH_ANDES */
@@ -356,11 +357,8 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 
 	ALT_THEAD_PMA(prot_val);
 #ifdef CONFIG_ARCH_ANDES
-	/*
-	 * When PPMA is on and activated: andes_pfn_msb == 0
-	 *                     Otherwise: andes_pfn_msb != 0
-	 */
-	if (andes_pfn_msb && (prot_val & _PAGE_ANDES25_NOCACHE))
+	if (static_branch_unlikely(&andes_pfn_msb_key) &&
+	    (prot_val & _PAGE_ANDES25_NOCACHE))
 		pfn |= andes_pfn_msb;
 #endif /* CONFIG_ARCH_ANDES */
 	return __pte((pfn << _PAGE_PFN_SHIFT) | prot_val);
