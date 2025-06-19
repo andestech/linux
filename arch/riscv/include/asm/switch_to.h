@@ -8,6 +8,8 @@
 
 #include <linux/jump_label.h>
 #include <linux/sched/task_stack.h>
+#include <linux/mm_types.h>
+#include <linux/cacheflush.h>
 #include <asm/vector.h>
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
@@ -142,6 +144,16 @@ static __always_inline bool has_amm(void) { return false; }
 extern struct task_struct *__switch_to(struct task_struct *,
 				       struct task_struct *);
 
+#ifdef CONFIG_SMP
+static inline void switch_to_should_flush_icache(void)
+{
+	if (static_branch_unlikely(&andes_legacy_mmu))
+		local_flush_icache_all();
+}
+#else
+#define switch_to_should_flush_icache() do { } while (0)
+#endif
+
 #define switch_to(prev, next, last)			\
 do {							\
 	struct task_struct *__prev = (prev);		\
@@ -154,6 +166,7 @@ do {							\
 		__switch_to_amm(__prev, __next);	\
 	if (has_vector())				\
 		__switch_to_vector(__prev, __next);	\
+	switch_to_should_flush_icache();		\
 	((last) = __switch_to(__prev, __next));		\
 } while (0)
 

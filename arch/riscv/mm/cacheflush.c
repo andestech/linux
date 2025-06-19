@@ -86,10 +86,7 @@ void flush_icache_pte(struct mm_struct *mm, pte_t pte)
 	struct folio *folio = page_folio(pte_page(pte));
 
 	if (!test_bit(PG_dcache_clean, &folio->flags)) {
-		if (static_branch_unlikely(&andes_legacy_mmu_key))
-			flush_icache_all();
-		else
-			flush_icache_mm(mm, false);
+		flush_icache_mm(mm, false);
 		set_bit(PG_dcache_clean, &folio->flags);
 	}
 }
