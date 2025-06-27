@@ -38,11 +38,10 @@
 			d-cache-line-size = <0x20>;
 			d-cache-block-size = <0x20>;
 
-			interrupt-controller {
+			CPU0_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x01>;
 			};
 		};
 	};
@@ -80,7 +79,7 @@
 		interrupt-controller@e4000000 {
 			compatible = "riscv,plic0";
 			reg = <0x00 0xe4000000 0x00 0x2000000>;
-			interrupts-extended = <0x01 0x0b 0x01 0x09>;
+			interrupts-extended = <&CPU0_intc 0x0b &CPU0_intc 0x09>;
 			interrupt-controller;
 			#address-cells = <0x02>;
 			#interrupt-cells = <0x02>;
@@ -91,7 +90,7 @@
 		interrupt-controller@e6400000 {
 			compatible = "andestech,plicsw";
 			reg = <0x00 0xe6400000 0x00 0x400000>;
-			interrupts-extended = <0x01 0x03>;
+			interrupts-extended = <&CPU0_intc 0x03>;
 			interrupt-controller;
 			#address-cells = <0x02>;
 			#interrupt-cells = <0x02>;
@@ -101,14 +100,13 @@
 		plmt0@e6000000 {
 			compatible = "andestech,plmt0";
 			reg = <0x00 0xe6000000 0x00 0x100000>;
-			interrupts-extended = <0x01 0x07>;
+			interrupts-extended = <&CPU0_intc 0x07>;
 		};
 
-		virt_100mhz {
+		spiclk: virt_100mhz {
 			compatible = "fixed-clock";
 			#clock-cells = <0x00>;
 			clock-frequency = <0x5f5e100>;
-			phandle = <0x04>;
 		};
 
 		timer@f0400000 {
@@ -193,18 +191,17 @@
 			max-frequency = <0x5f5e100>;
 			fifo-depth = <0x10>;
 			dma-names = "rxtx";
-			dmas = <0x03 0x09>;
+			dmas = <&dma0 0x09>;
 			dma-noncoherent;
 		};
 
-		dma@f0c00000 {
+		dma0: dma@f0c00000 {
 			compatible = "andestech,atcdmac300";
 			reg = <0x00 0xf0c00000 0x00 0x1000>;
 			interrupts = <0x0a 0x04>;
 			interrupt-parent = <0x02>;
 			dma-channels = <0x08>;
 			#dma-cells = <0x01>;
-			phandle = <0x03>;
 			dma-noncoherent;
 		};
 
@@ -249,8 +246,8 @@
 			#address-cells = <0x01>;
 			#size-cells = <0x00>;
 			num-cs = <0x01>;
-			clocks = <0x03>;
-			dmas = <0x03 0>, <0x03 1>;
+			clocks = <&spiclk>;
+			dmas = <&dma0 0>, <&dma0 1>;
 			dma-names = "spi_tx", "spi_rx";
 
 			flash@0 {

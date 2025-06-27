@@ -27,11 +27,10 @@
 			d-cache-line-size = <0x20>;
 			next-level-cache = <0x1>;
 
-			interrupt-controller {
+			CPU0_intc: interrupt-controller {
 				#interrupt-cells = <0x1>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x2>;
 			};
 		};
 		cpu@1 {
@@ -50,11 +49,10 @@
 			d-cache-line-size = <0x20>;
 			next-level-cache = <0x1>;
 
-			interrupt-controller {
+			CPU1_intc: interrupt-controller {
 				#interrupt-cells = <0x1>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x3>;
 			};
 		};
 	};
@@ -88,7 +86,7 @@
 			interrupt-controller;
 			reg = <0x0 0xe4000000 0x0 0x2000000>;
 			riscv,ndev = <0x47>;
-			interrupts-extended = <0x2 0xb 0x2 0x9 0x3 0xb 0x3 0x9>;
+			interrupts-extended = <&CPU0_intc 0xb &CPU0_intc 0x9 &CPU1_intc 0xb &CPU1_intc 0x9>;
 			phandle = <0x4>;
 		};
 
@@ -99,13 +97,13 @@
 			interrupt-controller;
 			reg = <0x0 0xe6400000 0x0 0x400000>;
 			riscv,ndev = <0x2>;
-			interrupts-extended = <0x2 0x3 0x3 0x3>;
+			interrupts-extended = <&CPU0_intc 0x3 &CPU1_intc 0x3>;
 		};
 
 		plmt0@e6000000 {
 			compatible = "andestech,plmt0";
 			reg = <0x0 0xe6000000 0x0 0x100000>;
-			interrupts-extended = <0x2 0x7 0x3 0x7>;
+			interrupts-extended = <&CPU0_intc 0x7 &CPU1_intc 0x7>;
 		};
 	};
 
@@ -174,11 +172,10 @@
 		interrupt-parent = <0x4>;
 	};
 
-	virt_100mhz {
+	spiclk: virt_100mhz {
 		#clock-cells = <0x0>;
 		compatible = "fixed-clock";
 		clock-frequency = <0x5f5e100>;
-		phandle = <0x5>;
 	};
 
 	smu@f0100000 {
@@ -244,11 +241,11 @@
 		max-frequency = <0x5f5e100>;
 		fifo-depth = <0x10>;
 		dma-names = "rxtx";
-		dmas = <0x07 0x09>;
+		dmas = <&dma0 0x09>;
 		dma-coherent;
 	};
 
-	dma@f0c00000 {
+	dma0: dma@f0c00000 {
 		compatible = "andestech,atcdmac300";
 		reg = <0x0 0xf0c00000 0x0 0x1000>;
 		interrupts = <0xa 0x4>;
@@ -256,7 +253,6 @@
 		interrupt-parent = <0x4>;
 		#dma-cells = <0x01>;
 		dma-coherent;
-		phandle = <0x07>;
 	};
 
 	lcd@e0200000 {
@@ -296,10 +292,10 @@
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
 		num-cs = <0x1>;
-		clocks = <0x5>;
+		clocks = <&spiclk>;
 		interrupts = <0x4 0x4>;
 		interrupt-parent = <0x4>;
-		dmas = <0x07 0>, <0x07 1>;
+		dmas = <&dma0 0>, <&dma0 1>;
 		dma-names = "spi_tx", "spi_rx";
 
 		flash@0 {
