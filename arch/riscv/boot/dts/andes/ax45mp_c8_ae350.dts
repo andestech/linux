@@ -39,11 +39,10 @@
 			d-cache-block-size = <0x40>;
 			next-level-cache = <0x01>;
 
-			interrupt-controller {
+			CPU0_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x02>;
 			};
 		};
 
@@ -65,11 +64,10 @@
 			d-cache-block-size = <0x40>;
 			next-level-cache = <0x01>;
 
-			interrupt-controller {
+			CPU1_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x03>;
 			};
 		};
 
@@ -91,11 +89,10 @@
 			d-cache-block-size = <0x40>;
 			next-level-cache = <0x01>;
 
-			interrupt-controller {
+			CPU2_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x04>;
 			};
 		};
 
@@ -117,11 +114,10 @@
 			d-cache-block-size = <0x40>;
 			next-level-cache = <0x01>;
 
-			interrupt-controller {
+			CPU3_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x05>;
 			};
 		};
 
@@ -143,11 +139,10 @@
 			d-cache-block-size = <0x40>;
 			next-level-cache = <0x01>;
 
-			interrupt-controller {
+			CPU4_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x06>;
 			};
 		};
 
@@ -169,11 +164,10 @@
 			d-cache-block-size = <0x40>;
 			next-level-cache = <0x01>;
 
-			interrupt-controller {
+			CPU5_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x07>;
 			};
 		};
 
@@ -195,11 +189,10 @@
 			d-cache-block-size = <0x40>;
 			next-level-cache = <0x01>;
 
-			interrupt-controller {
+			CPU6_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x08>;
 			};
 		};
 
@@ -221,11 +214,10 @@
 			d-cache-block-size = <0x40>;
 			next-level-cache = <0x01>;
 
-			interrupt-controller {
+			CPU7_intc: interrupt-controller {
 				#interrupt-cells = <0x01>;
 				interrupt-controller;
 				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
-				phandle = <0x09>;
 			};
 		};
 	};
@@ -267,7 +259,7 @@
 		interrupt-controller@e4000000 {
 			compatible = "riscv,plic0";
 			reg = <0x00 0xe4000000 0x00 0x2000000>;
-			interrupts-extended = <0x02 0x0b 0x02 0x09 0x03 0x0b 0x03 0x09 0x04 0x0b 0x04 0x09 0x05 0x0b 0x05 0x09 0x06 0x0b 0x06 0x09 0x07 0x0b 0x07 0x09 0x08 0x0b 0x08 0x09 0x09 0x0b 0x09 0x09>;
+			interrupts-extended = <&CPU0_intc 0x0b &CPU0_intc 0x09 &CPU1_intc 0x0b &CPU1_intc 0x09 &CPU2_intc 0x0b &CPU2_intc 0x09 &CPU3_intc 0x0b &CPU3_intc 0x09 &CPU4_intc 0x0b &CPU4_intc 0x09 &CPU5_intc 0x0b &CPU5_intc 0x09 &CPU6_intc 0x0b &CPU6_intc 0x09 &CPU7_intc 0x0b &CPU7_intc 0x09>;
 			interrupt-controller;
 			#address-cells = <0x02>;
 			#interrupt-cells = <0x02>;
@@ -278,7 +270,7 @@
 		interrupt-controller@e6400000 {
 			compatible = "andestech,plicsw";
 			reg = <0x00 0xe6400000 0x00 0x400000>;
-			interrupts-extended = <0x02 0x03 0x03 0x03 0x04 0x03 0x05 0x03 0x06 0x03 0x07 0x03 0x08 0x03 0x09 0x03>;
+			interrupts-extended = <&CPU0_intc 0x03 &CPU1_intc 0x03 &CPU2_intc 0x03 &CPU3_intc 0x03 &CPU4_intc 0x03 &CPU5_intc 0x03 &CPU6_intc 0x03 &CPU7_intc 0x03>;
 			interrupt-controller;
 			#address-cells = <0x02>;
 			#interrupt-cells = <0x02>;
@@ -288,14 +280,13 @@
 		plmt0@e6000000 {
 			compatible = "andestech,plmt0";
 			reg = <0x00 0xe6000000 0x00 0x100000>;
-			interrupts-extended = <0x02 0x07 0x03 0x07 0x04 0x07 0x05 0x07 0x06 0x07 0x07 0x07 0x08 0x07 0x09 0x07>;
+			interrupts-extended = <&CPU0_intc 0x07 &CPU1_intc 0x07 &CPU2_intc 0x07 &CPU3_intc 0x07 &CPU4_intc 0x07 &CPU5_intc 0x07 &CPU6_intc 0x07 &CPU7_intc 0x07>;
 		};
 
-		virt_100mhz {
+		spiclk: virt_100mhz {
 			compatible = "fixed-clock";
 			#clock-cells = <0x00>;
 			clock-frequency = <0x5f5e100>;
-			phandle = <0x0c>;
 		};
 
 		timer@f0400000 {
@@ -381,12 +372,12 @@
 			clock-freq-min-max = <0x61a80 0x5f5e100>;
 			max-frequency = <0x5f5e100>;
 			fifo-depth = <0x10>;
-			dmas = <0x0b 0x09>;
+			dmas = <&dma0 0x09>;
 			dma-names = "rxtx";
 			dma-coherent;
 		};
 
-		dma@f0c00000 {
+		dma0: dma@f0c00000 {
 			compatible = "andestech,atcdmac300";
 			reg = <0x00 0xf0c00000 0x00 0x1000>;
 			interrupts = <0x0a 0x04>;
@@ -394,7 +385,6 @@
 			dma-channels = <0x08>;
 			#dma-cells = <0x01>;
 			dma-coherent;
-			phandle = <0x0b>;
 		};
 
 		lcd@e0200000 {
@@ -418,8 +408,8 @@
 			#address-cells = <0x01>;
 			#size-cells = <0x00>;
 			num-cs = <0x01>;
-			clocks = <0x0c>;
-			dmas = <0x0b 0>, <0x0b 1>;
+			clocks = <&spiclk>;
+			dmas = <&dma0 0>, <&dma0 1>;
 			dma-names = "spi_tx", "spi_rx";
 
 			flash@0 {
