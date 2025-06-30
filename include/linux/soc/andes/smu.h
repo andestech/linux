@@ -28,6 +28,37 @@
 #define PCSm_STATUS_OFF(n)	((n + 3) * 0x20 + PCS0_STATUS_OFF)
 #define PCSm_CTL_OFF(n)		((n + 3) * 0x20 + PCS0_CTL_OFF)
 
+/* Clock related info */
+#define ROOT_CLK_RATE	60000000
+#define OSC_CLK_32K	32768
+#define SPI_CLK_RATE	66000000
+#define UART_CLK_RATE	20000000
+
+#define SMU_CLK_ENABLE		0x20
+#define SMU_CLK_ENABLE_CORE	0
+#define SMU_CLK_ENABLE_AHB	1
+#define SMU_CLK_ENABLE_APB	2
+#define SMU_CLK_ENABLE_AXI	11
+
+#define SMU_CLK_RATIO		0x24
+#define SMU_CLK_RATIO_MASK	GENMASK(3, 1)
+
+#define ENUM_TO_STR(x) case x: return __stringify(x)
+
+enum ae350_clk {
+	ROOT,
+	CLK_32K,
+	SPI,
+	UART,
+	CORE,
+	AXI,
+	AHB,
+	APB,
+	AHB_GATE,
+	APB_GATE,
+	MAXCLKS,
+};
+
 enum sbi_ext_susp_ae350_sleep_type {
 	SBI_SUSP_AE350_LIGHT_SLEEP = 0x80000001,
 	SBI_SUSP_AE350_DEEP_SLEEP,
