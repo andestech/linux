@@ -279,7 +279,7 @@ static int _test_ioctl_ioas_map(int fd, unsigned int ioas_id, void *buffer,
 	})
 
 static int _test_ioctl_ioas_unmap(int fd, unsigned int ioas_id, uint64_t iova,
-				  size_t length, uint64_t *out_len)
+				  uint64_t length, uint64_t *out_len)
 {
 	struct iommu_ioas_unmap cmd = {
 		.size = sizeof(cmd),

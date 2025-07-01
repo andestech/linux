@@ -13,6 +13,12 @@ static unsigned long HUGEPAGE_SIZE;
 
 #define MOCK_PAGE_SIZE (PAGE_SIZE / 2)
 
+#if defined(__riscv) && __riscv_xlen == 32
+#define hugepagesize 4 * 1024 * 1024
+#else
+#define hugepagesize 2 * 1024 * 1024
+#endif
+
 static unsigned long get_huge_page_size(void)
 {
 	char buf[80];
@@ -22,7 +28,7 @@ static unsigned long get_huge_page_size(void)
 	fd = open("/sys/kernel/mm/transparent_hugepage/hpage_pmd_size",
 		  O_RDONLY);
 	if (fd < 0)
-		return 2 * 1024 * 1024;
+		return hugepagesize;
 
 	ret = read(fd, buf, sizeof(buf));
 	close(fd);
