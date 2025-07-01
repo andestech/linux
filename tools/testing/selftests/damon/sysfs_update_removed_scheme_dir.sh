@@ -18,7 +18,7 @@ then
 fi
 
 # clear log
-dmesg -C
+dmesg -c
 
 # start DAMON with a scheme
 echo 1 > "$damon_sysfs/kdamonds/nr_kdamonds"
