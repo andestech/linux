@@ -267,15 +267,11 @@ static inline u32 cal_blksz(unsigned int blksz)
  */
 static void ftsdc_enable_irq(struct ftsdc_host *host, bool enable)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
 	host->irq_enabled = enable;
 	if (enable)
 		enable_irq(host->irq);
 	else
 		disable_irq(host->irq);
-	local_irq_restore(flags);
 }
 
 static void do_pio_read(struct ftsdc_host *host)
