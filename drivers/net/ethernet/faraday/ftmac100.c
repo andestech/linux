@@ -66,6 +66,8 @@
 #define FTMAC100_CURRENT_TX_DESC_INDEX(priv) (priv->tx_pointer);
 #define FTMAC100_CURRENT_CLEAN_TX_DESC_INDEX(priv) (priv->tx_clean_pointer);
 
+#define FTMAC100_PAGE_POOL_SIZE 128
+
 /* ftmac100_debug parameters */
 extern unsigned int FTMAC100_DEBUG;
 extern unsigned int FTMAC100_INCR;
@@ -100,6 +102,10 @@ struct ftmac100 {
 	struct napi_struct napi;
 
 	struct mii_if_info mii;
+
+	/* page pool management */
+	struct page *page_pool[FTMAC100_PAGE_POOL_SIZE];
+	unsigned long bitmap[BITS_TO_LONGS(FTMAC100_PAGE_POOL_SIZE)];
 };
 
 static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
@@ -736,8 +742,58 @@ static int ftmac100_xmit(struct ftmac100 *priv, struct sk_buff *skb,
 }
 
 /******************************************************************************
+ * page pool management
+ *****************************************************************************/
+
+/* giving out a page from the page pool */
+static struct page *ftmac100_pagepool_get(struct ftmac100 *priv)
+{
+	int i;
+	struct page *page = NULL;
+
+	i = find_first_bit(priv->bitmap, FTMAC100_PAGE_POOL_SIZE);
+	if (i < FTMAC100_PAGE_POOL_SIZE && priv->page_pool[i]) {
+		page = priv->page_pool[i];
+		priv->page_pool[i] = NULL;
+		clear_bit(i, priv->bitmap);
+	}
+	return page;
+}
+
+static void ftmac100_pagepool_cleanup(struct ftmac100 *priv)
+{
+	int i;
+
+	for (i = 0; i < FTMAC100_PAGE_POOL_SIZE; i++) {
+		if (priv->page_pool[i]) {
+			__free_page(priv->page_pool[i]);
+			priv->page_pool[i] = NULL;
+			clear_bit(i, priv->bitmap);
+		}
+	}
+}
+
+/* find a free page in the pool and allocate it */
+static void ftmac100_pagepool_refill(struct ftmac100 *priv)
+{
+	int i;
+	struct page *page;
+
+	i = find_first_zero_bit(priv->bitmap, FTMAC100_PAGE_POOL_SIZE);
+	if (i  < FTMAC100_PAGE_POOL_SIZE) {
+		page = alloc_page(GFP_KERNEL | __GFP_NORETRY);
+		if (!page)
+			return;
+
+		priv->page_pool[i] = page;
+		set_bit(i, priv->bitmap);
+	}
+}
+
+/******************************************************************************
  * internal functions (buffer)
  *****************************************************************************/
+
 static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
 				  int index, gfp_t gfp)
 {
@@ -746,12 +802,18 @@ static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
 	struct page *page;
 	dma_addr_t map;
 
-	page = alloc_page(gfp);
+	page = dev_alloc_page();
+
+	if (!page)
+		page = ftmac100_pagepool_get(priv);
+
 	if (!page) {
 		if (net_ratelimit())
 			netdev_err(netdev, "failed to allocate rx page\n");
 		return -ENOMEM;
 	}
+
+	ftmac100_pagepool_refill(priv);
 
 	map = dma_map_page(priv->dev, page, 0, RX_BUF_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(priv->dev, map))) {
@@ -1223,6 +1285,15 @@ static int ftmac100_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->tx_lock);
 
+	/* initialize page pool */
+	bitmap_zero(priv->bitmap, FTMAC100_PAGE_POOL_SIZE);
+	for (int i = 0; i < FTMAC100_PAGE_POOL_SIZE; i++) {
+		struct page *page = alloc_page(GFP_KERNEL | __GFP_NORETRY);
+		if (!page)
+			break;
+		priv->page_pool[i] = page;
+	}
+
 	/* initialize NAPI */
 	netif_napi_add(netdev, &priv->napi, ftmac100_poll);
 
@@ -1308,6 +1379,8 @@ static int ftmac100_remove(struct platform_device *pdev)
 
 	netdev = platform_get_drvdata(pdev);
 	priv = netdev_priv(netdev);
+
+	ftmac100_pagepool_cleanup(priv);
 
 	unregister_netdev(netdev);
 
