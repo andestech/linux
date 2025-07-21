@@ -7,6 +7,8 @@ dtb-$(CONFIG_ARCH_ANDES) += ax25_c1_d_dsp_noncoherent_ae350.dtb
 dtb-$(CONFIG_ARCH_ANDES) += ax27l2_c1_d_dsp_noncoherent_ae350.dtb
 dtb-$(CONFIG_ARCH_ANDES) += ax45_c1_d_dsp_noncoherent_ae350.dtb
 dtb-$(CONFIG_ARCH_ANDES) += ax25mp_amp_c2_64_d_ae350.dtb
+dtb-$(CONFIG_ARCH_ANDES) += ax45_c1_d_dsp_noncoherent_ae350_optee.dtb
+dtb-$(CONFIG_ARCH_ANDES) += ax45_c1_d_dsp_noncoherent_ae350_optee_iopmp.dtb
 
 # FPGA : VCU118
 dtb-$(CONFIG_ARCH_ANDES) += a25mp_c4_d_dsp_ae350.dtb
