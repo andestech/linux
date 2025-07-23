@@ -26,6 +26,16 @@
 #define REMOTEPROC_EN			0x1
 #define REMOTEPROC_DIS			0x0
 
+struct dma_coherent_mem {
+	void		*virt_base;
+	dma_addr_t	device_base;
+	unsigned long	pfn_base;
+	int		size;
+	unsigned long	*bitmap;
+	spinlock_t	spinlock;
+	bool		use_dev_dma_pfn_offset;
+};
+
 struct andes_rproc_pdata {
 	struct device *dev;
 	struct rproc *rproc;

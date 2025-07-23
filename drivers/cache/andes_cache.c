@@ -26,6 +26,7 @@
 /* D-cache operation */
 #define ANDES_CCTL_L1D_VA_INVAL			0 /* Invalidate an L1 cache entry */
 #define ANDES_CCTL_L1D_VA_WB			1 /* Write-back an L1 cache entry */
+#define ANDES_CCTL_L1D_WBINVAL_ALL		6 /* Write-back & Invalidate all L1 cache */
 
 /* L2 CCTL status */
 #define ANDES_CCTL_L2_STATUS_IDLE		0
@@ -36,6 +37,7 @@
 /* L2 cache operation */
 #define ANDES_CCTL_L2_PA_INVAL			0x8 /* Invalidate an L2 cache entry */
 #define ANDES_CCTL_L2_PA_WB			0x9 /* Write-back an L2 cache entry */
+#define ANDES_CCTL_L2_WBINVAL_ALL		0x12 /* Write-back & Invalidate all L2 cache */
 
 #define ANDES_L2C_REG_CN_CMD_OFFSET(n)	\
 	(ANDES_L2C_REG_C0_CMD_OFFSET + ((n) * ANDES_L2C_REG_PER_CORE_OFFSET))
@@ -123,20 +125,21 @@ static inline uint32_t andes_cpu_l2c_get_cctl_status(int mhartid)
 static void cpu_l2c_cctl(phys_addr_t pa, void __iomem *base,
 			 int mhartid, unsigned long ops)
 {
+	if (pa) {
 #ifdef CONFIG_64BIT
-	writeq_relaxed(pa, (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid)));
+		writeq_relaxed(pa, (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid)));
 #else
-	/*
-	 * Considering RV32 potential to use over 4G memory,
-	 * the physical address is split into upper and lower 32 bits
-	 * and stored in a 64-bits PA-type L2C CCTL access line register.
-	 */
-	writel_relaxed((pa & 0xFFFFFFFF),
-		       (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid)));
-	writel_relaxed((pa >> 32),
-		       (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid) + 0x4));
+		/*
+		 * Considering RV32 potential to use over 4G memory,
+		 * the physical address is split into upper and lower 32 bits
+		 * and stored in a 64-bits PA-type L2C CCTL access line register.
+		 */
+		writel_relaxed((pa & 0xFFFFFFFF),
+			       (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid)));
+		writel_relaxed((pa >> 32),
+			       (base + ANDES_L2C_REG_CN_ACC_OFFSET(mhartid) + 0x4));
 #endif /* !CONFIG_64BIT */
-
+	}
 	writel_relaxed(ops, base + ANDES_L2C_REG_CN_CMD_OFFSET(mhartid));
 	while ((andes_cpu_l2c_get_cctl_status(mhartid) &
 		ANDES_CCTL_L2_STATUS_CN_MASK(mhartid)) !=
@@ -233,6 +236,16 @@ static void andes_dma_cache_wback_inv(phys_addr_t paddr, size_t size)
 	andes_dma_cache_inv(paddr, size);
 }
 
+static void andes_rproc_wback_inv_all(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	csr_write(ANDES_CCTL_REG_UCCTLCOMMAND_NUM, ANDES_CCTL_L1D_WBINVAL_ALL);
+	cpu_l2c_cctl(0, andes_priv.l2c_base, 0, ANDES_CCTL_L2_WBINVAL_ALL);
+	local_irq_restore(flags);
+}
+
 static int andes_get_l2_line_size(struct device_node *np)
 {
 	int ret;
@@ -250,6 +263,7 @@ static const struct riscv_nonstd_cache_ops andes_cmo_ops __initconst = {
 	.wback = &andes_dma_cache_wback,
 	.inv = &andes_dma_cache_inv,
 	.wback_inv = &andes_dma_cache_wback_inv,
+	.wback_inv_all = &andes_rproc_wback_inv_all,
 };
 
 static const struct of_device_id andes_cache_ids[] = {

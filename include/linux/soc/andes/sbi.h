@@ -39,6 +39,7 @@ enum sbi_ext_andes_fid {
 	/* OpenAMP */
 	SBI_EXT_ANDES_RPROC_EN,
 	SBI_EXT_ANDES_RPROC_SEND_IPI,
+	SBI_EXT_ANDES_RPROC_GET_INIT_FUNC,
 };
 
 /* Programmable physical memory attributes (PPMA) */
