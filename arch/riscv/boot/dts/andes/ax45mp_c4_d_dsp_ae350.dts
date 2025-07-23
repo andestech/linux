@@ -159,6 +159,7 @@
 		};
 		vdev0buffer:vdev0buffer@3ffe4000 {
 			no-map;
+			compatible = "andes_vdev_buffer";
 			reg = <0x0 0x3ffe4000 0x0 0x4000>;
 			alignment = <0x100>;
 		};

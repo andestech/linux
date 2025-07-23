@@ -26,6 +26,7 @@
 #include <linux/soc/andes/smu.h>
 #include "remoteproc_internal.h"
 #include "remoteproc_elf_helpers.h"
+#include <asm/dma-noncoherent.h>
 #include <asm/sbi.h>
 #include <asm/smp.h>
 
@@ -88,8 +89,11 @@ static void andes_rproc_kick(struct rproc *rproc, int vqid)
 static int andes_rproc_start(struct rproc *rproc)
 {
 	struct andes_rproc_pdata *local = rproc->priv;
+	smp_call_func_t cache_op;
+	int i;
 
 	andes_rproc_trace(RPROC_MP_START);
+	cache_op = (smp_call_func_t)noncoherent_cache_ops.wback_inv_all;
 
 	/* MP set ELF entry point to the SP reset vector. */
 	writel(SP_BASE_LO, smu_base + SMU_HART_RESET_VEC_LO(local->sp_hartid));
@@ -97,7 +101,12 @@ static int andes_rproc_start(struct rproc *rproc)
 		writel(SP_BASE_HI,
 		       smu_base + SMU_HART_RESET_VEC_HI(local->sp_hartid));
 	}
-	sbi_plicsw_rproc_send_ipi(local->sp_hartid);
+
+	for_each_online_cpu(i) {
+		if (i != smp_processor_id())
+			smp_call_function_single(i, cache_op, NULL, true);
+	}
+	noncoherent_cache_ops.wback_inv_all();
 	writel(PCS_RESET, smu_base + PCSm_CTL_OFF(local->sp_hartid));
 	writel(MBOX_SET_MSG, local->mbox_msg + MBOX_OFF);
 
@@ -107,27 +116,17 @@ static int andes_rproc_start(struct rproc *rproc)
 static int andes_rproc_stop(struct rproc *rproc)
 {
 	struct andes_rproc_pdata *local = rproc->priv;
-	unsigned int msg;
+	struct sbiret ret;
 
 	andes_rproc_trace(RPROC_MP_STOP);
 
-	msg = readl(local->mbox_msg + MBOX_OFF);
-	if (msg == MBOX_SP_RUN) {
-		writel(MBOX_MP_STOP, local->mbox_msg + MBOX_OFF);
-		andes_rproc_kick(rproc, 1);
-	}
-
-	/* Set the reset vector of the SP to the OpenSBI entry point. */
-	sbi_plicsw_rproc_send_ipi(local->sp_hartid);
-	writel(OPENSBI_RESET_ADD, smu_base + SMU_HART_RESET_VEC_LO(local->sp_hartid));
+	writel(MBOX_SET_MSG, local->mbox_msg + MBOX_OFF);
+	ret = sbi_ecall(ANDES_SBI_EXT_ANDES, SBI_EXT_ANDES_RPROC_GET_INIT_FUNC,
+			0, 0, 0, 0, 0, 0);
+	writel(ret.value, smu_base + SMU_HART_RESET_VEC_LO(local->sp_hartid));
+	andes_rproc_kick(rproc, 1);
 	writel(PCS_RESET, smu_base + PCSm_CTL_OFF(local->sp_hartid));
 
-	return 0;
-}
-
-static int andes_reserved_mem_release(struct rproc *rproc,
-				      struct rproc_mem_entry *mem)
-{
 	return 0;
 }
 
@@ -149,6 +148,7 @@ static int andes_reserved_mem_alloc(struct rproc *rproc,
 static int andes_parse_reserved_mems(struct rproc *rproc)
 {
 	int i, num_mems;
+	int index = 0;
 	struct device *dev = rproc->dev.parent;
 	struct device_node *mem_nodes = dev->of_node;
 	struct andes_rproc_pdata *local = rproc->priv;
@@ -175,17 +175,19 @@ static int andes_parse_reserved_mems(struct rproc *rproc)
 			return -EINVAL;
 		}
 
-		mem = rproc_mem_entry_init(dev, NULL, (dma_addr_t)rmem->base,
-					   rmem->size, rmem->base, andes_reserved_mem_alloc,
-					   andes_reserved_mem_release, dt_node->name);
+		mem = rproc_of_resm_mem_entry_init(dev, index, rmem->size,
+						   rmem->base, dt_node->name);
+		mem->dma = (dma_addr_t)rmem->base;
 		if (!mem) {
 			dev_err(dev,
 				"unable to initialize memory-region %s \n",
 				dt_node->name);
 			return -ENOMEM;
 		}
-
+		andes_reserved_mem_alloc(rproc, mem);
+		rmem->priv = mem;
 		rproc_add_carveout(rproc, mem);
+		index++;
 	}
 
 	memset(local->revdmem_base, 0, local->rmem_size);
@@ -370,7 +372,7 @@ static int andes_remoteproc_smp_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "rmem_base:%llx rmem_size:%llx\n",
 		 local->rmem_base, local->rmem_size);
 
-	local->revdmem_base = ioremap_wc(local->rmem_base, local->rmem_size);
+	local->revdmem_base = memremap(local->rmem_base, local->rmem_size, MEMREMAP_WB);
 	if (!local->revdmem_base)
 		goto error;
 
@@ -454,6 +456,98 @@ static struct platform_driver andes_remoteproc_smp_driver = {
 	},
 };
 module_platform_driver(andes_remoteproc_smp_driver);
+
+static struct dma_coherent_mem *andes_dma_init(phys_addr_t phys_addr,
+					       dma_addr_t device_addr,
+					       size_t size,
+					       bool use_dma_pfn_offset)
+{
+	struct dma_coherent_mem *dma_mem;
+	int pages = size >> PAGE_SHIFT;
+
+	if (!size)
+		return ERR_PTR(-EINVAL);
+
+	dma_mem = kzalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
+	if (!dma_mem)
+		goto out_unmap_membase;
+	dma_mem->bitmap = bitmap_zalloc(pages, GFP_KERNEL);
+	if (!dma_mem->bitmap)
+		goto out_free_dma_mem;
+
+	dma_mem->device_base = device_addr;
+	dma_mem->pfn_base = PFN_DOWN(phys_addr);
+	dma_mem->size = pages;
+	dma_mem->use_dev_dma_pfn_offset = use_dma_pfn_offset;
+	spin_lock_init(&dma_mem->spinlock);
+
+	return dma_mem;
+
+out_free_dma_mem:
+	kfree(dma_mem);
+out_unmap_membase:
+	pr_err("Reserved memory: failed to init DMA memory pool at %pa, size %zd MiB\n",
+		&phys_addr, size / SZ_1M);
+	return ERR_PTR(-ENOMEM);
+}
+
+static int andes_dma_assign(struct device *dev,
+			    struct dma_coherent_mem *mem)
+{
+	if (!dev)
+		return -ENODEV;
+
+	if (dev->dma_mem)
+		return -EBUSY;
+
+	dev->dma_mem = mem;
+	return 0;
+}
+
+static int andes_device_init(struct reserved_mem *rmem, struct device *dev)
+{
+	struct rproc_mem_entry *rproc_mem = rmem->priv;
+	static struct dma_coherent_mem *mem = NULL;
+
+	if (!mem) {
+		mem = andes_dma_init(rmem->base, rmem->base,
+				     rmem->size, false);
+		if (IS_ERR(mem))
+			return PTR_ERR(mem);
+		mem->virt_base = rproc_mem->va;
+	}
+	rmem->priv = mem;
+
+	/* Warn if the device potentially can't use the reserved memory */
+	if (mem->device_base + rmem->size - 1 >
+	    min_not_zero(dev->coherent_dma_mask, dev->bus_dma_limit))
+		dev_warn(dev, "reserved memory is beyond device's set DMA address range\n");
+
+	andes_dma_assign(dev, mem);
+	return 0;
+}
+
+static void andes_device_release(struct reserved_mem *rmem,
+				 struct device *dev)
+{
+	if (dev)
+		dev->dma_mem = NULL;
+}
+
+static const struct reserved_mem_ops andes_vdev_buffer_ops = {
+	.device_init = andes_device_init,
+	.device_release = andes_device_release,
+};
+
+static int andes_vdev_buffer_init(struct reserved_mem *rmem)
+{
+	rmem->ops = &andes_vdev_buffer_ops;
+
+	return 0;
+}
+
+RESERVEDMEM_OF_DECLARE(andes_vdev_buffer, "andes_vdev_buffer",
+		       andes_vdev_buffer_init);
 
 MODULE_DESCRIPTION("Andes remote processor control driver on SMP system");
 MODULE_LICENSE("GPL v2");

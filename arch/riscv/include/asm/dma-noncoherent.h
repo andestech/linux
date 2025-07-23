@@ -19,6 +19,7 @@ struct riscv_nonstd_cache_ops {
 	void (*wback)(phys_addr_t paddr, size_t size);
 	void (*inv)(phys_addr_t paddr, size_t size);
 	void (*wback_inv)(phys_addr_t paddr, size_t size);
+	void (*wback_inv_all)(void);
 };
 
 extern struct riscv_nonstd_cache_ops noncoherent_cache_ops;
