@@ -4,7 +4,8 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	compatible = "andestech,ae350";
-	model = "andestech,ax45";
+	model = "andestech,a46";
+	dma-coherent;
 	aliases {
 		uart0 = &serial0;
 		spi0 = &spi;
@@ -23,12 +24,12 @@
 			reg = <0>;
 			status = "okay";
 			compatible = "riscv";
-			riscv,isa = "rv64imafdcv_sscofpmf_svpbmt_zicbom_xandes";
+			riscv,isa = "rv32imafdcv_sscofpmf_zicbom_xandes";
 			riscv,cbom-block-size = <64>;
-			mmu-type = "riscv,sv48";
+			mmu-type = "riscv,sv32";
 			clock-frequency = <60000000>;
 			i-cache-size = <0x8000>;
-			i-cache-sets = <256>;
+			i-cache-sets = <128>;
 			i-cache-line-size = <64>;
 			i-cache-block-size = <64>;
 			d-cache-size = <0x8000>;
@@ -73,7 +74,7 @@
 		};
 	};
 	memory@0 {
-		reg = <0x00000000 0x00000000 0x00000000 0x40000000>;
+		reg = <0x00000000 0x00000000 0x00000000 0x80000000>;
 		device_type = "memory";
 	};
 	soc {
@@ -137,7 +138,7 @@
 			interrupts = <9 4>;
 			interrupt-parent = <&plic0>;
 			clock-frequency = <19660800>;
-			current-speed = <115200>;
+			current-speed = <38400>;
 			reg-shift = <2>;
 			reg-offset = <32>;
 			reg-io-width = <4>;
@@ -169,7 +170,7 @@
 			reg = <0x00000000 0xf0100000 0x00000000 0x00001000>;
 		};
 		mmc0: mmc@f0e00000 {
-			compatible = "andestech,atfsdc010";
+			compatible = "andestech,atfsdc010g";
 			reg = <0x00000000 0xf0e00000 0x00000000 0x00001000>;
 			interrupts = <18 4>;
 			interrupt-parent = <&plic0>;
@@ -181,7 +182,7 @@
 			dma-coherent;
 		};
 		dma0: dma@f0c00000 {
-			compatible = "andestech,atcdmac300";
+			compatible = "andestech,atcdmac300g";
 			reg = <0x00000000 0xf0c00000 0x00000000 0x00001000>;
 			interrupts = <10 4>;
 			interrupt-parent = <&plic0>;
@@ -190,7 +191,7 @@
 			dma-coherent;
 		};
 		pmu: pmu {
-			compatible = "riscv,pmu";
+			compatible = "riscv,andes-pmu";
 			device_type = "pmu";
 		};
 		spi: spi@f0b00000 {
@@ -215,3 +216,4 @@
 		};
 	};
 };
+

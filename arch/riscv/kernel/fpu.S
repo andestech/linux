@@ -25,6 +25,8 @@ SYM_FUNC_START(__fstate_save)
 	li t1, SR_FS
 	csrs CSR_STATUS, t1
 	frcsr t0
+.option push
+.option norvc
 	fsd f0,  TASK_THREAD_F0_F0(a0)
 	fsd f1,  TASK_THREAD_F1_F0(a0)
 	fsd f2,  TASK_THREAD_F2_F0(a0)
@@ -57,6 +59,7 @@ SYM_FUNC_START(__fstate_save)
 	fsd f29, TASK_THREAD_F29_F0(a0)
 	fsd f30, TASK_THREAD_F30_F0(a0)
 	fsd f31, TASK_THREAD_F31_F0(a0)
+.option pop
 	sw t0, TASK_THREAD_FCSR_F0(a0)
 	csrc CSR_STATUS, t1
 	ret
@@ -68,6 +71,8 @@ SYM_FUNC_START(__fstate_restore)
 	li t1, SR_FS
 	lw t0, TASK_THREAD_FCSR_F0(a0)
 	csrs CSR_STATUS, t1
+.option push
+.option norvc
 	fld f0,  TASK_THREAD_F0_F0(a0)
 	fld f1,  TASK_THREAD_F1_F0(a0)
 	fld f2,  TASK_THREAD_F2_F0(a0)
@@ -100,6 +105,7 @@ SYM_FUNC_START(__fstate_restore)
 	fld f29, TASK_THREAD_F29_F0(a0)
 	fld f30, TASK_THREAD_F30_F0(a0)
 	fld f31, TASK_THREAD_F31_F0(a0)
+.option pop
 	fscsr t0
 	csrc CSR_STATUS, t1
 	ret

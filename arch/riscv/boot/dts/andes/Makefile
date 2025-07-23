@@ -11,6 +11,7 @@ dtb-$(CONFIG_ARCH_ANDES) += ax25mp_amp_c2_64_d_ae350.dtb
 # FPGA : VCU118
 dtb-$(CONFIG_ARCH_ANDES) += a25mp_c4_d_dsp_ae350.dtb
 dtb-$(CONFIG_ARCH_ANDES) += a45mp_c4_d_dsp_ae350.dtb
+dtb-$(CONFIG_ARCH_ANDES) += a46mpv_c1_d_hvm_ae350.dtb
 dtb-$(CONFIG_ARCH_ANDES) += ax25mp_c4_d_dsp_ae350.dtb
 dtb-$(CONFIG_ARCH_ANDES) += ax45mp_c4_d_dsp_ae350.dtb
 dtb-$(CONFIG_ARCH_ANDES) += ax45mpv_c4_d_dsp_ae350.dtb
