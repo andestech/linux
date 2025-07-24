@@ -43,10 +43,23 @@ else
 	KBUILD_LDFLAGS += -melf32lriscv
 endif
 
-ifeq ($(CONFIG_ARCH_ANDES),y)
+GCC_INFO := $(shell $(CC) -dM -E -xc /dev/null | awk '                \
+	/^#define __GNUC__/ {m=$$3}                                   \
+	/^#define __GNUC_MINOR__/ {n=$$3}                             \
+	/^#define __GNUC_PATCHLEVEL__/ {p=$$3}                        \
+	/^#define __ANDES/ {andes="y"}                                \
+	END {print (m * 10000 + n * 100 + p), (andes ? andes : "n") }')
+
+GCC_VERSION := $(word 1, $(GCC_INFO))
+ANDES_DEFINED := $(word 2, $(GCC_INFO))
+REQUIRED_GCC := 140200
+
+ifeq ($(ANDES_DEFINED),y)
+ifeq ($(call test-ge, $(GCC_VERSION), $(REQUIRED_GCC)),y)
 	KBUILD_CFLAGS += -Wa,-mno-btb-align
 	KBUILD_AFLAGS += -Wa,-mno-btb-align
 	KBUILD_LDFLAGS += --mno-relax-align --mno-relax-call --mno-target-aligned --mno-avoid-btb-miss
+endif
 endif
 
 ifeq ($(CONFIG_LD_IS_LLD),y)
