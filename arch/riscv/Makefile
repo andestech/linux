@@ -43,16 +43,14 @@ else
 	KBUILD_LDFLAGS += -melf32lriscv
 endif
 
-GCC_INFO := $(shell $(CC) -dM -E -xc /dev/null | awk '                \
-	/^#define __GNUC__/ {m=$$3}                                   \
-	/^#define __GNUC_MINOR__/ {n=$$3}                             \
-	/^#define __GNUC_PATCHLEVEL__/ {p=$$3}                        \
-	/^#define __ANDES/ {andes="y"}                                \
-	END {print (m * 10000 + n * 100 + p), (andes ? andes : "n") }')
-
-GCC_VERSION := $(word 1, $(GCC_INFO))
-ANDES_DEFINED := $(word 2, $(GCC_INFO))
+CC_FULLVER =$(shell echo | $(CC) -dumpfullversion)
+GCC_MAJOR := $(shell echo $(CC_FULLVER) | cut -d. -f1)
+GCC_MINOR := $(shell echo $(CC_FULLVER) | cut -d. -f2)
+GCC_PATCH := $(shell echo $(CC_FULLVER) | cut -d. -f3)
+GCC_VERSION := $(shell expr $(GCC_MAJOR) \* 10000 + $(GCC_MINOR) \* 100 + $(GCC_PATCH))
 REQUIRED_GCC := 140200
+
+ANDES_DEFINED := $(shell echo | $(CC) -dM -E -xc /dev/null | grep -q __ANDES && echo y || echo n)
 
 ifeq ($(ANDES_DEFINED),y)
 ifeq ($(call test-ge, $(GCC_VERSION), $(REQUIRED_GCC)),y)
