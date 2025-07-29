@@ -12,4 +12,6 @@ DECLARE_STATIC_KEY_FALSE(andes_ppma);
 DECLARE_STATIC_KEY_FALSE(andes_pfn_msb_key);
 extern phys_addr_t andes_pfn_msb;
 
+DECLARE_STATIC_KEY_FALSE(andes_umisc_key);
+
 #endif /* !__ANDES_ANDES_H */

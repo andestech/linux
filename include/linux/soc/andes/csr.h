@@ -38,6 +38,7 @@
 #define CSR_WFE				0x810
 #define CSR_SLEEPVALUE			0x811
 #define CSR_TXEVT			0x812
+#define CSR_UMISC_CTL			0x813
 
 #define custom_csr_write(csr_num, val)	csr_write(csr_num, val)
 /* ucctlcommand */

@@ -192,6 +192,9 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 
 	/* Now turn off reporting features if any CPU is missing it. */
 	pair->value &= ~missing;
+	if (has_andesumisc())
+		pair->value |= RISCV_HWPROBE_EXT_XANDESUMISC;
+
 }
 
 static u64 hwprobe_misaligned(const struct cpumask *cpus)

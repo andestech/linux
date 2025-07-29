@@ -27,6 +27,9 @@ unsigned long signal_minsigstksz __ro_after_init;
 
 extern u32 __user_rt_sigreturn[2];
 static size_t riscv_v_sc_size __ro_after_init;
+#define ANDESUMISC_SC_SIZE						\
+	(sizeof(struct __riscv_ctx_hdr) +				\
+	 sizeof(struct __riscv_andesumisc_state))
 
 #define DEBUG_SIG 0
 
@@ -63,10 +66,49 @@ static long save_fp_state(struct pt_regs *regs,
 	err = __copy_to_user(state, &current->thread.fstate, sizeof(*state));
 	return err;
 }
+
 #else
 #define save_fp_state(task, regs) (0)
 #define restore_fp_state(task, regs) (0)
 #endif
+
+static long restore_andesumisc_state(struct pt_regs *regs,
+				     void __user *sc_ext_ptr)
+{
+	struct __riscv_andesumisc_state __user *state = sc_ext_ptr;
+	long err = 0;
+
+	err = __copy_from_user(&current->thread.andesumisc_state,
+			       state, sizeof(*state));
+	if (unlikely(err))
+		return -EFAULT;
+
+	csr_write(CSR_UMISC_CTL, current->thread.andesumisc_state.umisc_ctl);
+	return 0;
+}
+
+static long save_andesumisc_state(struct pt_regs *regs,
+				  void __user **sc_ext_ptr)
+{
+	struct __riscv_ctx_hdr __user *hdr;
+	struct __riscv_andesumisc_state __user *state;
+	long err = 0;
+
+	andesumisc_state_save(current, regs);
+	hdr = *sc_ext_ptr;
+	state = (struct __riscv_andesumisc_state __user *)(hdr + 1);
+
+	err  = __put_user(ANDESUMISC_MAGIC, &hdr->magic);
+	err |= __put_user(ANDESUMISC_SC_SIZE, &hdr->size);
+	err |= __copy_to_user(state, &current->thread.andesumisc_state,
+			      sizeof(*state));
+	if (unlikely(err))
+		return err;
+
+	*sc_ext_ptr = (void __user *)((char __user *)*sc_ext_ptr +
+				      ANDESUMISC_SC_SIZE);
+	return 0;
+}
 
 #ifdef CONFIG_RISCV_ISA_V
 
@@ -276,6 +318,12 @@ static long restore_sigcontext(struct pt_regs *regs,
 
 			err = __restore_v_state(regs, sc_ext_ptr);
 			break;
+		case ANDESUMISC_MAGIC:
+			if (!has_andesumisc() || size != ANDESUMISC_SC_SIZE)
+				return -EINVAL;
+
+			err = restore_andesumisc_state(regs, sc_ext_ptr);
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -297,6 +345,8 @@ static size_t get_rt_frame_size(bool cal_all)
 		if (cal_all || riscv_v_vstate_query(task_pt_regs(current)))
 			total_context_size += riscv_v_sc_size;
 	}
+	if (has_andesumisc())
+		total_context_size += ANDESUMISC_SC_SIZE;
 	/*
 	 * Preserved a __riscv_ctx_hdr for END signal context header if an
 	 * extension uses __riscv_extra_ext_header
@@ -374,6 +424,9 @@ static long setup_sigcontext(struct rt_sigframe __user *frame,
 	/* Save the AMM state. */
 	if (has_amm())
 		err |= save_amm_state(regs, &sc->sc_amm_regs);
+	/* Save the ANDESUMISC state. */
+	if (has_andesumisc())
+		err |= save_andesumisc_state(regs, (void __user **)&sc_ext_ptr);
 	/* Write zero to fp-reserved space and check it on restore_sigcontext */
 	err |= __put_user(0, &sc->sc_extdesc.reserved);
 	/* And put END __riscv_ctx_hdr at the end. */

@@ -900,3 +900,27 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 	}
 }
 #endif
+
+#include <linux/jump_label.h>
+#include <linux/soc/andes/andes.h>
+#include <linux/soc/andes/csr.h>
+
+DEFINE_STATIC_KEY_FALSE(andes_umisc_key);
+
+static int __init init_check_andesumisc(void)
+{
+	unsigned long val;
+
+	asm volatile("csrr %0, " __stringify(CSR_UMISC_CTL) : "=r"(val));
+
+	if (val == 0xffffffffUL) {
+		pr_info("CSR_UMISC_CTL missing, UMISC support disabled\n");
+		return 0;
+	}
+
+	pr_info("CSR_UMISC_CTL detected, enabling UMISC support\n");
+	static_branch_enable(&andes_umisc_key);
+	return 0;
+}
+
+arch_initcall(init_check_andesumisc);
