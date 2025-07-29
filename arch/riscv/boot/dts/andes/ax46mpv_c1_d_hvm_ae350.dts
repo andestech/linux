@@ -4,7 +4,7 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	compatible = "andestech,ae350";
-	model = "andestech,ax45";
+	model = "andestech,ax46";
 	aliases {
 		uart0 = &serial0;
 		spi0 = &spi;
