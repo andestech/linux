@@ -25,6 +25,7 @@
 #include <asm/bug.h>
 #include <asm/cfi.h>
 #include <asm/csr.h>
+#include <asm/insn.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/syscall.h>
@@ -151,9 +152,75 @@ DO_ERROR_INFO(do_trap_insn_misaligned,
 DO_ERROR_INFO(do_trap_insn_fault,
 	SIGSEGV, SEGV_ACCERR, "instruction access fault");
 
+#include <linux/soc/andes/csr.h>
+
+static bool simulate_fake_csr(struct pt_regs *regs)
+{
+	u32 instr;
+	unsigned long value = 0;
+	void __user *pc = (void __user *)regs->epc;
+
+	if (copy_from_kernel_nofault(&instr, pc, sizeof(instr)))
+		return false;
+
+	u32 opcode = instr & RV_INSN_OPCODE_MASK;
+	u32 rd     = (instr >> RVG_RD_OPOFF) & RVG_RD_MASK;
+	u32 funct3 = (instr & RV_INSN_FUNCT3_MASK) >> RV_INSN_FUNCT3_OPOFF;
+	u32 rs1    = (instr >> RVG_RS1_OPOFF) & RVG_RS1_MASK;
+	u32 csr    = (instr >> RVG_SYSTEM_CSR_OFF) & RVG_SYSTEM_CSR_MASK;
+
+	if (opcode != RVG_OPCODE_SYSTEM)
+		return false;
+
+	if (csr == CSR_UMISC_CTL) {
+		unsigned long old_val = 0xFFFFFFFF;
+
+		switch (funct3) {
+		case 0b010: /* CSRR (read) */
+			if (rd != 0)
+				((unsigned long *)regs)[rd] = old_val;
+			pr_info("%s: csrr x%d, 0x813 => 0x%lx\n",
+				__func__, rd, old_val);
+			break;
+
+		case 0b001: /* CSRW (write) */
+			value = ((unsigned long *)regs)[rs1];
+			pr_info("%s: csrw 0x813, x%d (val=0x%lx)\n",
+				__func__, rs1, value);
+			break;
+
+		case 0b101: /* CSRRW (read/write) */
+			value = ((unsigned long *)regs)[rs1];
+			if (rd != 0)
+				((unsigned long *)regs)[rd] = old_val;
+			pr_info("%s: x%d = 0x%lx, write 0x%lx from x%d\n",
+				__func__, rd, old_val, value, rs1);
+			break;
+
+		default: /* Unsupported CSR operation */
+			value = ((unsigned long *)regs)[rs1];
+			pr_warn("%s: Unsupported csr=0x%x, INSN=0xx%x\n",
+				__func__, csr, instr);
+			pr_warn("funct3=0x%x, rs1=x%d, val=0x%lx\n",
+				funct3, rs1, value);
+			break;
+		}
+
+		regs->epc += 4;
+		return true;
+	}
+
+	pr_warn("%s: Unhandled funct3=0x%x, csr=0x%x at EPC=0x%lx\n",
+		__func__, funct3, csr, regs->epc);
+	return false;
+}
+
 asmlinkage __visible __trap_section void do_trap_insn_illegal(struct pt_regs *regs)
 {
 	bool handled;
+
+	if (simulate_fake_csr(regs))
+		return;
 
 	if (user_mode(regs)) {
 		irqentry_enter_from_user_mode(regs);

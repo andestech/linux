@@ -16,6 +16,7 @@
 #include <asm/ptrace.h>
 #include <asm/csr.h>
 #include <linux/soc/andes/csr.h>
+#include <linux/soc/andes/andes.h>
 
 #ifdef CONFIG_FPU
 extern void __fstate_save(struct task_struct *save_to);
@@ -70,7 +71,7 @@ static __always_inline bool has_fpu(void) { return false; }
 #define fstate_save(task, regs) do { } while (0)
 #define fstate_restore(task, regs) do { } while (0)
 #define __switch_to_fpu(__prev, __next) do { } while (0)
-#endif
+#endif /* CONFIG_FPU */
 
 static inline void envcfg_update_bits(struct task_struct *task,
 				      unsigned long mask, unsigned long val)
@@ -111,6 +112,33 @@ static __always_inline bool has_andesdsp(void) { return false; }
 #define andesdsp_state_restore(task) do { } while (0)
 #define __switch_to_andesdsp(__prev, __next) do { } while (0)
 #endif /* CONFIG_ANDES_DSP */
+
+static inline void andesumisc_state_save(struct task_struct *task,
+					 struct pt_regs *regs)
+{
+	task->thread.andesumisc_state.umisc_ctl = csr_read(CSR_UMISC_CTL);
+}
+
+static inline void andesumisc_state_restore(struct task_struct *task,
+					    struct pt_regs *regs)
+{
+	csr_write(CSR_UMISC_CTL, task->thread.andesumisc_state.umisc_ctl);
+}
+
+static inline void __switch_to_andesumisc(struct task_struct *prev,
+					  struct task_struct *next)
+{
+	struct pt_regs *regs;
+
+	regs = task_pt_regs(prev);
+	andesumisc_state_save(prev, regs);
+	andesumisc_state_restore(next, task_pt_regs(next));
+}
+
+static __always_inline bool has_andesumisc(void)
+{
+	return static_branch_unlikely(&andes_umisc_key);
+}
 
 #ifdef CONFIG_AMM
 static inline void amm_state_save(struct task_struct *task)
@@ -160,6 +188,8 @@ do {							\
 	struct task_struct *__next = (next);		\
 	if (has_fpu())					\
 		__switch_to_fpu(__prev, __next);	\
+	if (has_andesumisc())				\
+		__switch_to_andesumisc(__prev, __next);	\
 	if (has_andesdsp())				\
 		__switch_to_andesdsp(__prev, __next);	\
 	if (has_amm())					\

@@ -10,6 +10,7 @@
 
 /* The Magic number for signal context frame header. */
 #define RISCV_V_MAGIC	0x53465457
+#define ANDESUMISC_MAGIC   0x4E445346
 #define END_MAGIC	0x0
 
 /* The size of END signal context header. */
