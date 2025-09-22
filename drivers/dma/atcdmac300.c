@@ -1261,6 +1261,12 @@ static int v5_dma_probe(struct platform_device *pdev)
 		goto err_irq;
 
 	platform_set_drvdata(pdev, v5dma);
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		dev_err(&pdev->dev, "Failed to set DMA mask\n");
+		goto err_dma_mask;
+	}
+
 	/* create a pool of consistent memory blocks for hardware descriptors */
 	v5dma->dma_desc_pool = dma_pool_create("v5_desc_pool",
 			&pdev->dev, sizeof(struct v5_desc),
@@ -1348,6 +1354,7 @@ err_of_dma_controller_register:
 	dma_async_device_unregister(&v5dma->dma_common);
 	dma_pool_destroy(v5dma->dma_desc_pool);
 err_desc_pool_create:
+err_dma_mask:
 	free_irq(platform_get_irq(pdev, 0), v5dma);
 err_irq:
 	iounmap(v5dma->regs);
