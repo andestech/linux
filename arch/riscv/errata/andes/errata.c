@@ -27,6 +27,7 @@ DEFINE_STATIC_KEY_FALSE(andes_legacy_mmu);
 DEFINE_STATIC_KEY_FALSE(andes_ppma);
 
 DEFINE_STATIC_KEY_FALSE(andes_pfn_msb_key);
+EXPORT_SYMBOL(andes_pfn_msb_key);
 phys_addr_t andes_pfn_msb;
 EXPORT_SYMBOL(andes_pfn_msb);
 
