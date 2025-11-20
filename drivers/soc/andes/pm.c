@@ -16,16 +16,15 @@ static int andes_pm_enter(suspend_state_t state)
 {
 	/*
 	 * Wake event:
-	 *   [1]: RTC period
 	 *   [2]: RTC alarm
 	 *   [9]: UART2
 	 *
-	 * bit:   9        21
-	 *      0010_0000_0110
-	 * val: 0x2    0    6
+	 * bit:   9        2
+	 *      0010_0000_0100
+	 * val: 0x2    0   4
 	 */
 
-	atcsmu_set_wake(0x206);
+	atcsmu_set_wake(0x204);
 
 	if (state == PM_SUSPEND_STANDBY)
 		return cpu_suspend(SBI_SUSP_AE350_LIGHT_SLEEP, sbi_system_suspend);
