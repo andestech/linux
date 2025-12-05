@@ -376,4 +376,7 @@ void __kvm_riscv_vcpu_power_on(struct kvm_vcpu *vcpu);
 void kvm_riscv_vcpu_power_on(struct kvm_vcpu *vcpu);
 bool kvm_riscv_vcpu_stopped(struct kvm_vcpu *vcpu);
 
+/* Flags representing implementation specific details */
+DECLARE_STATIC_KEY_FALSE(kvm_riscv_vsstage_tlb_no_gpa);
+
 #endif /* __RISCV_KVM_HOST_H__ */
