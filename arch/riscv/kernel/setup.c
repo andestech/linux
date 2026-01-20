@@ -9,6 +9,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/arch_topology.h>
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -357,6 +358,17 @@ void __init setup_arch(char **cmdline_p)
 static int __init topology_init(void)
 {
 	int i, ret;
+
+	/*
+	 * On UP kernel, init_cpu_topology() and store_cpu_topology() are
+	 * not called in smp_prepare_cpus() since it's defined as an empty
+	 * macro on UP. We need to initialize CPU topology here to ensure
+	 * topology sysfs files (e.g. core_cpus_list) show correct values.
+	 */
+	if (!IS_ENABLED(CONFIG_SMP)) {
+		init_cpu_topology();
+		store_cpu_topology(smp_processor_id());
+	}
 
 	for_each_possible_cpu(i) {
 		struct cpu *cpu = &per_cpu(cpu_devices, i);
