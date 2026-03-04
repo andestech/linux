@@ -75,6 +75,7 @@ static inline void __imsic_id_clear_enable(unsigned long id)
 }
 
 void imsic_local_sync_all(void);
+void imsic_vector_migration_done(void);
 void imsic_local_delivery(bool enable);
 
 void imsic_vector_mask(struct imsic_vector *vec);

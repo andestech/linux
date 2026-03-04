@@ -105,9 +105,9 @@ static int imsic_irq_set_affinity(struct irq_data *d, const struct cpumask *mask
 	if (cpumask_test_cpu(old_vec->cpu, mask_val))
 		return IRQ_SET_MASK_OK_DONE;
 
-	/* If move is already in-flight then return failure */
+	/* If move is already in-flight then make sure move is done */
 	if (imsic_vector_get_move(old_vec))
-		return -EBUSY;
+		imsic_vector_migration_done();
 
 	/* Get a new vector on the desired set of CPUs */
 	new_vec = imsic_vector_alloc(old_vec->hwirq, mask_val);

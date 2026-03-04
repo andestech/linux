@@ -174,6 +174,24 @@ void imsic_local_sync_all(void)
 	raw_spin_unlock_irqrestore(&lpriv->lock, flags);
 }
 
+void imsic_vector_migration_done(void)
+{
+	/*
+	 * This function is called outside of this module,
+	 * so make sure imsic is valid before proceeding.
+	 */
+	if (!imsic)
+		return;
+
+	struct imsic_local_priv *lpriv = this_cpu_ptr(imsic->lpriv);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&lpriv->lock, flags);
+	if (timer_pending(&lpriv->timer))
+		__imsic_local_sync(lpriv);
+	raw_spin_unlock_irqrestore(&lpriv->lock, flags);
+}
+
 void imsic_local_delivery(bool enable)
 {
 	if (enable) {

@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/printk.h>
 #include <linux/soc/andes/smu.h>
+#include "../../irqchip/irq-riscv-imsic-state.h"
 
 extern int sbi_system_suspend(unsigned long, unsigned long, unsigned long);
 
@@ -25,6 +26,8 @@ static int andes_pm_enter(suspend_state_t state)
 	 */
 
 	atcsmu_set_wake(0x204);
+
+	imsic_vector_migration_done();
 
 	if (state == PM_SUSPEND_STANDBY)
 		return cpu_suspend(SBI_SUSP_AE350_LIGHT_SLEEP, sbi_system_suspend);
