@@ -165,6 +165,30 @@ void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
 	vcpu->arch.guest_context.sstatus |= SR_SPP;
 }
 
+#ifdef CONFIG_KVM_ANDES_EXT
+static bool kvm_riscv_vcpu_custom_insn_fixup(struct kvm_vcpu *vcpu,
+					     struct kvm_cpu_trap *trap)
+{
+	struct kvm_vcpu_smstateen_csr *smcsr;
+
+	if (!riscv_has_extension_unlikely(RISCV_ISA_EXT_SMSTATEEN))
+		return false;
+
+	/* Only fixup traps from VU-mode (guest user-space) */
+	if (vcpu->arch.guest_context.hstatus & HSTATUS_SPVP)
+		return false;
+
+	smcsr = &vcpu->arch.smstateen_csr;
+	if (smcsr->sstateen0 & SMSTATEEN0_C)
+		return false;
+
+	smcsr->sstateen0 |= SMSTATEEN0_C;
+	kvm_info("vcpu%d: enabling sstateen0.C at sepc=0x%lx\n",
+		 vcpu->vcpu_idx, trap->sepc);
+	return true;
+}
+#endif
+
 /*
  * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
  * proper exit to userspace.
@@ -183,6 +207,14 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	switch (trap->scause) {
 	case EXC_INST_ILLEGAL:
+#ifdef CONFIG_KVM_ANDES_EXT
+		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV) {
+			if (!kvm_riscv_vcpu_custom_insn_fixup(vcpu, trap))
+				kvm_riscv_vcpu_trap_redirect(vcpu, trap);
+			ret = 1;
+		}
+		break;
+#endif
 	case EXC_LOAD_MISALIGNED:
 	case EXC_STORE_MISALIGNED:
 		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV) {

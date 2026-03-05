@@ -37,4 +37,20 @@ config KVM
 
 	  If unsure, say N.
 
+config KVM_ANDES_EXT
+	bool "Help guest handle custom instruction traps via sstateen0"
+	depends on KVM
+	default y
+	help
+	  When enabled, KVM will intercept illegal instruction traps from
+	  the guest and check whether the trap was caused by the guest's
+	  sstateen0.C bit not being set. If so, KVM will automatically
+	  enable the C bit in the guest's sstateen0 and retry the
+	  instruction, avoiding an unnecessary trap to the guest kernel.
+
+	  This is useful for platforms where custom/vendor instructions
+	  require the Smstateen C bit to be enabled before use.
+
+	  If unsure, say N.
+
 endif # VIRTUALIZATION
