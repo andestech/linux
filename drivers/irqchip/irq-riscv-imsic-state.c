@@ -174,24 +174,6 @@ void imsic_local_sync_all(void)
 	raw_spin_unlock_irqrestore(&lpriv->lock, flags);
 }
 
-void imsic_vector_migration_done(void)
-{
-	/*
-	 * This function is called outside of this module,
-	 * so make sure imsic is valid before proceeding.
-	 */
-	if (!imsic)
-		return;
-
-	struct imsic_local_priv *lpriv = this_cpu_ptr(imsic->lpriv);
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&lpriv->lock, flags);
-	if (timer_pending(&lpriv->timer))
-		__imsic_local_sync(lpriv);
-	raw_spin_unlock_irqrestore(&lpriv->lock, flags);
-}
-
 void imsic_local_delivery(bool enable)
 {
 	if (enable) {
@@ -243,12 +225,32 @@ static void __imsic_remote_sync(struct imsic_local_priv *lpriv, unsigned int cpu
 		}
 	}
 }
+
+void imsic_vector_migration_done(void)
+{
+	/*
+	 * This function is called outside of this module,
+	 * so make sure imsic is valid before proceeding.
+	 */
+	if (!imsic)
+		return;
+
+	struct imsic_local_priv *lpriv = this_cpu_ptr(imsic->lpriv);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&lpriv->lock, flags);
+	if (timer_pending(&lpriv->timer))
+		__imsic_local_sync(lpriv);
+	raw_spin_unlock_irqrestore(&lpriv->lock, flags);
+}
 #else
 static void __imsic_remote_sync(struct imsic_local_priv *lpriv, unsigned int cpu)
 {
 	lockdep_assert_held(&lpriv->lock);
 	__imsic_local_sync(lpriv);
 }
+
+void imsic_vector_migration_done(void) {}
 #endif
 
 void imsic_vector_mask(struct imsic_vector *vec)
