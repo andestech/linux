@@ -578,7 +578,7 @@ static int atcspi200_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Optional parameters */
-	ret = of_property_read_u32(pdev->dev.of_node, "spi-max-frequency", &controller->max_speed_hz);
+	ret = of_property_read_u32(child, "spi-max-frequency", &controller->max_speed_hz);
 	spi->freq = controller->max_speed_hz;
 	if (ret) {
 		controller->max_speed_hz = SPI_MAX_HZ; /* 50MHz */
